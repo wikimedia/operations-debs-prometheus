@@ -1,0 +1,5 @@
+PACKAGE (0.10.0-1) UNRELEASED; urgency=medium
+
+  * Initial release. (Closes: #777048)
+
+ -- Martín Ferrari <tincho@debian.org>  Thu, 12 Feb 2015 02:10:03 +0000
