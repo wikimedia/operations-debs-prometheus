@@ -1,4 +1,4 @@
-PACKAGE (0.10.0-1) UNRELEASED; urgency=medium
+prometheus (0.10.0-1) UNRELEASED; urgency=medium
 
   * Initial release. (Closes: #777048)
 
