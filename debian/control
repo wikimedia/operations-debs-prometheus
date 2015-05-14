@@ -3,9 +3,10 @@ Section: net
 Priority: extra
 Maintainer: Martín Ferrari <tincho@debian.org>
 Build-Depends: debhelper (>= 9.0.0),
-               dh-golang,
-               golang-go (>= 1.3)
-Standards-Version: 3.9.2
+               dh-golang, golang-go (>= 1.3),
+               golang-glog-dev, golang-goprotobuf-dev, golang-dns-dev,
+               golang-goleveldb-dev, golang-prometheus-client-dev
+Standards-Version: 3.9.6
 Vcs-Git: git://git.debian.org/collab-maint/prometheus.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/prometheus.git;a=summary
 
@@ -13,8 +14,7 @@ Package: prometheus
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Built-Using: ${misc:Built-Using}
-Description: A systems and service monitoring system.
-
+Description: Systems and service monitoring system
  Prometheus is a systems and service monitoring system. It collects metrics
  from configured targets at given intervals, evaluates rule expressions,
  displays the results, and can trigger alerts if some condition is observed to
