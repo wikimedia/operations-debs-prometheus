@@ -1,0 +1,25 @@
+--- a/web/blob/blob.go
++++ b/web/blob/blob.go
+@@ -25,7 +25,9 @@
+ 
+ // GetFile retrieves the content of an embedded file.
+ func GetFile(bucket string, name string) ([]byte, error) {
+-	blob, ok := files[bucket][name]
++	//blob, ok := files[bucket][name]
++        var blob []byte = nil
++        ok := false
+ 	if !ok {
+ 		return nil, fmt.Errorf("could not find %s/%s (missing or updated files.go?)", bucket, name)
+ 	}
+--- a/web/web.go
++++ b/web/web.go
+@@ -37,7 +37,8 @@
+ var (
+ 	listenAddress  = flag.String("web.listen-address", ":9090", "Address to listen on for the web interface, API, and telemetry.")
+ 	metricsPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+-	useLocalAssets = flag.Bool("web.use-local-assets", false, "Read assets/templates from file instead of binary.")
++	// useLocalAssets = flag.Bool("web.use-local-assets", false, "Read assets/templates from file instead of binary.")
++	useLocalAssets = false
+ 	userAssetsPath = flag.String("web.user-assets", "", "Path to static asset directory, available at /user.")
+ 	enableQuit     = flag.Bool("web.enable-remote-shutdown", false, "Enable remote service shutdown.")
+ )
