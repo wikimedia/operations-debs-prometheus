@@ -1,0 +1,55 @@
+#!/usr/bin/make -f
+# -*- Mode: makefile -*-
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+# DH_GOPKG is the upstream path which you would normally “go get”.
+# Using it allows us to build applications without patching locations.
+export DH_GOPKG := github.com/prometheus/prometheus
+
+#export DH_GOLANG_EXCLUDES := web/blob
+
+BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
+    'print Debian::Debhelper::Buildsystem::golang->new()->get_builddir()')
+CLIENT_MODEL_PKG := github.com/prometheus/client_model/go
+
+# Taken and modified from the project's Makefile.
+
+VERSION    := $(shell cat VERSION)
+REV        := 0
+BRANCH     := debian/sid
+HOSTNAME   := $(shell hostname -f)
+BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
+GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
+BUILDFLAGS := -ldflags \
+  " -X main.buildVersion $(VERSION)\
+    -X main.buildRevision $(REV)\
+    -X main.buildBranch $(BRANCH)\
+    -X main.buildUser $(USER)@$(HOSTNAME)\
+    -X main.buildDate $(BUILD_DATE)\
+    -X main.goVersion $(GO_VERSION)"
+
+%:
+	dh $@ --buildsystem=golang --with=golang
+
+override_dh_auto_configure:
+	dh_auto_configure -O--buildsystem=golang
+	# All this is a hack to embed cleanly the protobuf definition which
+	# upstream maintains in a separate repo. The upstream .proto is
+	# included in the debian/ directory, then compiled into a go source
+	# file in the place expected by the rest of the code.
+	mkdir -p $(CURDIR)/$(BUILDDIR)/src/$(CLIENT_MODEL_PKG)
+	cd debian; protoc metrics.proto \
+	    --go_out=$(CURDIR)/$(BUILDDIR)/src/$(CLIENT_MODEL_PKG)
+	# Regenerate configuration protobuf definiion.
+	cd config; protoc config.proto \
+	    --go_out=$(CURDIR)/$(BUILDDIR)/src/$(DH_GOPKG)/config/generated
+	# Include test fixtures.
+	cp -av config/fixtures $(BUILDDIR)/src/$(DH_GOPKG)/config
+	cp -av storage/local/fixtures $(BUILDDIR)/src/$(DH_GOPKG)/storage/local
+	# Include vendored dependencies.
+	cp -av Godeps/_workspace/src/golang.org $(BUILDDIR)/src
+
+override_dh_auto_build:
+	dh_auto_build -O--buildsystem=golang -- $(BUILDFLAGS)
