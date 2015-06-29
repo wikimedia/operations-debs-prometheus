@@ -73,7 +73,7 @@ func (a *Analyzer) Analyze(ctx context.Context) error {
 		switch n := node.(type) {
 		case *VectorSelector:
 			pt := getPreloadTimes(n.Offset)
-			fpts := a.Storage.GetFingerprintsForLabelMatchers(n.LabelMatchers)
+			fpts := a.Storage.FingerprintsForLabelMatchers(n.LabelMatchers)
 			n.fingerprints = fpts
 			n.metrics = map[clientmodel.Fingerprint]clientmodel.COWMetric{}
 			n.iterators = map[clientmodel.Fingerprint]local.SeriesIterator{}
@@ -84,11 +84,11 @@ func (a *Analyzer) Analyze(ctx context.Context) error {
 				if _, alreadyInRanges := pt.ranges[fp]; !alreadyInRanges {
 					pt.instants[fp] = struct{}{}
 				}
-				n.metrics[fp] = a.Storage.GetMetricForFingerprint(fp)
+				n.metrics[fp] = a.Storage.MetricForFingerprint(fp)
 			}
 		case *MatrixSelector:
 			pt := getPreloadTimes(n.Offset)
-			fpts := a.Storage.GetFingerprintsForLabelMatchers(n.LabelMatchers)
+			fpts := a.Storage.FingerprintsForLabelMatchers(n.LabelMatchers)
 			n.fingerprints = fpts
 			n.metrics = map[clientmodel.Fingerprint]clientmodel.COWMetric{}
 			n.iterators = map[clientmodel.Fingerprint]local.SeriesIterator{}
@@ -100,7 +100,7 @@ func (a *Analyzer) Analyze(ctx context.Context) error {
 					// an instant for the same fingerprint, should we have one.
 					delete(pt.instants, fp)
 				}
-				n.metrics[fp] = a.Storage.GetMetricForFingerprint(fp)
+				n.metrics[fp] = a.Storage.MetricForFingerprint(fp)
 			}
 		}
 		return true
@@ -131,19 +131,21 @@ func (a *Analyzer) Prepare(ctx context.Context) (local.Preloader, error) {
 
 	// Preload all analyzed ranges.
 	for offset, pt := range a.offsetPreloadTimes {
-		if err = contextDone(ctx, env); err != nil {
-			return nil, err
-		}
-
 		start := a.Start.Add(-offset)
 		end := a.End.Add(-offset)
 		for fp, rangeDuration := range pt.ranges {
+			if err = contextDone(ctx, env); err != nil {
+				return nil, err
+			}
 			err = p.PreloadRange(fp, start.Add(-rangeDuration), end, *stalenessDelta)
 			if err != nil {
 				return nil, err
 			}
 		}
 		for fp := range pt.instants {
+			if err = contextDone(ctx, env); err != nil {
+				return nil, err
+			}
 			err = p.PreloadRange(fp, start, end, *stalenessDelta)
 			if err != nil {
 				return nil, err

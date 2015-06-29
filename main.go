@@ -25,7 +25,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/glog"
+	"github.com/prometheus/log"
 
 	clientmodel "github.com/prometheus/client_golang/model"
 	registry "github.com/prometheus/client_golang/prometheus"
@@ -48,7 +48,7 @@ const deletionBatchSize = 100
 
 // Commandline flags.
 var (
-	configFile = flag.String("config.file", "prometheus.conf", "Prometheus configuration file name.")
+	configFile = flag.String("config.file", "prometheus.yml", "Prometheus configuration file name.")
 
 	alertmanagerURL           = flag.String("alertmanager.url", "", "The URL of the alert manager to send notifications to.")
 	notificationQueueCapacity = flag.Int("alertmanager.notification-queue-capacity", 100, "The capacity of the queue for pending alert manager notifications.")
@@ -71,7 +71,7 @@ var (
 	storageDirty          = flag.Bool("storage.local.dirty", false, "If set, the local storage layer will perform crash recovery even if the last shutdown appears to be clean.")
 	storagePedanticChecks = flag.Bool("storage.local.pedantic-checks", false, "If set, a crash recovery will perform checks on each series file. This might take a very long time.")
 
-	pathPrefix = flag.String("web.path-prefix", "/", "Prefix for all web paths.")
+	pathPrefix = flag.String("web.path-prefix", "", "Prefix for all web paths.")
 
 	printVersion = flag.Bool("version", false, "Print version information.")
 )
@@ -79,7 +79,7 @@ var (
 type prometheus struct {
 	queryEngine         *promql.Engine
 	ruleManager         *rules.Manager
-	targetManager       retrieval.TargetManager
+	targetManager       *retrieval.TargetManager
 	notificationHandler *notification.NotificationHandler
 	storage             local.Storage
 	remoteStorageQueues []*remote.StorageQueueManager
@@ -92,12 +92,6 @@ type prometheus struct {
 // NewPrometheus creates a new prometheus object based on flag values.
 // Call Serve() to start serving and Close() for clean shutdown.
 func NewPrometheus() *prometheus {
-	conf, err := config.LoadFromFile(*configFile)
-	if err != nil {
-		glog.Errorf("Couldn't load configuration (-config.file=%s): %v\n", *configFile, err)
-		os.Exit(2)
-	}
-
 	notificationHandler := notification.NewNotificationHandler(*alertmanagerURL, *notificationQueueCapacity)
 
 	var syncStrategy local.SyncStrategy
@@ -109,7 +103,7 @@ func NewPrometheus() *prometheus {
 	case "adaptive":
 		syncStrategy = local.Adaptive
 	default:
-		glog.Errorf("Invalid flag value for 'storage.local.series-sync-strategy': %s\n", *seriesSyncStrategy)
+		log.Errorf("Invalid flag value for 'storage.local.series-sync-strategy': %s\n", *seriesSyncStrategy)
 		os.Exit(2)
 	}
 
@@ -124,16 +118,12 @@ func NewPrometheus() *prometheus {
 		PedanticChecks: *storagePedanticChecks,
 		SyncStrategy:   syncStrategy,
 	}
-	memStorage, err := local.NewMemorySeriesStorage(o)
-	if err != nil {
-		glog.Error("Error opening memory series storage: ", err)
-		os.Exit(1)
-	}
+	memStorage := local.NewMemorySeriesStorage(o)
 
 	var sampleAppender storage.SampleAppender
 	var remoteStorageQueues []*remote.StorageQueueManager
 	if *opentsdbURL == "" && *influxdbURL == "" {
-		glog.Warningf("No remote storage URLs provided; not sending any samples to long-term storage")
+		log.Warnf("No remote storage URLs provided; not sending any samples to long-term storage")
 		sampleAppender = memStorage
 	} else {
 		fanout := storage.Fanout{memStorage}
@@ -154,23 +144,17 @@ func NewPrometheus() *prometheus {
 		sampleAppender = fanout
 	}
 
-	targetManager := retrieval.NewTargetManager(sampleAppender, conf.GlobalLabels())
-	targetManager.AddTargetsFromConfig(conf)
+	targetManager := retrieval.NewTargetManager(sampleAppender)
 
 	queryEngine := promql.NewEngine(memStorage)
 
 	ruleManager := rules.NewManager(&rules.ManagerOptions{
 		SampleAppender:      sampleAppender,
 		NotificationHandler: notificationHandler,
-		EvaluationInterval:  conf.EvaluationInterval(),
 		QueryEngine:         queryEngine,
 		PrometheusURL:       web.MustBuildServerURL(*pathPrefix),
 		PathPrefix:          *pathPrefix,
 	})
-	if err := ruleManager.LoadRuleFiles(conf.Global.GetRuleFile()...); err != nil {
-		glog.Errorf("Error loading rule files: %s", err)
-		os.Exit(1)
-	}
 
 	flags := map[string]string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -178,9 +162,8 @@ func NewPrometheus() *prometheus {
 	})
 	prometheusStatus := &web.PrometheusStatusHandler{
 		BuildInfo:   BuildInfo,
-		Config:      conf.String(),
 		RuleManager: ruleManager,
-		TargetPools: targetManager.Pools(),
+		TargetPools: targetManager.Pools,
 		Flags:       flags,
 		Birth:       time.Now(),
 		PathPrefix:  *pathPrefix,
@@ -225,51 +208,88 @@ func NewPrometheus() *prometheus {
 		webService: webService,
 	}
 	webService.QuitChan = make(chan struct{})
+
+	if !p.reloadConfig() {
+		os.Exit(1)
+	}
+
 	return p
+}
+
+func (p *prometheus) reloadConfig() bool {
+	log.Infof("Loading configuration file %s", *configFile)
+
+	conf, err := config.LoadFromFile(*configFile)
+	if err != nil {
+		log.Errorf("Couldn't load configuration (-config.file=%s): %v", *configFile, err)
+		log.Errorf("Note: The configuration format has changed with version 0.14. Please see the documentation (http://prometheus.io/docs/operating/configuration/) and the provided configuration migration tool (https://github.com/prometheus/migrate).")
+		return false
+	}
+
+	p.webService.StatusHandler.ApplyConfig(conf)
+	p.targetManager.ApplyConfig(conf)
+	p.ruleManager.ApplyConfig(conf)
+
+	return true
 }
 
 // Serve starts the Prometheus server. It returns after the server has been shut
 // down. The method installs an interrupt handler, allowing to trigger a
 // shutdown by sending SIGTERM to the process.
 func (p *prometheus) Serve() {
-	for _, q := range p.remoteStorageQueues {
-		go q.Run()
+	// Start all components.
+	if err := p.storage.Start(); err != nil {
+		log.Errorln("Error opening memory series storage:", err)
+		os.Exit(1)
 	}
-	go p.ruleManager.Run()
-	go p.notificationHandler.Run()
-
-	p.storage.Start()
-
-	go func() {
-		err := p.webService.ServeForever(*pathPrefix)
-		if err != nil {
-			glog.Fatal(err)
+	defer func() {
+		if err := p.storage.Stop(); err != nil {
+			log.Errorln("Error stopping storage:", err)
 		}
 	}()
 
-	notifier := make(chan os.Signal)
-	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
-	select {
-	case <-notifier:
-		glog.Warning("Received SIGTERM, exiting gracefully...")
-	case <-p.webService.QuitChan:
-		glog.Warning("Received termination request via web service, exiting gracefully...")
-	}
-
-	p.targetManager.Stop()
-	p.ruleManager.Stop()
-	p.queryEngine.Stop()
-
-	if err := p.storage.Stop(); err != nil {
-		glog.Error("Error stopping local storage: ", err)
-	}
+	// The storage has to be fully initialized before registering Prometheus.
+	registry.MustRegister(p)
 
 	for _, q := range p.remoteStorageQueues {
-		q.Stop()
+		go q.Run()
+		defer q.Stop()
 	}
 
-	p.notificationHandler.Stop()
-	glog.Info("See you next time!")
+	go p.ruleManager.Run()
+	defer p.ruleManager.Stop()
+
+	go p.notificationHandler.Run()
+	defer p.notificationHandler.Stop()
+
+	go p.targetManager.Run()
+	defer p.targetManager.Stop()
+
+	defer p.queryEngine.Stop()
+
+	go p.webService.ServeForever(*pathPrefix)
+
+	// Wait for reload or termination signals.
+	hup := make(chan os.Signal)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		for range hup {
+			p.reloadConfig()
+		}
+	}()
+
+	term := make(chan os.Signal)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-term:
+		log.Warn("Received SIGTERM, exiting gracefully...")
+	case <-p.webService.QuitChan:
+		log.Warn("Received termination request via web service, exiting gracefully...")
+	}
+
+	close(hup)
+
+	log.Info("See you next time!")
 }
 
 // Describe implements registry.Collector.
@@ -352,16 +372,14 @@ func main() {
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		if err != flag.ErrHelp {
-			glog.Errorf("Invalid command line arguments. Help: %s -h", os.Args[0])
+			log.Errorf("Invalid command line arguments. Help: %s -h", os.Args[0])
 		}
 		os.Exit(2)
 	}
 
-	if !strings.HasPrefix(*pathPrefix, "/") {
+	*pathPrefix = strings.TrimRight(*pathPrefix, "/")
+	if *pathPrefix != "" && !strings.HasPrefix(*pathPrefix, "/") {
 		*pathPrefix = "/" + *pathPrefix
-	}
-	if !strings.HasSuffix(*pathPrefix, "/") {
-		*pathPrefix = *pathPrefix + "/"
 	}
 
 	versionInfoTmpl.Execute(os.Stdout, BuildInfo)
@@ -371,6 +389,5 @@ func main() {
 	}
 
 	p := NewPrometheus()
-	registry.MustRegister(p)
 	p.Serve()
 }

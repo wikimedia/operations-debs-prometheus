@@ -28,8 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 
 	clientmodel "github.com/prometheus/client_golang/model"
 
@@ -120,6 +120,7 @@ type persistence struct {
 	indexingBatchSizes    prometheus.Summary
 	indexingBatchDuration prometheus.Summary
 	checkpointDuration    prometheus.Gauge
+	dirtyCounter          prometheus.Counter
 
 	dirtyMtx       sync.Mutex     // Protects dirty and becameDirty.
 	dirty          bool           // true if persistence was started in dirty state.
@@ -174,7 +175,7 @@ func newPersistence(basePath string, dirty, pedanticChecks bool, shouldSync sync
 
 	fLock, dirtyfileExisted, err := flock.New(dirtyPath)
 	if err != nil {
-		glog.Errorf("Could not lock %s, Prometheus already running?", dirtyPath)
+		log.Errorf("Could not lock %s, Prometheus already running?", dirtyPath)
 		return nil, err
 	}
 	if dirtyfileExisted {
@@ -237,6 +238,12 @@ func newPersistence(basePath string, dirty, pedanticChecks bool, shouldSync sync
 			Name:      "checkpoint_duration_milliseconds",
 			Help:      "The duration (in milliseconds) it took to checkpoint in-memory metrics and head chunks.",
 		}),
+		dirtyCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "inconsistencies_total",
+			Help:      "A counter incremented each time an inconsistency in the local storage is detected. If this is greater zero, restart the server as soon as possible.",
+		}),
 		dirty:          dirty,
 		pedanticChecks: pedanticChecks,
 		dirtyFileName:  dirtyPath,
@@ -268,8 +275,11 @@ func newPersistence(basePath string, dirty, pedanticChecks bool, shouldSync sync
 	p.labelPairToFingerprints = labelPairToFingerprints
 	p.labelNameToLabelValues = labelNameToLabelValues
 
-	go p.processIndexingQueue()
 	return p, nil
+}
+
+func (p *persistence) run() {
+	p.processIndexingQueue()
 }
 
 // Describe implements prometheus.Collector.
@@ -279,6 +289,7 @@ func (p *persistence) Describe(ch chan<- *prometheus.Desc) {
 	p.indexingBatchSizes.Describe(ch)
 	p.indexingBatchDuration.Describe(ch)
 	ch <- p.checkpointDuration.Desc()
+	ch <- p.dirtyCounter.Desc()
 }
 
 // Collect implements prometheus.Collector.
@@ -290,6 +301,7 @@ func (p *persistence) Collect(ch chan<- prometheus.Metric) {
 	p.indexingBatchSizes.Collect(ch)
 	p.indexingBatchDuration.Collect(ch)
 	ch <- p.checkpointDuration
+	ch <- p.dirtyCounter
 }
 
 // isDirty returns the dirty flag in a goroutine-safe way.
@@ -304,6 +316,7 @@ func (p *persistence) isDirty() bool {
 // dirty during our runtime, there is no way back. If we were dirty from the
 // start, a clean-up might make us clean again.)
 func (p *persistence) setDirty(dirty bool) {
+	p.dirtyCounter.Inc()
 	p.dirtyMtx.Lock()
 	defer p.dirtyMtx.Unlock()
 	if p.becameDirty {
@@ -312,15 +325,15 @@ func (p *persistence) setDirty(dirty bool) {
 	p.dirty = dirty
 	if dirty {
 		p.becameDirty = true
-		glog.Error("The storage is now inconsistent. Restart Prometheus ASAP to initiate recovery.")
+		log.Error("The storage is now inconsistent. Restart Prometheus ASAP to initiate recovery.")
 	}
 }
 
-// getFingerprintsForLabelPair returns the fingerprints for the given label
+// fingerprintsForLabelPair returns the fingerprints for the given label
 // pair. This method is goroutine-safe but take into account that metrics queued
 // for indexing with IndexMetric might not have made it into the index
 // yet. (Same applies correspondingly to UnindexMetric.)
-func (p *persistence) getFingerprintsForLabelPair(lp metric.LabelPair) (clientmodel.Fingerprints, error) {
+func (p *persistence) fingerprintsForLabelPair(lp metric.LabelPair) (clientmodel.Fingerprints, error) {
 	fps, _, err := p.labelPairToFingerprints.Lookup(lp)
 	if err != nil {
 		return nil, err
@@ -328,11 +341,11 @@ func (p *persistence) getFingerprintsForLabelPair(lp metric.LabelPair) (clientmo
 	return fps, nil
 }
 
-// getLabelValuesForLabelName returns the label values for the given label
+// labelValuesForLabelName returns the label values for the given label
 // name. This method is goroutine-safe but take into account that metrics queued
 // for indexing with IndexMetric might not have made it into the index
 // yet. (Same applies correspondingly to UnindexMetric.)
-func (p *persistence) getLabelValuesForLabelName(ln clientmodel.LabelName) (clientmodel.LabelValues, error) {
+func (p *persistence) labelValuesForLabelName(ln clientmodel.LabelName) (clientmodel.LabelValues, error) {
 	lvs, _, err := p.labelNameToLabelValues.Lookup(ln)
 	if err != nil {
 		return nil, err
@@ -349,7 +362,7 @@ func (p *persistence) getLabelValuesForLabelName(ln clientmodel.LabelName) (clie
 func (p *persistence) persistChunks(fp clientmodel.Fingerprint, chunks []chunk) (index int, err error) {
 	defer func() {
 		if err != nil {
-			glog.Error("Error persisting chunks: ", err)
+			log.Error("Error persisting chunks: ", err)
 			p.setDirty(true)
 		}
 	}()
@@ -527,7 +540,7 @@ func (p *persistence) loadChunkDescs(fp clientmodel.Fingerprint, beforeTime clie
 // (4.8.2.2) The chunk itself, marshaled with the marshal() method.
 //
 func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap, fpLocker *fingerprintLocker) (err error) {
-	glog.Info("Checkpointing in-memory metrics and chunks...")
+	log.Info("Checkpointing in-memory metrics and chunks...")
 	begin := time.Now()
 	f, err := os.OpenFile(p.headsTempFileName(), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
 	if err != nil {
@@ -547,7 +560,7 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 		err = os.Rename(p.headsTempFileName(), p.headsFileName())
 		duration := time.Since(begin)
 		p.checkpointDuration.Set(float64(duration) / float64(time.Millisecond))
-		glog.Infof("Done checkpointing in-memory metrics and chunks in %v.", duration)
+		log.Infof("Done checkpointing in-memory metrics and chunks in %v.", duration)
 	}()
 
 	w := bufio.NewWriterSize(f, fileBufSize)
@@ -629,10 +642,10 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 					}
 				} else {
 					// This is the non-persisted head chunk. Fully marshal it.
-					if err = w.WriteByte(byte(chunkDesc.chunk.encoding())); err != nil {
+					if err = w.WriteByte(byte(chunkDesc.c.encoding())); err != nil {
 						return
 					}
-					if err = chunkDesc.chunk.marshal(w); err != nil {
+					if err = chunkDesc.c.marshal(w); err != nil {
 						return
 					}
 				}
@@ -675,7 +688,7 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 
 	defer func() {
 		if sm != nil && p.dirty {
-			glog.Warning("Persistence layer appears dirty.")
+			log.Warn("Persistence layer appears dirty.")
 			err = p.recoverFromCrash(fingerprintToSeries)
 			if err != nil {
 				sm = nil
@@ -691,7 +704,7 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 		return sm, 0, nil
 	}
 	if err != nil {
-		glog.Warning("Could not open heads file:", err)
+		log.Warn("Could not open heads file:", err)
 		p.dirty = true
 		return
 	}
@@ -700,13 +713,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 
 	buf := make([]byte, len(headsMagicString))
 	if _, err := io.ReadFull(r, buf); err != nil {
-		glog.Warning("Could not read from heads file:", err)
+		log.Warn("Could not read from heads file:", err)
 		p.dirty = true
 		return sm, 0, nil
 	}
 	magic := string(buf)
 	if magic != headsMagicString {
-		glog.Warningf(
+		log.Warnf(
 			"unexpected magic string, want %q, got %q",
 			headsMagicString, magic,
 		)
@@ -715,13 +728,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 	}
 	version, err := binary.ReadVarint(r)
 	if (version != headsFormatVersion && version != headsFormatLegacyVersion) || err != nil {
-		glog.Warningf("unknown heads format version, want %d", headsFormatVersion)
+		log.Warnf("unknown heads format version, want %d", headsFormatVersion)
 		p.dirty = true
 		return sm, 0, nil
 	}
 	numSeries, err := codable.DecodeUint64(r)
 	if err != nil {
-		glog.Warning("Could not decode number of series:", err)
+		log.Warn("Could not decode number of series:", err)
 		p.dirty = true
 		return sm, 0, nil
 	}
@@ -729,20 +742,20 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 	for ; numSeries > 0; numSeries-- {
 		seriesFlags, err := r.ReadByte()
 		if err != nil {
-			glog.Warning("Could not read series flags:", err)
+			log.Warn("Could not read series flags:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
 		headChunkPersisted := seriesFlags&flagHeadChunkPersisted != 0
 		fp, err := codable.DecodeUint64(r)
 		if err != nil {
-			glog.Warning("Could not decode fingerprint:", err)
+			log.Warn("Could not decode fingerprint:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
 		var metric codable.Metric
 		if err := metric.UnmarshalFromReader(r); err != nil {
-			glog.Warning("Could not decode metric:", err)
+			log.Warn("Could not decode metric:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
@@ -752,13 +765,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 			// persistWatermark only present in v2.
 			persistWatermark, err = binary.ReadVarint(r)
 			if err != nil {
-				glog.Warning("Could not decode persist watermark:", err)
+				log.Warn("Could not decode persist watermark:", err)
 				p.dirty = true
 				return sm, chunksToPersist, nil
 			}
 			modTimeNano, err := binary.ReadVarint(r)
 			if err != nil {
-				glog.Warning("Could not decode modification time:", err)
+				log.Warn("Could not decode modification time:", err)
 				p.dirty = true
 				return sm, chunksToPersist, nil
 			}
@@ -768,19 +781,19 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 		}
 		chunkDescsOffset, err := binary.ReadVarint(r)
 		if err != nil {
-			glog.Warning("Could not decode chunk descriptor offset:", err)
+			log.Warn("Could not decode chunk descriptor offset:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
 		savedFirstTime, err := binary.ReadVarint(r)
 		if err != nil {
-			glog.Warning("Could not decode saved first time:", err)
+			log.Warn("Could not decode saved first time:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
 		numChunkDescs, err := binary.ReadVarint(r)
 		if err != nil {
-			glog.Warning("Could not decode number of chunk descriptors:", err)
+			log.Warn("Could not decode number of chunk descriptors:", err)
 			p.dirty = true
 			return sm, chunksToPersist, nil
 		}
@@ -797,13 +810,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 			if i < persistWatermark {
 				firstTime, err := binary.ReadVarint(r)
 				if err != nil {
-					glog.Warning("Could not decode first time:", err)
+					log.Warn("Could not decode first time:", err)
 					p.dirty = true
 					return sm, chunksToPersist, nil
 				}
 				lastTime, err := binary.ReadVarint(r)
 				if err != nil {
-					glog.Warning("Could not decode last time:", err)
+					log.Warn("Could not decode last time:", err)
 					p.dirty = true
 					return sm, chunksToPersist, nil
 				}
@@ -816,13 +829,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 				// Non-persisted chunk.
 				encoding, err := r.ReadByte()
 				if err != nil {
-					glog.Warning("Could not decode chunk type:", err)
+					log.Warn("Could not decode chunk type:", err)
 					p.dirty = true
 					return sm, chunksToPersist, nil
 				}
 				chunk := newChunkForEncoding(chunkEncoding(encoding))
 				if err := chunk.unmarshal(r); err != nil {
-					glog.Warning("Could not decode chunk:", err)
+					log.Warn("Could not decode chunk:", err)
 					p.dirty = true
 					return sm, chunksToPersist, nil
 				}
@@ -867,7 +880,7 @@ func (p *persistence) dropAndPersistChunks(
 	// please handle with care!
 	defer func() {
 		if err != nil {
-			glog.Error("Error dropping and/or persisting chunks: ", err)
+			log.Error("Error dropping and/or persisting chunks: ", err)
 			p.setDirty(true)
 		}
 	}()
@@ -877,7 +890,7 @@ func (p *persistence) dropAndPersistChunks(
 		// too old. If that's the case, the chunks in the series file
 		// are all too old, too.
 		i := 0
-		for ; i < len(chunks) && chunks[i].lastTime().Before(beforeTime); i++ {
+		for ; i < len(chunks) && chunks[i].newIterator().lastTimestamp().Before(beforeTime); i++ {
 		}
 		if i < len(chunks) {
 			firstTimeNotDropped = chunks[i].firstTime()
@@ -1014,10 +1027,10 @@ func (p *persistence) deleteSeriesFile(fp clientmodel.Fingerprint) (int, error) 
 	return numChunks, nil
 }
 
-// getSeriesFileModTime returns the modification time of the series file
-// belonging to the provided fingerprint. In case of an error, the zero value of
-// time.Time is returned.
-func (p *persistence) getSeriesFileModTime(fp clientmodel.Fingerprint) time.Time {
+// seriesFileModTime returns the modification time of the series file belonging
+// to the provided fingerprint. In case of an error, the zero value of time.Time
+// is returned.
+func (p *persistence) seriesFileModTime(fp clientmodel.Fingerprint) time.Time {
 	var modTime time.Time
 	if fi, err := os.Stat(p.fileNameForFingerprint(fp)); err == nil {
 		return fi.ModTime()
@@ -1026,17 +1039,17 @@ func (p *persistence) getSeriesFileModTime(fp clientmodel.Fingerprint) time.Time
 }
 
 // indexMetric queues the given metric for addition to the indexes needed by
-// getFingerprintsForLabelPair, getLabelValuesForLabelName, and
-// getFingerprintsModifiedBefore.  If the queue is full, this method blocks
-// until the metric can be queued.  This method is goroutine-safe.
+// fingerprintsForLabelPair, labelValuesForLabelName, and
+// fingerprintsModifiedBefore.  If the queue is full, this method blocks until
+// the metric can be queued.  This method is goroutine-safe.
 func (p *persistence) indexMetric(fp clientmodel.Fingerprint, m clientmodel.Metric) {
 	p.indexingQueue <- indexingOp{fp, m, add}
 }
 
 // unindexMetric queues references to the given metric for removal from the
-// indexes used for getFingerprintsForLabelPair, getLabelValuesForLabelName, and
-// getFingerprintsModifiedBefore. The index of fingerprints to archived metrics
-// is not affected by this removal. (In fact, never call this method for an
+// indexes used for fingerprintsForLabelPair, labelValuesForLabelName, and
+// fingerprintsModifiedBefore. The index of fingerprints to archived metrics is
+// not affected by this removal. (In fact, never call this method for an
 // archived metric. To purge an archived metric, call purgeArchivedFingerprint.)
 // If the queue is full, this method blocks until the metric can be queued. This
 // method is goroutine-safe.
@@ -1094,10 +1107,10 @@ func (p *persistence) updateArchivedTimeRange(
 	return p.archivedFingerprintToTimeRange.Put(codable.Fingerprint(fp), codable.TimeRange{First: first, Last: last})
 }
 
-// getFingerprintsModifiedBefore returns the fingerprints of archived timeseries
+// fingerprintsModifiedBefore returns the fingerprints of archived timeseries
 // that have live samples before the provided timestamp. This method is
 // goroutine-safe.
-func (p *persistence) getFingerprintsModifiedBefore(beforeTime clientmodel.Timestamp) ([]clientmodel.Fingerprint, error) {
+func (p *persistence) fingerprintsModifiedBefore(beforeTime clientmodel.Timestamp) ([]clientmodel.Fingerprint, error) {
 	var fp codable.Fingerprint
 	var tr codable.TimeRange
 	fps := []clientmodel.Fingerprint{}
@@ -1116,9 +1129,9 @@ func (p *persistence) getFingerprintsModifiedBefore(beforeTime clientmodel.Times
 	return fps, nil
 }
 
-// getArchivedMetric retrieves the archived metric with the given
-// fingerprint. This method is goroutine-safe.
-func (p *persistence) getArchivedMetric(fp clientmodel.Fingerprint) (clientmodel.Metric, error) {
+// archivedMetric retrieves the archived metric with the given fingerprint. This
+// method is goroutine-safe.
+func (p *persistence) archivedMetric(fp clientmodel.Fingerprint) (clientmodel.Metric, error) {
 	metric, _, err := p.archivedFingerprintToMetrics.Lookup(fp)
 	return metric, err
 }
@@ -1134,7 +1147,7 @@ func (p *persistence) purgeArchivedMetric(fp clientmodel.Fingerprint) (err error
 		}
 	}()
 
-	metric, err := p.getArchivedMetric(fp)
+	metric, err := p.archivedMetric(fp)
 	if err != nil || metric == nil {
 		return err
 	}
@@ -1143,14 +1156,14 @@ func (p *persistence) purgeArchivedMetric(fp clientmodel.Fingerprint) (err error
 		return err
 	}
 	if !deleted {
-		glog.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToMetrics index. This should never happen.", fp)
+		log.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToMetrics index. This should never happen.", fp)
 	}
 	deleted, err = p.archivedFingerprintToTimeRange.Delete(codable.Fingerprint(fp))
 	if err != nil {
 		return err
 	}
 	if !deleted {
-		glog.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToTimeRange index. This should never happen.", fp)
+		log.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToTimeRange index. This should never happen.", fp)
 	}
 	p.unindexMetric(fp, metric)
 	return nil
@@ -1180,14 +1193,14 @@ func (p *persistence) unarchiveMetric(fp clientmodel.Fingerprint) (
 		return false, firstTime, err
 	}
 	if !deleted {
-		glog.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToMetrics index. This should never happen.", fp)
+		log.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToMetrics index. This should never happen.", fp)
 	}
 	deleted, err = p.archivedFingerprintToTimeRange.Delete(codable.Fingerprint(fp))
 	if err != nil {
 		return false, firstTime, err
 	}
 	if !deleted {
-		glog.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToTimeRange index. This should never happen.", fp)
+		log.Errorf("Tried to delete non-archived fingerprint %s from archivedFingerprintToTimeRange index. This should never happen.", fp)
 	}
 	return true, firstTime, nil
 }
@@ -1202,26 +1215,26 @@ func (p *persistence) close() error {
 	var lastError, dirtyFileRemoveError error
 	if err := p.archivedFingerprintToMetrics.Close(); err != nil {
 		lastError = err
-		glog.Error("Error closing archivedFingerprintToMetric index DB: ", err)
+		log.Error("Error closing archivedFingerprintToMetric index DB: ", err)
 	}
 	if err := p.archivedFingerprintToTimeRange.Close(); err != nil {
 		lastError = err
-		glog.Error("Error closing archivedFingerprintToTimeRange index DB: ", err)
+		log.Error("Error closing archivedFingerprintToTimeRange index DB: ", err)
 	}
 	if err := p.labelPairToFingerprints.Close(); err != nil {
 		lastError = err
-		glog.Error("Error closing labelPairToFingerprints index DB: ", err)
+		log.Error("Error closing labelPairToFingerprints index DB: ", err)
 	}
 	if err := p.labelNameToLabelValues.Close(); err != nil {
 		lastError = err
-		glog.Error("Error closing labelNameToLabelValues index DB: ", err)
+		log.Error("Error closing labelNameToLabelValues index DB: ", err)
 	}
 	if lastError == nil && !p.isDirty() {
 		dirtyFileRemoveError = os.Remove(p.dirtyFileName)
 	}
 	if err := p.fLock.Release(); err != nil {
 		lastError = err
-		glog.Error("Error releasing file lock: ", err)
+		log.Error("Error releasing file lock: ", err)
 	}
 	if dirtyFileRemoveError != nil {
 		// On Windows, removing the dirty file before unlocking is not
@@ -1263,11 +1276,11 @@ func (p *persistence) openChunkFileForWriting(fp clientmodel.Fingerprint) (*os.F
 func (p *persistence) closeChunkFile(f *os.File) {
 	if p.shouldSync() {
 		if err := f.Sync(); err != nil {
-			glog.Error("Error syncing file:", err)
+			log.Error("Error syncing file:", err)
 		}
 	}
 	if err := f.Close(); err != nil {
-		glog.Error("Error closing chunk file:", err)
+		log.Error("Error closing chunk file:", err)
 	}
 }
 
@@ -1307,10 +1320,10 @@ func (p *persistence) processIndexingQueue() {
 		}(time.Now())
 
 		if err := p.labelPairToFingerprints.IndexBatch(pairToFPs); err != nil {
-			glog.Error("Error indexing label pair to fingerprints batch: ", err)
+			log.Error("Error indexing label pair to fingerprints batch: ", err)
 		}
 		if err := p.labelNameToLabelValues.IndexBatch(nameToValues); err != nil {
-			glog.Error("Error indexing label name to label values batch: ", err)
+			log.Error("Error indexing label name to label values batch: ", err)
 		}
 		batchSize = 0
 		nameToValues = index.LabelNameLabelValuesMapping{}
@@ -1359,7 +1372,7 @@ loop:
 					var err error
 					baseFPs, _, err = p.labelPairToFingerprints.LookupSet(lp)
 					if err != nil {
-						glog.Errorf("Error looking up label pair %v: %s", lp, err)
+						log.Errorf("Error looking up label pair %v: %s", lp, err)
 						continue
 					}
 					pairToFPs[lp] = baseFPs
@@ -1369,7 +1382,7 @@ loop:
 					var err error
 					baseValues, _, err = p.labelNameToLabelValues.LookupSet(ln)
 					if err != nil {
-						glog.Errorf("Error looking up label name %v: %s", ln, err)
+						log.Errorf("Error looking up label name %v: %s", ln, err)
 						continue
 					}
 					nameToValues[ln] = baseValues
@@ -1419,7 +1432,7 @@ loop:
 // (4.3.2) The unique metric string.
 // (4.3.3) The mapped fingerprint as big-endian uint64.
 func (p *persistence) checkpointFPMappings(fpm fpMappings) (err error) {
-	glog.Info("Checkpointing fingerprint mappings...")
+	log.Info("Checkpointing fingerprint mappings...")
 	begin := time.Now()
 	f, err := os.OpenFile(p.mappingsTempFileName(), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
 	if err != nil {
@@ -1438,7 +1451,7 @@ func (p *persistence) checkpointFPMappings(fpm fpMappings) (err error) {
 		}
 		err = os.Rename(p.mappingsTempFileName(), p.mappingsFileName())
 		duration := time.Since(begin)
-		glog.Infof("Done checkpointing fingerprint mappings in %v.", duration)
+		log.Infof("Done checkpointing fingerprint mappings in %v.", duration)
 	}()
 
 	w := bufio.NewWriterSize(f, fileBufSize)
@@ -1564,8 +1577,14 @@ func chunkIndexForOffset(offset int64) (int, error) {
 func writeChunkHeader(w io.Writer, c chunk) error {
 	header := make([]byte, chunkHeaderLen)
 	header[chunkHeaderTypeOffset] = byte(c.encoding())
-	binary.LittleEndian.PutUint64(header[chunkHeaderFirstTimeOffset:], uint64(c.firstTime()))
-	binary.LittleEndian.PutUint64(header[chunkHeaderLastTimeOffset:], uint64(c.lastTime()))
+	binary.LittleEndian.PutUint64(
+		header[chunkHeaderFirstTimeOffset:],
+		uint64(c.firstTime()),
+	)
+	binary.LittleEndian.PutUint64(
+		header[chunkHeaderLastTimeOffset:],
+		uint64(c.newIterator().lastTimestamp()),
+	)
 	_, err := w.Write(header)
 	return err
 }
