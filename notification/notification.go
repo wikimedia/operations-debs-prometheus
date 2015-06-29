@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 
 	clientmodel "github.com/prometheus/client_golang/model"
 
@@ -143,14 +143,14 @@ func (n *NotificationHandler) sendNotifications(reqs NotificationReqs) error {
 	alerts := make([]map[string]interface{}, 0, len(reqs))
 	for _, req := range reqs {
 		alerts = append(alerts, map[string]interface{}{
-			"Summary":     req.Summary,
-			"Description": req.Description,
-			"Labels":      req.Labels,
-			"Payload": map[string]interface{}{
-				"Value":        req.Value,
-				"ActiveSince":  req.ActiveSince,
-				"GeneratorURL": req.GeneratorURL,
-				"AlertingRule": req.RuleString,
+			"summary":     req.Summary,
+			"description": req.Description,
+			"labels":      req.Labels,
+			"payload": map[string]interface{}{
+				"value":        req.Value,
+				"activeSince":  req.ActiveSince,
+				"generatorURL": req.GeneratorURL,
+				"alertingRule": req.RuleString,
 			},
 		})
 	}
@@ -158,7 +158,7 @@ func (n *NotificationHandler) sendNotifications(reqs NotificationReqs) error {
 	if err != nil {
 		return err
 	}
-	glog.V(1).Infoln("Sending notifications to alertmanager:", string(buf))
+	log.Debugln("Sending notifications to alertmanager:", string(buf))
 	resp, err := n.httpClient.Post(
 		n.alertmanagerURL+alertmanagerAPIEventsPath,
 		contentTypeJSON,
@@ -181,7 +181,7 @@ func (n *NotificationHandler) sendNotifications(reqs NotificationReqs) error {
 func (n *NotificationHandler) Run() {
 	for reqs := range n.pendingNotifications {
 		if n.alertmanagerURL == "" {
-			glog.Warning("No alert manager configured, not dispatching notification")
+			log.Warn("No alert manager configured, not dispatching notification")
 			n.notificationDropped.Inc()
 			continue
 		}
@@ -190,7 +190,7 @@ func (n *NotificationHandler) Run() {
 		err := n.sendNotifications(reqs)
 
 		if err != nil {
-			glog.Error("Error sending notification: ", err)
+			log.Error("Error sending notification: ", err)
 			n.notificationErrors.Inc()
 		}
 
@@ -206,10 +206,10 @@ func (n *NotificationHandler) SubmitReqs(reqs NotificationReqs) {
 
 // Stop shuts down the notification handler.
 func (n *NotificationHandler) Stop() {
-	glog.Info("Stopping notification handler...")
+	log.Info("Stopping notification handler...")
 	close(n.pendingNotifications)
 	<-n.stopped
-	glog.Info("Notification handler stopped.")
+	log.Info("Notification handler stopped.")
 }
 
 // Describe implements prometheus.Collector.

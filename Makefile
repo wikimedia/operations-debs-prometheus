@@ -26,7 +26,7 @@ advice: $(GOCC)
 
 binary: build
 
-build: config tools web $(GOPATH)
+build: tools web $(GOPATH)
 	$(GO) build -o prometheus $(BUILDFLAGS) .
 
 docker: build
@@ -49,7 +49,7 @@ tag:
 $(BUILD_PATH)/cache/$(GOPKG):
 	$(CURL) -o $@ -L $(GOURL)/$(GOPKG)
 
-benchmark: config dependencies tools web
+benchmark: dependencies tools web
 	$(GO) test $(GO_TEST_FLAGS) -test.run='NONE' -test.bench='.*' -test.benchmem ./... | tee benchmark.txt
 
 clean:
@@ -61,9 +61,6 @@ clean:
 	-find . -type f -name '*~' -exec rm '{}' ';'
 	-find . -type f -name '*#' -exec rm '{}' ';'
 	-find . -type f -name '.#*' -exec rm '{}' ';'
-
-config:
-	$(MAKE) -C config
 
 $(SELFLINK): $(GOPATH)
 	ln -s $(MAKEFILE_DIR) $@
@@ -85,13 +82,10 @@ race_condition_binary: build
 race_condition_run: race_condition_binary
 	./prometheus.race $(ARGUMENTS)
 
-run: binary
-	./prometheus -alsologtostderr -stderrthreshold=0 $(ARGUMENTS)
-
 search_index:
 	godoc -index -write_index -index_files='search_index'
 
-test: config dependencies tools web
+test: dependencies tools web
 	$(GO) test $(GO_TEST_FLAGS) ./...
 
 tools: dependencies
@@ -100,4 +94,4 @@ tools: dependencies
 web: dependencies
 	$(MAKE) -C web
 
-.PHONY: advice binary build clean config dependencies documentation format race_condition_binary race_condition_run release run search_index tag tarball test tools
+.PHONY: advice binary build clean dependencies documentation format race_condition_binary race_condition_run release run search_index tag tarball test tools

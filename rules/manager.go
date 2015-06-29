@@ -16,14 +16,16 @@ package rules
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 
 	clientmodel "github.com/prometheus/client_golang/model"
 
+	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/notification"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage"
@@ -118,9 +120,13 @@ func NewManager(o *ManagerOptions) *Manager {
 
 // Run the rule manager's periodic rule evaluation.
 func (m *Manager) Run() {
-	defer glog.Info("Rule manager stopped.")
+	defer log.Info("Rule manager stopped.")
 
-	ticker := time.NewTicker(m.interval)
+	m.Lock()
+	lastInterval := m.interval
+	m.Unlock()
+
+	ticker := time.NewTicker(lastInterval)
 	defer ticker.Stop()
 
 	for {
@@ -137,6 +143,14 @@ func (m *Manager) Run() {
 				start := time.Now()
 				m.runIteration()
 				iterationDuration.Observe(float64(time.Since(start) / time.Millisecond))
+
+				m.Lock()
+				if lastInterval != m.interval {
+					ticker.Stop()
+					ticker = time.NewTicker(m.interval)
+					lastInterval = m.interval
+				}
+				m.Unlock()
 			case <-m.done:
 				return
 			}
@@ -146,7 +160,7 @@ func (m *Manager) Run() {
 
 // Stop the rule manager's rule evaluation cycles.
 func (m *Manager) Stop() {
-	glog.Info("Stopping rule manager...")
+	log.Info("Stopping rule manager...")
 	m.done <- true
 }
 
@@ -184,7 +198,7 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 			result, err := template.Expand()
 			if err != nil {
 				result = err.Error()
-				glog.Warningf("Error expanding alert template %v with data '%v': %v", rule.Name(), tmplData, err)
+				log.Warnf("Error expanding alert template %v with data '%v': %v", rule.Name(), tmplData, err)
 			}
 			return result
 		}
@@ -198,7 +212,7 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 			Value:        aa.Value,
 			ActiveSince:  aa.ActiveSince.Time(),
 			RuleString:   rule.String(),
-			GeneratorURL: m.prometheusURL + utility.GraphLinkForExpression(rule.Vector.String()),
+			GeneratorURL: m.prometheusURL + strings.TrimLeft(utility.GraphLinkForExpression(rule.Vector.String()), "/"),
 		})
 	}
 	m.notificationHandler.SubmitReqs(notifications)
@@ -225,7 +239,7 @@ func (m *Manager) runIteration() {
 
 			if err != nil {
 				evalFailures.Inc()
-				glog.Warningf("Error while evaluating rule %q: %s", rule, err)
+				log.Warnf("Error while evaluating rule %q: %s", rule, err)
 				return
 			}
 
@@ -255,11 +269,27 @@ func (m *Manager) runIteration() {
 	wg.Wait()
 }
 
-// LoadRuleFiles loads alerting and recording rules from the given files.
-func (m *Manager) LoadRuleFiles(filenames ...string) error {
+// ApplyConfig updates the rule manager's state as the config requires. If
+// loading the new rules failed the old rule set is restored.
+func (m *Manager) ApplyConfig(conf *config.Config) {
 	m.Lock()
 	defer m.Unlock()
 
+	m.interval = time.Duration(conf.GlobalConfig.EvaluationInterval)
+
+	rulesSnapshot := make([]Rule, len(m.rules))
+	copy(rulesSnapshot, m.rules)
+	m.rules = m.rules[:0]
+
+	if err := m.loadRuleFiles(conf.RuleFiles...); err != nil {
+		// If loading the new rules failed, restore the old rule set.
+		m.rules = rulesSnapshot
+		log.Errorf("Error loading rules, previous rule set restored: %s", err)
+	}
+}
+
+// loadRuleFiles loads alerting and recording rules from the given files.
+func (m *Manager) loadRuleFiles(filenames ...string) error {
 	for _, fn := range filenames {
 		content, err := ioutil.ReadFile(fn)
 		if err != nil {
