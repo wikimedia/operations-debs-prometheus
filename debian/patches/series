@@ -1,4 +1,2 @@
-#01-Don't_download_stuff
 02-Compat_Go_1.3
-03-Compat_with_older_protobuf_repo.patch
 04-Do_not_embed_blobs.patch
