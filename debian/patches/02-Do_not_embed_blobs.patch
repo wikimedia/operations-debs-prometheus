@@ -94,7 +94,7 @@
 -<script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +<script src="{{ pathPrefix }}/static/d3/d3.js"></script>
 +<script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
-+<script src="{{ pathPrefix }}/static/jquery/jquery.js"></script>
++<script src="{{ pathPrefix }}/static/vendor/jquery/jquery.js"></script>
 +<script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
  
  <script>var PATH_PREFIX = "{{ pathPrefix }}";</script>
@@ -137,7 +137,7 @@
      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
      <title>Prometheus Time Series Collection and Processing Server</title>
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/jquery/jquery.js"></script>
++    <script src="{{ pathPrefix }}/static/vendor/jquery/jquery.js"></script>
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css">
 +    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css">

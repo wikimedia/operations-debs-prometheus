@@ -27,7 +27,6 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-bootstrap,
          libjs-handlebars,
-         libjs-jquery,
          libjs-jquery-hotkeys,
          libjs-rickshaw,
 Built-Using: ${misc:Built-Using}

@@ -1,6 +1,5 @@
 usr/share/javascript/bootstrap      usr/share/prometheus/web/static/bootstrap
 usr/share/javascript/handlebars     usr/share/prometheus/web/static/handlebars
-usr/share/javascript/jquery         usr/share/prometheus/web/static/jquery
 usr/share/javascript/jquery-hotkeys usr/share/prometheus/web/static/jquery-hotkeys
 usr/share/javascript/rickshaw       usr/share/prometheus/web/static/rickshaw
 usr/share/javascript/d3             usr/share/prometheus/web/static/d3
