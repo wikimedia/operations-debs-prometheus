@@ -15,8 +15,9 @@ BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
 
 # Taken and modified from the project's Makefile.
 
-VERSION    := $(shell cat VERSION)
-REV        := 0
+DEBVERS    ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
+VERSION    ?= $(shell echo '$(DEBVERS)' | sed 's/^[[:digit:]]*://; s/[-].*//')
+REV        := $(DEBVERS)
 BRANCH     := debian/sid
 USER       := pkg-go-maintainers@lists.alioth.debian.org
 HOSTNAME   := $(shell hostname -f)
