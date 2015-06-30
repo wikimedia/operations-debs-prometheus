@@ -18,6 +18,7 @@ BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
 VERSION    := $(shell cat VERSION)
 REV        := 0
 BRANCH     := debian/sid
+USER       := pkg-go-maintainers@lists.alioth.debian.org
 HOSTNAME   := $(shell hostname -f)
 BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
 GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
@@ -25,7 +26,7 @@ BUILDFLAGS := -ldflags \
   " -X main.buildVersion $(VERSION)\
     -X main.buildRevision $(REV)\
     -X main.buildBranch $(BRANCH)\
-    -X main.buildUser $(USER)@$(HOSTNAME)\
+    -X main.buildUser $(USER)\
     -X main.buildDate $(BUILD_DATE)\
     -X main.goVersion $(GO_VERSION)"
 
@@ -35,9 +36,20 @@ BUILDFLAGS := -ldflags \
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
 	# Include test fixtures.
-	cp -av storage/local/fixtures $(BUILDDIR)/src/$(DH_GOPKG)/storage/local
+	for i in retrieval/discovery/fixtures config/testdata promql/testdata \
+                storage/local/fixtures; do \
+            cp -av $$i $(BUILDDIR)/src/$(DH_GOPKG)/$$i; \
+        done
 	# Include vendored dependencies.
-	cp -av Godeps/_workspace/src/golang.org $(BUILDDIR)/src
+	for i in github.com/hashicorp github.com/prometheus/log; do \
+            cp -av Godeps/_workspace/src/$$i $(BUILDDIR)/src/$$i; \
+        done
 
 override_dh_auto_build:
 	dh_auto_build -O--buildsystem=golang -- $(BUILDFLAGS)
+
+override_dh_auto_install:
+	dh_auto_install
+	# we don't want the golang source (yet?)
+	rm -r debian/prometheus/usr/share/gocode
+                            
