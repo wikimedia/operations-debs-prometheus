@@ -1,0 +1,30 @@
+--- a/main.go
++++ b/main.go
+@@ -48,12 +48,12 @@
+ 
+ // Commandline flags.
+ var (
+-	configFile = flag.String("config.file", "prometheus.yml", "Prometheus configuration file name.")
++	configFile = flag.String("config.file", "/etc/prometheus/prometheus.yml", "Prometheus configuration file name.")
+ 
+ 	alertmanagerURL           = flag.String("alertmanager.url", "", "The URL of the alert manager to send notifications to.")
+ 	notificationQueueCapacity = flag.Int("alertmanager.notification-queue-capacity", 100, "The capacity of the queue for pending alert manager notifications.")
+ 
+-	persistenceStoragePath = flag.String("storage.local.path", "/tmp/metrics", "Base path for metrics storage.")
++	persistenceStoragePath = flag.String("storage.local.path", "/var/lib/prometheus/metrics", "Base path for metrics storage.")
+ 
+ 	opentsdbURL          = flag.String("storage.remote.opentsdb-url", "", "The URL of the remote OpenTSDB server to send samples to. None, if empty.")
+ 	influxdbURL          = flag.String("storage.remote.influxdb-url", "", "The URL of the remote InfluxDB server to send samples to. None, if empty.")
+--- a/web/consoles.go
++++ b/web/consoles.go
+@@ -27,8 +27,8 @@
+ )
+ 
+ var (
+-	consoleTemplatesPath = flag.String("web.console.templates", "consoles", "Path to the console template directory, available at /console.")
+-	consoleLibrariesPath = flag.String("web.console.libraries", "console_libraries", "Path to the console library directory.")
++	consoleTemplatesPath = flag.String("web.console.templates", "/var/lib/prometheus/consoles", "Path to the console template directory, available at /console.")
++	consoleLibrariesPath = flag.String("web.console.libraries", "/var/lib/prometheus/console_libraries", "Path to the console library directory.")
+ )
+ 
+ // ConsolesHandler implements http.Handler.

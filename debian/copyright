@@ -50,6 +50,13 @@ Comment: Missing source dependency for bootstrap-datetimepicker from the
  bootstrap project (https://github.com/twbs/bootstrap/) at commit
  b5205bf84897e8e18dd4408e25a7d2aa95eca675.
 
+Files: web/static/vendor/jquery/*
+Copyright: 2005, 2014 jQuery Foundation, Inc. and other contributors
+License: MIT
+Comment: Had to maintain the embedded version, as the Debian package is
+ ancient, and other libraries refuse to work. This is version v1.11.2 from
+ http://code.jquery.com/jquery-1.11.2.js
+
 License: Apache-2.0
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.

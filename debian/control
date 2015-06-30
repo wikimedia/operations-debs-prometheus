@@ -15,19 +15,24 @@ Build-Depends: debhelper (>= 9.0.0),
                golang-yaml.v2-dev,
                libjs-bootstrap,
                libjs-handlebars,
-               libjs-jquery,
                libjs-jquery-hotkeys,
                libjs-rickshaw,
+               node-less
 Standards-Version: 3.9.6
-Vcs-Git: git://git.debian.org/collab-maint/prometheus.git
-Vcs-Browser: http://git.debian.org/?p=collab-maint/prometheus.git;a=summary
+Vcs-Git: git://anonscm.debian.org/pkg-go/packages/prometheus.git
+Vcs-Browser: http://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git/
 
 Package: prometheus
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
+         libjs-bootstrap,
+         libjs-handlebars,
+         libjs-jquery,
+         libjs-jquery-hotkeys,
+         libjs-rickshaw,
 Built-Using: ${misc:Built-Using}
-Description: Systems and service monitoring system
- Prometheus is a systems and service monitoring system. It collects metrics
+Description: Monitoring system and time series database
+ Prometheus is a systems and services monitoring system. It collects metrics
  from configured targets at given intervals, evaluates rule expressions,
  displays the results, and can trigger alerts if some condition is observed to
  be true.

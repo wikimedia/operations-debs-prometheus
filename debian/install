@@ -1,0 +1,7 @@
+debian/prometheus.yml   etc/prometheus/
+debian/README.consoles  usr/share/doc/prometheus/examples/consoles
+debian/README.consoles  usr/share/doc/prometheus/examples/console_templates
+web/templates/          usr/share/prometheus/web/
+web/static/css/         usr/share/prometheus/web/static
+web/static/img/         usr/share/prometheus/web/static
+web/static/js/          usr/share/prometheus/web/static

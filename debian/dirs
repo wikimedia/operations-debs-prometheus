@@ -1,0 +1,4 @@
+etc/prometheus
+usr/share/prometheus/web/static
+var/lib/prometheus/metrics
+var/log/prometheus

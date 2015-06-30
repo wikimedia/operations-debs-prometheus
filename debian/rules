@@ -48,8 +48,22 @@ override_dh_auto_configure:
 override_dh_auto_build:
 	dh_auto_build -O--buildsystem=golang -- $(BUILDFLAGS)
 
+WEB_VENDORED_DIR := debian/prometheus/usr/share/prometheus/web/static/vendor
 override_dh_auto_install:
 	dh_auto_install
 	# we don't want the golang source (yet?)
 	rm -r debian/prometheus/usr/share/gocode
-                            
+	# Install the vendored web stuff.
+	mkdir -vp $(WEB_VENDORED_DIR)/bootstrap3-typeahead \
+            $(WEB_VENDORED_DIR)/bootstrap-datetimepicker \
+            $(WEB_VENDORED_DIR)/js
+	cp -v web/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js \
+            $(WEB_VENDORED_DIR)/bootstrap3-typeahead/
+	cp -v web/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
+            $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/
+	cp -v web/static/vendor/js/jquery.selection.js \
+            $(WEB_VENDORED_DIR)/js/
+	# Build the CSS for datetimepicker.
+	lessc web/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
+            $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
+

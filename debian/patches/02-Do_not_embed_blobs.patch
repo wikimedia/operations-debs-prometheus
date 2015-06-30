@@ -1,8 +1,6 @@
-Index: prometheus/web/blob/blob.go
-===================================================================
---- prometheus.orig/web/blob/blob.go
-+++ prometheus/web/blob/blob.go
-@@ -25,7 +25,9 @@ var mimeMap = map[string]string{
+--- a/web/blob/blob.go
++++ b/web/blob/blob.go
+@@ -25,7 +25,9 @@
  
  // GetFile retrieves the content of an embedded file.
  func GetFile(bucket string, name string) ([]byte, error) {
@@ -13,25 +11,73 @@ Index: prometheus/web/blob/blob.go
  	if !ok {
  		return nil, fmt.Errorf("could not find %s/%s (missing or updated files.go?)", bucket, name)
  	}
-Index: prometheus/web/web.go
-===================================================================
---- prometheus.orig/web/web.go
-+++ prometheus/web/web.go
-@@ -42,7 +42,9 @@ var (
+--- a/web/web.go
++++ b/web/web.go
+@@ -32,7 +32,6 @@
+ 	clientmodel "github.com/prometheus/client_golang/model"
+ 
+ 	"github.com/prometheus/prometheus/web/api"
+-	"github.com/prometheus/prometheus/web/blob"
+ )
+ 
+ var localhostRepresentations = []string{"127.0.0.1", "localhost"}
+@@ -42,7 +41,7 @@
  	listenAddress  = flag.String("web.listen-address", ":9090", "Address to listen on for the web interface, API, and telemetry.")
  	hostname       = flag.String("web.hostname", "", "Hostname on which the server is available.")
  	metricsPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 -	useLocalAssets = flag.Bool("web.use-local-assets", false, "Read assets/templates from file instead of binary.")
-+	// useLocalAssets = flag.Bool("web.use-local-assets", false, "Read assets/templates from file instead of binary.")
-+        false_val      = false
-+	useLocalAssets = &false_val
++	localAssets    = flag.String("web.local-assets", "/usr/share/prometheus/web/", "Path to static assets/templates directory.")
  	userAssetsPath = flag.String("web.user-assets", "", "Path to static asset directory, available at /user.")
  	enableQuit     = flag.Bool("web.enable-remote-shutdown", false, "Enable remote service shutdown.")
  )
-Index: prometheus/console_libraries/prom.lib
-===================================================================
---- prometheus.orig/console_libraries/prom.lib
-+++ prometheus/console_libraries/prom.lib
+@@ -95,15 +94,9 @@
+ 
+ 	ws.MetricsHandler.RegisterHandler(pathPrefix)
+ 	http.Handle(pathPrefix+*metricsPath, prometheus.Handler())
+-	if *useLocalAssets {
+-		http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
+-			pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir("web/static"))),
+-		))
+-	} else {
+-		http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
+-			pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", new(blob.Handler)),
+-		))
+-	}
++        http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
++                pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir(*localAssets+"/static"))),
++        ))
+ 
+ 	if *userAssetsPath != "" {
+ 		http.Handle(pathPrefix+"/user/", prometheus.InstrumentHandler(
+@@ -140,20 +133,12 @@
+ }
+ 
+ func getTemplateFile(name string) (string, error) {
+-	if *useLocalAssets {
+-		file, err := ioutil.ReadFile(fmt.Sprintf("web/templates/%s.html", name))
+-		if err != nil {
+-			log.Errorf("Could not read %s template: %s", name, err)
+-			return "", err
+-		}
+-		return string(file), nil
+-	}
+-	file, err := blob.GetFile(blob.TemplateFiles, name+".html")
+-	if err != nil {
+-		log.Errorf("Could not read %s template: %s", name, err)
+-		return "", err
+-	}
+-	return string(file), nil
++            file, err := ioutil.ReadFile(fmt.Sprintf(*localAssets+"/templates/%s.html", name))
++            if err != nil {
++                    log.Errorf("Could not read %s template: %s", name, err)
++                    return "", err
++            }
++            return string(file), nil
+ }
+ 
+ func getConsoles(pathPrefix string) string {
+--- a/console_libraries/prom.lib
++++ b/console_libraries/prom.lib
 @@ -1,14 +1,13 @@
  {{/* vim: set ft=html: */}}
  {{/* Load Prometheus console library JS/CSS. Should go in <head> */}}
@@ -48,16 +94,14 @@ Index: prometheus/console_libraries/prom.lib
 -<script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +<script src="{{ pathPrefix }}/static/d3/d3.js"></script>
 +<script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
-+<script src="{{ pathPrefix }}/static/jquery/jquery.min.js"></script>
++<script src="{{ pathPrefix }}/static/jquery/jquery.js"></script>
 +<script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
  
  <script>var PATH_PREFIX = "{{ pathPrefix }}";</script>
  <script src="{{ pathPrefix }}/static/js/prom_console.js"></script>
-Index: prometheus/web/templates/graph.html
-===================================================================
---- prometheus.orig/web/templates/graph.html
-+++ prometheus/web/templates/graph.html
-@@ -1,18 +1,17 @@
+--- a/web/templates/graph.html
++++ b/web/templates/graph.html
+@@ -1,20 +1,19 @@
  {{define "head"}}
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
@@ -65,32 +109,35 @@ Index: prometheus/web/templates/graph.html
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css">
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.css">
+-    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
 +    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/rickshaw/rickshaw.min.css">
-     <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.css">
  
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.v3.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/rickshaw/vendor/d3.js"></script>
++    <script src="{{ pathPrefix }}/static/d3/d3.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
      <script src="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js"></script>
-     <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js"></script>
++    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js"></script>
  
 -    <script src="{{ pathPrefix }}/static/vendor/js/handlebars.js"></script>
 +    <script src="{{ pathPrefix }}/static/handlebars/handlebars.js"></script>
      <script src="{{ pathPrefix }}/static/vendor/js/jquery.selection.js"></script>
-     <script src="{{ pathPrefix }}/static/vendor/js/jquery.hotkeys.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/js/jquery.hotkeys.js"></script>
++    <script src="{{ pathPrefix }}/static/jquery-hotkeys/jquery.hotkeys.js"></script>
  
-Index: prometheus/web/templates/_base.html
-===================================================================
---- prometheus.orig/web/templates/_base.html
-+++ prometheus/web/templates/_base.html
+     <script src="{{ pathPrefix }}/static/js/graph.js"></script>
+ 
+--- a/web/templates/_base.html
++++ b/web/templates/_base.html
 @@ -3,9 +3,9 @@
    <head>
      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
      <title>Prometheus Time Series Collection and Processing Server</title>
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/jquery/jquery.min.js"></script>
++    <script src="{{ pathPrefix }}/static/jquery/jquery.js"></script>
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css">
 +    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css">

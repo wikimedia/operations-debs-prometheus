@@ -1,2 +1,3 @@
-02-Compat_Go_1.3
-04-Do_not_embed_blobs.patch
+01-Compat_Go_1.3
+02-Do_not_embed_blobs.patch
+03-Default_settings.path
