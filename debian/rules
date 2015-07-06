@@ -17,6 +17,7 @@ BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
 
 DEBVERS    ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
 VERSION    ?= $(shell echo '$(DEBVERS)' | sed 's/^[[:digit:]]*://; s/[-].*//')
+DEBPKGNAME ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Source: //p')
 REV        := $(DEBVERS)
 BRANCH     := debian/sid
 USER       := pkg-go-maintainers@lists.alioth.debian.org
@@ -42,7 +43,7 @@ override_dh_auto_configure:
             cp -av $$i $(BUILDDIR)/src/$(DH_GOPKG)/$$i; \
         done
 	# Include vendored dependencies.
-	for i in github.com/hashicorp github.com/prometheus/log; do \
+	for i in github.com/hashicorp; do \
             cp -av Godeps/_workspace/src/$$i $(BUILDDIR)/src/$$i; \
         done
 
@@ -61,3 +62,8 @@ override_dh_auto_install:
 	cp -v web/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
             $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/
 
+gen-orig-tgz:
+	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ] ; then \
+	    git archive --format=tar.gz --prefix=$(DEBPKGNAME)-$(VERSION)/ \
+                upstream/$(VERSION) >../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ; \
+	fi

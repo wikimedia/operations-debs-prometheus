@@ -6,6 +6,7 @@ Build-Depends: debhelper (>= 9.0.0),
                dh-golang,
                golang-dns-dev,
                golang-fsnotify-dev,
+               golang-github.com-prometheus-log-dev,
                golang-go (>= 1.3),
                golang-golang-x-net-dev,
                golang-goleveldb-dev,
@@ -29,6 +30,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-handlebars,
          libjs-jquery-hotkeys,
          libjs-rickshaw,
+Recommends: prometheus-node-exporter
 Built-Using: ${misc:Built-Using}
 Description: Monitoring system and time series database
  Prometheus is a systems and services monitoring system. It collects metrics
