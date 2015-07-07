@@ -1,9 +1,12 @@
-prometheus (0.14.0+ds-1) UNRELEASED; urgency=medium
+prometheus (0.14.0+ds-1) unstable; urgency=medium
 
   * Fix upstream version (it is a repackage, so it should be marked).
   * Un-vendor github.com/prometheus/log as it is now a separate package.
+  * debian/control: Update prometheus/log package name.
+  * debian/postrm: Do not remove directories forcefully, as these are shared
+    with other prometheus tools.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 06 Jul 2015 06:13:58 +0000
+ -- Martín Ferrari <tincho@debian.org>  Tue, 07 Jul 2015 08:21:19 +0000
 
 prometheus (0.14.0-1) unstable; urgency=medium
 
