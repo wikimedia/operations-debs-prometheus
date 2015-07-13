@@ -1,0 +1,36 @@
+# This is a backport of https://github.com/prometheus/prometheus/pull/890
+
+--- a/storage/local/delta.go
++++ b/storage/local/delta.go
+@@ -156,11 +156,11 @@
+ 		case d0:
+ 			// No-op. Constant value is stored as base value.
+ 		case d1:
+-			c[offset] = byte(dv)
++			c[offset] = byte(int8(dv))
+ 		case d2:
+-			binary.LittleEndian.PutUint16(c[offset:], uint16(dv))
++			binary.LittleEndian.PutUint16(c[offset:], uint16(int16(dv)))
+ 		case d4:
+-			binary.LittleEndian.PutUint32(c[offset:], uint32(dv))
++			binary.LittleEndian.PutUint32(c[offset:], uint32(int32(dv)))
+ 		// d8 must not happen. Those samples are encoded as float64.
+ 		default:
+ 			panic("invalid number of bytes for integer delta")
+--- a/storage/local/doubledelta.go
++++ b/storage/local/doubledelta.go
+@@ -164,11 +164,11 @@
+ 		case d0:
+ 			// No-op. Constant delta is stored as base value.
+ 		case d1:
+-			c[offset] = byte(ddv)
++			c[offset] = byte(int8(ddv))
+ 		case d2:
+-			binary.LittleEndian.PutUint16(c[offset:], uint16(ddv))
++			binary.LittleEndian.PutUint16(c[offset:], uint16(int16(ddv)))
+ 		case d4:
+-			binary.LittleEndian.PutUint32(c[offset:], uint32(ddv))
++			binary.LittleEndian.PutUint32(c[offset:], uint32(int32(ddv)))
+ 		// d8 must not happen. Those samples are encoded as float64.
+ 		default:
+ 			panic("invalid number of bytes for integer delta")
