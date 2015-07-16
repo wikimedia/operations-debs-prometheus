@@ -2,6 +2,7 @@ prometheus (0.14.0+ds-2) UNRELEASED; urgency=medium
 
   * New patch that removes undefined behaviour on casts to uint, backported
     from upstream. Closes: #792053.
+  * Add missing dependency on adduser.
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 13 Jul 2015 12:03:25 +0000
 
