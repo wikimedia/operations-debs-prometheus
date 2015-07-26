@@ -1,8 +1,9 @@
 # Golang links all libraries statically.
 prometheus: embedded-library usr/bin/prometheus: libyaml
+prometheus: embedded-library usr/bin/promtool: libyaml
 # The version of jquery in Debian is so old that other javascript libraries
 # refuse to work. I will remove as soon as the package is updated (#730014).
 prometheus: embedded-javascript-library usr/share/prometheus/web/static/vendor/jquery/jquery.js please use libjs-jquery
 # The Go compiler is currently unable to produce read-only relocations
 prometheus: hardening-no-relro usr/bin/prometheus
-prometheus: hardening-no-relro usr/bin/rule_checker
+prometheus: hardening-no-relro usr/bin/promtool
