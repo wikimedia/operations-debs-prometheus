@@ -27,9 +27,8 @@ import (
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/metric"
-	"github.com/prometheus/prometheus/utility"
-
-	testutil "github.com/prometheus/prometheus/utility/test"
+	"github.com/prometheus/prometheus/util/strutil"
+	"github.com/prometheus/prometheus/util/testutil"
 )
 
 var (
@@ -78,6 +77,16 @@ func NewTestFromFile(t testutil.T, filename string) (*Test, error) {
 	return NewTest(t, string(content))
 }
 
+// QueryEngine returns the test's query engine.
+func (t *Test) QueryEngine() *Engine {
+	return t.queryEngine
+}
+
+// Storage returns the test's storage.
+func (t *Test) Storage() local.Storage {
+	return t.storage
+}
+
 func raise(line int, format string, v ...interface{}) error {
 	return &ParseErr{
 		Line: line + 1,
@@ -91,7 +100,7 @@ func (t *Test) parseLoad(lines []string, i int) (int, *loadCmd, error) {
 	}
 	parts := patLoad.FindStringSubmatch(lines[i])
 
-	gap, err := utility.StringToDuration(parts[1])
+	gap, err := strutil.StringToDuration(parts[1])
 	if err != nil {
 		return i, nil, raise(i, "invalid step definition %q: %s", parts[1], err)
 	}
@@ -132,7 +141,7 @@ func (t *Test) parseEval(lines []string, i int) (int, *evalCmd, error) {
 		return i, nil, perr
 	}
 
-	offset, err := utility.StringToDuration(at)
+	offset, err := strutil.StringToDuration(at)
 	if err != nil {
 		return i, nil, raise(i, "invalid step definition %q: %s", parts[1], err)
 	}
@@ -463,7 +472,7 @@ func (t *Test) clear() {
 	t.storage, closer = local.NewTestStorage(t, 1)
 
 	t.closeStorage = closer.Close
-	t.queryEngine = NewEngine(t.storage)
+	t.queryEngine = NewEngine(t.storage, nil)
 }
 
 func (t *Test) Close() {

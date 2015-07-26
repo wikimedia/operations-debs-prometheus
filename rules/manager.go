@@ -16,9 +16,12 @@ package rules
 import (
 	"fmt"
 	"io/ioutil"
-	"strings"
+	"net/url"
+	"path/filepath"
 	"sync"
 	"time"
+
+	html_template "html/template"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
@@ -29,8 +32,8 @@ import (
 	"github.com/prometheus/prometheus/notification"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage"
-	"github.com/prometheus/prometheus/templates"
-	"github.com/prometheus/prometheus/utility"
+	"github.com/prometheus/prometheus/template"
+	"github.com/prometheus/prometheus/util/strutil"
 )
 
 // Constants for instrumentation.
@@ -38,8 +41,8 @@ const (
 	namespace = "prometheus"
 
 	ruleTypeLabel     = "rule_type"
-	alertingRuleType  = "alerting"
-	recordingRuleType = "recording"
+	ruleTypeAlerting  = "alerting"
+	ruleTypeRecording = "recording"
 )
 
 var (
@@ -72,6 +75,20 @@ func init() {
 	prometheus.MustRegister(evalDuration)
 }
 
+// A Rule encapsulates a vector expression which is evaluated at a specified
+// interval and acted upon (currently either recorded or used for alerting).
+type Rule interface {
+	// Name returns the name of the rule.
+	Name() string
+	// Eval evaluates the rule, including any associated recording or alerting actions.
+	eval(clientmodel.Timestamp, *promql.Engine) (promql.Vector, error)
+	// String returns a human-readable string representation of the rule.
+	String() string
+	// HTMLSnippet returns a human-readable string representation of the rule,
+	// decorated with HTML elements for use the web frontend.
+	HTMLSnippet(pathPrefix string) html_template.HTML
+}
+
 // The Manager manages recording and alerting rules.
 type Manager struct {
 	// Protects the rules list.
@@ -86,8 +103,8 @@ type Manager struct {
 	sampleAppender      storage.SampleAppender
 	notificationHandler *notification.NotificationHandler
 
-	prometheusURL string
-	pathPrefix    string
+	externalURL *url.URL
+	baseDir     string
 }
 
 // ManagerOptions bundles options for the Manager.
@@ -98,8 +115,8 @@ type ManagerOptions struct {
 	NotificationHandler *notification.NotificationHandler
 	SampleAppender      storage.SampleAppender
 
-	PrometheusURL string
-	PathPrefix    string
+	ExternalURL *url.URL
+	BaseDir     string
 }
 
 // NewManager returns an implementation of Manager, ready to be started
@@ -113,7 +130,8 @@ func NewManager(o *ManagerOptions) *Manager {
 		sampleAppender:      o.SampleAppender,
 		queryEngine:         o.QueryEngine,
 		notificationHandler: o.NotificationHandler,
-		prometheusURL:       o.PrometheusURL,
+		externalURL:         o.ExternalURL,
+		baseDir:             o.BaseDir,
 	}
 	return manager
 }
@@ -172,7 +190,7 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 
 	notifications := make(notification.NotificationReqs, 0, len(activeAlerts))
 	for _, aa := range activeAlerts {
-		if aa.State != Firing {
+		if aa.State != StateFiring {
 			// BUG: In the future, make AlertManager support pending alerts?
 			continue
 		}
@@ -194,8 +212,8 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 		defs := "{{$labels := .Labels}}{{$value := .Value}}"
 
 		expand := func(text string) string {
-			template := templates.NewTemplateExpander(defs+text, "__alert_"+rule.Name(), tmplData, timestamp, m.queryEngine, m.pathPrefix)
-			result, err := template.Expand()
+			tmpl := template.NewTemplateExpander(defs+text, "__alert_"+rule.Name(), tmplData, timestamp, m.queryEngine, m.externalURL.Path)
+			result, err := tmpl.Expand()
 			if err != nil {
 				result = err.Error()
 				log.Warnf("Error expanding alert template %v with data '%v': %v", rule.Name(), tmplData, err)
@@ -204,15 +222,16 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 		}
 
 		notifications = append(notifications, &notification.NotificationReq{
-			Summary:     expand(rule.Summary),
-			Description: expand(rule.Description),
+			Summary:     expand(rule.summary),
+			Description: expand(rule.description),
+			Runbook:     rule.runbook,
 			Labels: aa.Labels.Merge(clientmodel.LabelSet{
-				AlertNameLabel: clientmodel.LabelValue(rule.Name()),
+				alertNameLabel: clientmodel.LabelValue(rule.Name()),
 			}),
 			Value:        aa.Value,
 			ActiveSince:  aa.ActiveSince.Time(),
 			RuleString:   rule.String(),
-			GeneratorURL: m.prometheusURL + strings.TrimLeft(utility.GraphLinkForExpression(rule.Vector.String()), "/"),
+			GeneratorURL: m.externalURL.String() + strutil.GraphLinkForExpression(rule.vector.String()),
 		})
 	}
 	m.notificationHandler.SubmitReqs(notifications)
@@ -234,7 +253,7 @@ func (m *Manager) runIteration() {
 			defer wg.Done()
 
 			start := time.Now()
-			vector, err := rule.Eval(now, m.queryEngine)
+			vector, err := rule.eval(now, m.queryEngine)
 			duration := time.Since(start)
 
 			if err != nil {
@@ -246,11 +265,11 @@ func (m *Manager) runIteration() {
 			switch r := rule.(type) {
 			case *AlertingRule:
 				m.queueAlertNotifications(r, now)
-				evalDuration.WithLabelValues(alertingRuleType).Observe(
+				evalDuration.WithLabelValues(ruleTypeAlerting).Observe(
 					float64(duration / time.Millisecond),
 				)
 			case *RecordingRule:
-				evalDuration.WithLabelValues(recordingRuleType).Observe(
+				evalDuration.WithLabelValues(ruleTypeRecording).Observe(
 					float64(duration / time.Millisecond),
 				)
 			default:
@@ -269,23 +288,68 @@ func (m *Manager) runIteration() {
 	wg.Wait()
 }
 
+// transferAlertState makes a copy of the state of alerting rules and returns a function
+// that restores them in the current state.
+func (m *Manager) transferAlertState() func() {
+
+	alertingRules := map[string]*AlertingRule{}
+	for _, r := range m.rules {
+		if ar, ok := r.(*AlertingRule); ok {
+			alertingRules[ar.name] = ar
+		}
+	}
+
+	return func() {
+		// Restore alerting rule state.
+		for _, r := range m.rules {
+			ar, ok := r.(*AlertingRule)
+			if !ok {
+				continue
+			}
+			if old, ok := alertingRules[ar.name]; ok {
+				ar.activeAlerts = old.activeAlerts
+			}
+		}
+	}
+}
+
 // ApplyConfig updates the rule manager's state as the config requires. If
-// loading the new rules failed the old rule set is restored.
-func (m *Manager) ApplyConfig(conf *config.Config) {
+// loading the new rules failed the old rule set is restored. Returns true on success.
+func (m *Manager) ApplyConfig(conf *config.Config) bool {
 	m.Lock()
 	defer m.Unlock()
 
+	defer m.transferAlertState()()
+
+	success := true
 	m.interval = time.Duration(conf.GlobalConfig.EvaluationInterval)
 
 	rulesSnapshot := make([]Rule, len(m.rules))
 	copy(rulesSnapshot, m.rules)
 	m.rules = m.rules[:0]
 
-	if err := m.loadRuleFiles(conf.RuleFiles...); err != nil {
+	var files []string
+	for _, pat := range conf.RuleFiles {
+		if !filepath.IsAbs(pat) {
+			pat = filepath.Join(m.baseDir, pat)
+		}
+
+		fs, err := filepath.Glob(pat)
+		if err != nil {
+			// The only error can be a bad pattern.
+			log.Errorf("Error retrieving rule files for %s: %s", pat, err)
+			success = false
+		}
+		files = append(files, fs...)
+	}
+	if err := m.loadRuleFiles(files...); err != nil {
 		// If loading the new rules failed, restore the old rule set.
 		m.rules = rulesSnapshot
 		log.Errorf("Error loading rules, previous rule set restored: %s", err)
+		success = false
 	}
+
+	return success
 }
 
 // loadRuleFiles loads alerting and recording rules from the given files.
@@ -299,13 +363,14 @@ func (m *Manager) loadRuleFiles(filenames ...string) error {
 		if err != nil {
 			return fmt.Errorf("error parsing %s: %s", fn, err)
 		}
+
 		for _, stmt := range stmts {
 			switch r := stmt.(type) {
 			case *promql.AlertStmt:
-				rule := NewAlertingRule(r.Name, r.Expr, r.Duration, r.Labels, r.Summary, r.Description)
+				rule := NewAlertingRule(r.Name, r.Expr, r.Duration, r.Labels, r.Summary, r.Description, r.Runbook)
 				m.rules = append(m.rules, rule)
 			case *promql.RecordStmt:
-				rule := &RecordingRule{r.Name, r.Expr, r.Labels}
+				rule := NewRecordingRule(r.Name, r.Expr, r.Labels)
 				m.rules = append(m.rules, rule)
 			default:
 				panic("retrieval.Manager.LoadRuleFiles: unknown statement type")

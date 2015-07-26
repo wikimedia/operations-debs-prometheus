@@ -144,8 +144,9 @@ const (
 	itemFor
 	itemWith
 	itemSummary
+	itemRunbook
 	itemDescription
-	itemKeepingExtra
+	itemKeepCommon
 	itemOffset
 	itemBy
 	itemOn
@@ -174,10 +175,12 @@ var key = map[string]itemType{
 	"for":           itemFor,
 	"with":          itemWith,
 	"summary":       itemSummary,
+	"runbook":       itemRunbook,
 	"description":   itemDescription,
 	"offset":        itemOffset,
 	"by":            itemBy,
-	"keeping_extra": itemKeepingExtra,
+	"keeping_extra": itemKeepCommon,
+	"keep_common":   itemKeepCommon,
 	"on":            itemOn,
 	"group_left":    itemGroupLeft,
 	"group_right":   itemGroupRight,
@@ -666,7 +669,8 @@ func lexNumberOrDuration(l *lexer) stateFn {
 // not necessarily a valid number. This case is caught by the parser.
 func (l *lexer) scanNumber() bool {
 	digits := "0123456789"
-	if l.accept("0") && l.accept("xX") {
+	// Disallow hexadecimal in series descriptions as the syntax is ambiguous.
+	if !l.seriesDesc && l.accept("0") && l.accept("xX") {
 		digits = "0123456789abcdefABCDEF"
 	}
 	l.acceptRun(digits)
@@ -677,11 +681,12 @@ func (l *lexer) scanNumber() bool {
 		l.accept("+-")
 		l.acceptRun("0123456789")
 	}
-	// Next thing must not be alphanumeric.
-	if isAlphaNumeric(l.peek()) && !l.seriesDesc {
-		return false
+	// Next thing must not be alphanumeric unless it's the times token
+	// for series repetitions.
+	if r := l.peek(); (l.seriesDesc && r == 'x') || !isAlphaNumeric(r) {
+		return true
 	}
-	return true
+	return false
 }
 
 // lexIdentifier scans an alphanumeric identifier. The next character
@@ -724,7 +729,7 @@ Loop:
 }
 
 func isSpace(r rune) bool {
-	return r == ' ' || r == '\t' || r == '\n'
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

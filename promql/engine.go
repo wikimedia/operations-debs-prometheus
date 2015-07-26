@@ -14,26 +14,21 @@
 package promql
 
 import (
-	"flag"
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
 	"sort"
+	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
 
 	clientmodel "github.com/prometheus/client_golang/model"
 
-	"github.com/prometheus/prometheus/stats"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/metric"
-)
-
-var (
-	stalenessDelta       = flag.Duration("query.staleness-delta", 300*time.Second, "Staleness delta allowance during expression evaluations.")
-	defaultQueryTimeout  = flag.Duration("query.timeout", 2*time.Minute, "Maximum time a query may take before being aborted.")
-	maxConcurrentQueries = flag.Int("query.max-concurrency", 20, "Maximum number of queries executed concurrently.")
+	"github.com/prometheus/prometheus/util/stats"
 )
 
 // SampleStream is a stream of Values belonging to an attached COWMetric.
@@ -49,20 +44,47 @@ type Sample struct {
 	Timestamp clientmodel.Timestamp   `json:"timestamp"`
 }
 
+// MarshalJSON implements json.Marshaler.
+func (s *Sample) MarshalJSON() ([]byte, error) {
+	v := struct {
+		Metric clientmodel.COWMetric `json:"metric"`
+		Value  metric.SamplePair     `json:"value"`
+	}{
+		Metric: s.Metric,
+		Value: metric.SamplePair{
+			Timestamp: s.Timestamp,
+			Value:     s.Value,
+		},
+	}
+
+	return json.Marshal(&v)
+}
+
 // Scalar is a scalar value evaluated at the set timestamp.
 type Scalar struct {
-	Value     clientmodel.SampleValue
-	Timestamp clientmodel.Timestamp
+	Value     clientmodel.SampleValue `json:"value"`
+	Timestamp clientmodel.Timestamp   `json:"timestamp"`
 }
 
 func (s *Scalar) String() string {
 	return fmt.Sprintf("scalar: %v @[%v]", s.Value, s.Timestamp)
 }
 
+// MarshalJSON implements json.Marshaler.
+func (s *Scalar) MarshalJSON() ([]byte, error) {
+	v := strconv.FormatFloat(float64(s.Value), 'f', -1, 64)
+	return json.Marshal([]interface{}{s.Timestamp, string(v)})
+}
+
 // String is a string value evaluated at the set timestamp.
 type String struct {
-	Value     string
-	Timestamp clientmodel.Timestamp
+	Value     string                `json:"value"`
+	Timestamp clientmodel.Timestamp `json:"timestamp"`
+}
+
+// MarshalJSON implements json.Marshaler.
+func (s *String) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]interface{}{s.Timestamp, s.Value})
 }
 
 func (s *String) String() string {
@@ -249,17 +271,35 @@ type Engine struct {
 	cancelQueries func()
 	// The gate limiting the maximum number of concurrent and waiting queries.
 	gate *queryGate
+
+	options *EngineOptions
 }
 
 // NewEngine returns a new engine.
-func NewEngine(storage local.Storage) *Engine {
+func NewEngine(storage local.Storage, o *EngineOptions) *Engine {
+	if o == nil {
+		o = DefaultEngineOptions
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Engine{
 		storage:       storage,
 		baseCtx:       ctx,
 		cancelQueries: cancel,
-		gate:          newQueryGate(*maxConcurrentQueries),
+		gate:          newQueryGate(o.MaxConcurrentQueries),
+		options:       o,
 	}
+}
+
+// EngineOptions contains configuration parameters for an Engine.
+type EngineOptions struct {
+	MaxConcurrentQueries int
+	Timeout              time.Duration
+}
+
+// DefaultEngineOptions are the default engine options.
+var DefaultEngineOptions = &EngineOptions{
+	MaxConcurrentQueries: 20,
+	Timeout:              2 * time.Minute,
 }
 
 // Stop the engine and cancel all running queries.
@@ -268,8 +308,15 @@ func (ng *Engine) Stop() {
 }
 
 // NewInstantQuery returns an evaluation query for the given expression at the given time.
-func (ng *Engine) NewInstantQuery(es string, ts clientmodel.Timestamp) (Query, error) {
-	return ng.NewRangeQuery(es, ts, ts, 0)
+func (ng *Engine) NewInstantQuery(qs string, ts clientmodel.Timestamp) (Query, error) {
+	expr, err := ParseExpr(qs)
+	if err != nil {
+		return nil, err
+	}
+	qry := ng.newQuery(expr, ts, ts, 0)
+	qry.q = qs
+
+	return qry, nil
 }
 
 // NewRangeQuery returns an evaluation query for the given time range and with
@@ -278,6 +325,9 @@ func (ng *Engine) NewRangeQuery(qs string, start, end clientmodel.Timestamp, int
 	expr, err := ParseExpr(qs)
 	if err != nil {
 		return nil, err
+	}
+	if expr.Type() != ExprVector && expr.Type() != ExprScalar {
+		return nil, fmt.Errorf("invalid expression type %q for range query, must be scalar or vector", expr.Type())
 	}
 	qry := ng.newQuery(expr, start, end, interval)
 	qry.q = qs
@@ -325,7 +375,7 @@ func (ng *Engine) newTestQuery(stmts ...Statement) Query {
 func (ng *Engine) exec(q *query) (Value, error) {
 	const env = "query execution"
 
-	ctx, cancel := context.WithTimeout(q.ng.baseCtx, *defaultQueryTimeout)
+	ctx, cancel := context.WithTimeout(q.ng.baseCtx, ng.options.Timeout)
 	q.cancel = cancel
 
 	queueTimer := q.stats.GetTimer(stats.ExecQueueTime).Start()
@@ -413,6 +463,7 @@ func (ng *Engine) execEvalStmt(ctx context.Context, query *query, s *EvalStmt) (
 		evalTimer.Stop()
 		return val, nil
 	}
+	numSteps := int(s.End.Sub(s.Start) / s.Interval)
 
 	// Range evaluation.
 	sampleStreams := map[clientmodel.Fingerprint]*SampleStream{}
@@ -430,26 +481,38 @@ func (ng *Engine) execEvalStmt(ctx context.Context, query *query, s *EvalStmt) (
 		if err != nil {
 			return nil, err
 		}
-		vector, ok := val.(Vector)
-		if !ok {
-			return nil, fmt.Errorf("value for expression %q must be of type vector but is %s", s.Expr, val.Type())
-		}
 
-		for _, sample := range vector {
-			samplePair := metric.SamplePair{
-				Value:     sample.Value,
-				Timestamp: sample.Timestamp,
+		switch v := val.(type) {
+		case *Scalar:
+			// As the expression type does not change we can safely default to 0
+			// as the fingerprint for scalar expressions.
+			ss := sampleStreams[0]
+			if ss == nil {
+				ss = &SampleStream{Values: make(metric.Values, 0, numSteps)}
+				sampleStreams[0] = ss
 			}
-			fp := sample.Metric.Metric.Fingerprint()
-			if sampleStreams[fp] == nil {
-				sampleStreams[fp] = &SampleStream{
-					Metric: sample.Metric,
-					Values: metric.Values{samplePair},
+			ss.Values = append(ss.Values, metric.SamplePair{
+				Value:     v.Value,
+				Timestamp: v.Timestamp,
+			})
+		case Vector:
+			for _, sample := range v {
+				fp := sample.Metric.Metric.Fingerprint()
+				ss := sampleStreams[fp]
+				if ss == nil {
+					ss = &SampleStream{
+						Metric: sample.Metric,
+						Values: make(metric.Values, 0, numSteps),
+					}
+					sampleStreams[fp] = ss
 				}
-			} else {
-				sampleStreams[fp].Values = append(sampleStreams[fp].Values, samplePair)
+				ss.Values = append(ss.Values, metric.SamplePair{
+					Value:     sample.Value,
+					Timestamp: sample.Timestamp,
+				})
 			}
-
+		default:
+			panic(fmt.Errorf("promql.Engine.exec: invalid expression type %q", val.Type()))
 		}
 	}
 	evalTimer.Stop()
@@ -1091,6 +1154,10 @@ func shouldDropMetricName(op itemType) bool {
 	}
 }
 
+// StalenessDelta determines the time since the last sample after which a time
+// series is considered stale.
+var StalenessDelta = 5 * time.Minute
+
 // chooseClosestSample chooses the closest sample of a list of samples
 // surrounding a given target time. If samples are found both before and after
 // the target time, the sample value is interpolated between these. Otherwise,
@@ -1103,7 +1170,7 @@ func chooseClosestSample(samples metric.Values, timestamp clientmodel.Timestamp)
 		// Samples before target time.
 		if delta < 0 {
 			// Ignore samples outside of staleness policy window.
-			if -delta > *stalenessDelta {
+			if -delta > StalenessDelta {
 				continue
 			}
 			// Ignore samples that are farther away than what we've seen before.
@@ -1117,7 +1184,7 @@ func chooseClosestSample(samples metric.Values, timestamp clientmodel.Timestamp)
 		// Samples after target time.
 		if delta >= 0 {
 			// Ignore samples outside of staleness policy window.
-			if delta > *stalenessDelta {
+			if delta > StalenessDelta {
 				continue
 			}
 			// Ignore samples that are farther away than samples we've seen before.

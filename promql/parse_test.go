@@ -588,6 +588,22 @@ var testExpr = []struct {
 		fail:   true,
 		errMsg: "vector selector must contain label matchers or metric name",
 	}, {
+		input:  `{x=""}`,
+		fail:   true,
+		errMsg: "vector selector must contain at least one non-empty matcher",
+	}, {
+		input:  `{x=~".*"}`,
+		fail:   true,
+		errMsg: "vector selector must contain at least one non-empty matcher",
+	}, {
+		input:  `{x!~".+"}`,
+		fail:   true,
+		errMsg: "vector selector must contain at least one non-empty matcher",
+	}, {
+		input:  `{x!="a"}`,
+		fail:   true,
+		errMsg: "vector selector must contain at least one non-empty matcher",
+	}, {
 		input:  `foo{__name__="bar"}`,
 		fail:   true,
 		errMsg: "metric name must not be set twice: \"foo\" or \"bar\"",
@@ -716,7 +732,7 @@ var testExpr = []struct {
 			Grouping: clientmodel.LabelNames{"foo"},
 		},
 	}, {
-		input: "sum by (foo) keeping_extra (some_metric)",
+		input: "sum by (foo) keep_common (some_metric)",
 		expected: &AggregateExpr{
 			Op:              itemSum,
 			KeepExtraLabels: true,
@@ -729,7 +745,7 @@ var testExpr = []struct {
 			Grouping: clientmodel.LabelNames{"foo"},
 		},
 	}, {
-		input: "sum (some_metric) by (foo,bar) keeping_extra",
+		input: "sum (some_metric) by (foo,bar) keep_common",
 		expected: &AggregateExpr{
 			Op:              itemSum,
 			KeepExtraLabels: true,
@@ -754,7 +770,7 @@ var testExpr = []struct {
 			Grouping: clientmodel.LabelNames{"foo"},
 		},
 	}, {
-		input: "COUNT by (foo) keeping_extra (some_metric)",
+		input: "COUNT by (foo) keep_common (some_metric)",
 		expected: &AggregateExpr{
 			Op: itemCount,
 			Expr: &VectorSelector{
@@ -767,7 +783,7 @@ var testExpr = []struct {
 			KeepExtraLabels: true,
 		},
 	}, {
-		input: "MIN (some_metric) by (foo) keeping_extra",
+		input: "MIN (some_metric) by (foo) keep_common",
 		expected: &AggregateExpr{
 			Op: itemMin,
 			Expr: &VectorSelector{
@@ -839,13 +855,13 @@ var testExpr = []struct {
 		fail:   true,
 		errMsg: "no valid expression found",
 	}, {
-		input:  "MIN keeping_extra (some_metric) by (foo)",
+		input:  "MIN keep_common (some_metric) by (foo)",
 		fail:   true,
 		errMsg: "could not parse remaining input \"by (foo)\"...",
 	}, {
-		input:  "MIN by(test) (some_metric) keeping_extra",
+		input:  "MIN by(test) (some_metric) keep_common",
 		fail:   true,
-		errMsg: "could not parse remaining input \"keeping_extra\"...",
+		errMsg: "could not parse remaining input \"keep_common\"...",
 	},
 	// Test function calls.
 	{
@@ -1016,9 +1032,10 @@ var testStatement = []struct {
 
 			foo = bar{label1="value1"}
 
-			ALERT BazAlert IF foo > 10 WITH {}
-			  SUMMARY "Baz"
+			ALERT BazAlert IF foo > 10
 			  DESCRIPTION "BazAlert"
+			  RUNBOOK     "http://my.url"
+			  SUMMARY     "Baz"
 		`,
 		expected: Statements{
 			&RecordStmt{
@@ -1084,6 +1101,7 @@ var testStatement = []struct {
 				Labels:      clientmodel.LabelSet{},
 				Summary:     "Baz",
 				Description: "BazAlert",
+				Runbook:     "http://my.url",
 			},
 		},
 	}, {
@@ -1274,6 +1292,13 @@ var testSeries = []struct {
 			"a": "b",
 		},
 		expectedValues: newSeq(1, 2, 3, -7, -17, -27, -37),
+	}, {
+		input: `my_metric{a="b"} 1 2 3-0x4`,
+		expectedMetric: clientmodel.Metric{
+			clientmodel.MetricNameLabel: "my_metric",
+			"a": "b",
+		},
+		expectedValues: newSeq(1, 2, 3, 3, 3, 3, 3),
 	}, {
 		input: `my_metric{a="b"} 1 3 _ 5 _x4`,
 		expectedMetric: clientmodel.Metric{
