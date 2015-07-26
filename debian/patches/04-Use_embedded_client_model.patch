@@ -1,0 +1,20 @@
+--- a/web/federate.go
++++ b/web/federate.go
+@@ -4,7 +4,7 @@
+ 	"io"
+ 	"net/http"
+ 
+-	"bitbucket.org/ww/goautoneg"
++	"github.com/prometheus/client_golang/deps/bitbucket.org/ww/goautoneg"
+ 	"github.com/golang/protobuf/proto"
+ 	"github.com/prometheus/client_golang/prometheus"
+ 	"github.com/prometheus/client_golang/text"
+@@ -13,7 +13,7 @@
+ 	"github.com/prometheus/prometheus/storage/local"
+ 
+ 	clientmodel "github.com/prometheus/client_golang/model"
+-	dto "github.com/prometheus/client_model/go"
++	dto "github.com/prometheus/client_golang/client_model"
+ )
+ 
+ type Federation struct {

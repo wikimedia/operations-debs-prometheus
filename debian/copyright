@@ -21,14 +21,14 @@ Comment: LICENSE was added from the original repository
  (https://github.com/hashicorp/consul), as this directory was missing licensing
  information.
 
-Files: web/static/vendor/js/jquery.selection.js
+Files: web/blob/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
 License: MIT
 Comment: Although not documented upstream, this file corresponds with commit
  90736ca5c97e603af0c0c1c823cb340860926077 in
  https://github.com/madapaja/jquery.selection/
 
-Files: web/static/vendor/bootstrap3-typeahead/*
+Files: web/blob/static/vendor/bootstrap3-typeahead/*
 Copyright: 2014 Bass Jobsen @bassjobsen
 License: Apache-2.0
 Comment: The minified files were replaced by the original sources from
@@ -36,21 +36,21 @@ Comment: The minified files were replaced by the original sources from
  c65c829fe8411f6eadb88415d09c1e85bb4603d0 (to match exactly what was shipped
  originally).
 
-Files: web/static/vendor/bootstrap-datetimepicker/*
+Files: web/blob/static/vendor/bootstrap-datetimepicker/*
 Copyright: 2012 Stefan Petre
 License: Apache-2.0
 Comment: The minified files were replaced by the original sources from
  https://github.com/Eonasdan/bootstrap-datetimepicker/ at commit
  d56949ac606e1ddad51794d7318750dfd25d34ea.
 
-Files: web/static/vendor/bootstrap/*
+Files: web/blob/static/vendor/bootstrap/*
 Copyright: 2011-2014 Twitter, Inc
 License: MIT
 Comment: Missing source dependency for bootstrap-datetimepicker from the
  bootstrap project (https://github.com/twbs/bootstrap/) at commit
  b5205bf84897e8e18dd4408e25a7d2aa95eca675.
 
-Files: web/static/vendor/jquery/*
+Files: web/blob/static/vendor/jquery/*
 Copyright: 2005, 2014 jQuery Foundation, Inc. and other contributors
 License: MIT
 Comment: Had to maintain the embedded version, as the Debian package is

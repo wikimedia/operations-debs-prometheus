@@ -43,7 +43,10 @@ override_dh_auto_configure:
             cp -av $$i $(BUILDDIR)/src/$(DH_GOPKG)/$$i; \
         done
 	# Include vendored dependencies.
-	for i in github.com/hashicorp; do \
+	for i in github.com/hashicorp/consul \
+            github.com/samuel/go-zookeeper; \
+        do \
+            mkdir -vp `dirname $(BUILDDIR)/src/$$i`; \
             cp -av Godeps/_workspace/src/$$i $(BUILDDIR)/src/$$i; \
         done
 
@@ -57,9 +60,9 @@ override_dh_auto_install:
 	rm -r debian/prometheus/usr/share/gocode
 	# Build and install datetimepicker.
 	mkdir -vp $(WEB_VENDORED_DIR)/bootstrap-datetimepicker
-	lessc web/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
+	lessc web/blob/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
             $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
-	cp -v web/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
+	cp -v web/blob/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
             $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/
 
 gen-orig-tgz:

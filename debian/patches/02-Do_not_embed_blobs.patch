@@ -1,60 +1,65 @@
 --- a/web/blob/blob.go
 +++ b/web/blob/blob.go
-@@ -25,7 +25,9 @@
+@@ -1,7 +1,5 @@
+ package blob
+ 
+-//go:generate go-bindata -pkg blob -o files.go -ignore '(.*\.map|bootstrap\.js|bootstrap-theme\.css|bootstrap\.css)'  templates/... static/...
+-
+ import (
+ 	"fmt"
+ 	"io"
+@@ -27,11 +25,8 @@
  
  // GetFile retrieves the content of an embedded file.
  func GetFile(bucket string, name string) ([]byte, error) {
--	blob, ok := files[bucket][name]
-+	//blob, ok := files[bucket][name]
-+        var blob []byte = nil
-+        ok := false
- 	if !ok {
- 		return nil, fmt.Errorf("could not find %s/%s (missing or updated files.go?)", bucket, name)
- 	}
+-	data, err := Asset(fmt.Sprintf("%s/%s", bucket, name))
+-	if err != nil {
+-		return nil, err
+-	}
+-	return data, nil
++	//data, err := Asset(fmt.Sprintf("%s/%s", bucket, name))
++        return nil, fmt.Errorf("could not find %s/%s (embedded blobs disabled)", bucket, name)
+ }
+ 
+ // Handler implements http.Handler.
 --- a/web/web.go
 +++ b/web/web.go
-@@ -32,7 +32,6 @@
- 	clientmodel "github.com/prometheus/client_golang/model"
- 
- 	"github.com/prometheus/prometheus/web/api"
+@@ -45,7 +45,6 @@
+ 	"github.com/prometheus/prometheus/version"
+ 	"github.com/prometheus/prometheus/web/api/legacy"
+ 	"github.com/prometheus/prometheus/web/api/v1"
 -	"github.com/prometheus/prometheus/web/blob"
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -42,7 +41,7 @@
- 	listenAddress  = flag.String("web.listen-address", ":9090", "Address to listen on for the web interface, API, and telemetry.")
- 	hostname       = flag.String("web.hostname", "", "Hostname on which the server is available.")
- 	metricsPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
--	useLocalAssets = flag.Bool("web.use-local-assets", false, "Read assets/templates from file instead of binary.")
-+	localAssets    = flag.String("web.local-assets", "/usr/share/prometheus/web/", "Path to static assets/templates directory.")
- 	userAssetsPath = flag.String("web.user-assets", "", "Path to static asset directory, available at /user.")
- 	enableQuit     = flag.Bool("web.enable-remote-shutdown", false, "Enable remote service shutdown.")
- )
-@@ -95,15 +94,9 @@
+@@ -97,7 +96,7 @@
+ 	ListenAddress        string
+ 	ExternalURL          *url.URL
+ 	MetricsPath          string
+-	UseLocalAssets       bool
++	LocalAssets          string
+ 	UserAssetsPath       string
+ 	ConsoleTemplatesPath string
+ 	ConsoleLibrariesPath string
+@@ -157,11 +156,7 @@
  
- 	ws.MetricsHandler.RegisterHandler(pathPrefix)
- 	http.Handle(pathPrefix+*metricsPath, prometheus.Handler())
--	if *useLocalAssets {
--		http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
--			pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir("web/static"))),
--		))
+ 	router.Get("/consoles/*filepath", instrf("consoles", h.consoles))
+ 
+-	if o.UseLocalAssets {
+-		router.Get("/static/*filepath", instrf("static", route.FileServe("web/blob/static")))
 -	} else {
--		http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
--			pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", new(blob.Handler)),
--		))
+-		router.Get("/static/*filepath", instrh("static", blob.Handler{}))
 -	}
-+        http.Handle(pathPrefix+"/static/", prometheus.InstrumentHandler(
-+                pathPrefix+"/static/", http.StripPrefix(pathPrefix+"/static/", http.FileServer(http.Dir(*localAssets+"/static"))),
-+        ))
++	router.Get("/static/*filepath", instrf("static", route.FileServe(o.LocalAssets+"/static")))
  
- 	if *userAssetsPath != "" {
- 		http.Handle(pathPrefix+"/user/", prometheus.InstrumentHandler(
-@@ -140,20 +133,12 @@
+ 	if o.UserAssetsPath != "" {
+ 		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
+@@ -294,15 +289,7 @@
  }
  
- func getTemplateFile(name string) (string, error) {
--	if *useLocalAssets {
--		file, err := ioutil.ReadFile(fmt.Sprintf("web/templates/%s.html", name))
+ func (h *Handler) getTemplateFile(name string) (string, error) {
+-	if h.options.UseLocalAssets {
+-		file, err := ioutil.ReadFile(fmt.Sprintf("web/blob/templates/%s.html", name))
 -		if err != nil {
 -			log.Errorf("Could not read %s template: %s", name, err)
 -			return "", err
@@ -62,20 +67,10 @@
 -		return string(file), nil
 -	}
 -	file, err := blob.GetFile(blob.TemplateFiles, name+".html")
--	if err != nil {
--		log.Errorf("Could not read %s template: %s", name, err)
--		return "", err
--	}
--	return string(file), nil
-+            file, err := ioutil.ReadFile(fmt.Sprintf(*localAssets+"/templates/%s.html", name))
-+            if err != nil {
-+                    log.Errorf("Could not read %s template: %s", name, err)
-+                    return "", err
-+            }
-+            return string(file), nil
- }
- 
- func getConsoles(pathPrefix string) string {
++	file, err := ioutil.ReadFile(fmt.Sprintf(h.options.LocalAssets+"/templates/%s.html", name))
+ 	if err != nil {
+ 		log.Errorf("Could not read %s template: %s", name, err)
+ 		return "", err
 --- a/console_libraries/prom.lib
 +++ b/console_libraries/prom.lib
 @@ -1,14 +1,13 @@
@@ -99,8 +94,8 @@
  
  <script>var PATH_PREFIX = "{{ pathPrefix }}";</script>
  <script src="{{ pathPrefix }}/static/js/prom_console.js"></script>
---- a/web/templates/graph.html
-+++ b/web/templates/graph.html
+--- a/web/blob/templates/graph.html
++++ b/web/blob/templates/graph.html
 @@ -1,20 +1,19 @@
  {{define "head"}}
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
@@ -130,17 +125,35 @@
  
      <script src="{{ pathPrefix }}/static/js/graph.js"></script>
  
---- a/web/templates/_base.html
-+++ b/web/templates/_base.html
-@@ -3,9 +3,9 @@
+--- a/web/blob/templates/_base.html
++++ b/web/blob/templates/_base.html
+@@ -3,10 +3,10 @@
    <head>
      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
      <title>Prometheus Time Series Collection and Processing Server</title>
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/jquery/jquery.js"></script>
++    <script src="{{ pathPrefix }}/static/bootstrap-3.3.1/js/bootstrap.min.js"></script>
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css">
-+    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap-3.3.1/css/bootstrap.min.css">
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css">
  
-     <script>var PATH_PREFIX = "{{ pathPrefix }}";</script>
+     <script>
+--- a/cmd/prometheus/config.go
++++ b/cmd/prometheus/config.go
+@@ -81,9 +81,10 @@
+ 		&cfg.web.MetricsPath, "web.telemetry-path", "/metrics",
+ 		"Path under which to expose metrics.",
+ 	)
+-	cfg.fs.BoolVar(
+-		&cfg.web.UseLocalAssets, "web.use-local-assets", false,
+-		"Read assets/templates from file instead of binary.",
++	cfg.fs.StringVar(
++		&cfg.web.LocalAssets, "web.local-assets",
++                "/usr/share/prometheus/web/",
++		"Path to static assets/templates directory.",
+ 	)
+ 	cfg.fs.StringVar(
+ 		&cfg.web.UserAssetsPath, "web.user-assets", "",
