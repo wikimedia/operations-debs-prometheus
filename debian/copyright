@@ -21,6 +21,10 @@ Comment: LICENSE was added from the original repository
  (https://github.com/hashicorp/consul), as this directory was missing licensing
  information.
 
+Files: Godeps/_workspace/src/github.com/samuel/go-zookeeper/
+Copyright: 2013, Samuel Stauffer <samuel@descolada.com>
+License: BSD-3-clause
+
 Files: web/blob/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
 License: MIT
