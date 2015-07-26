@@ -22,7 +22,7 @@ import (
 
 	clientmodel "github.com/prometheus/client_golang/model"
 	"github.com/prometheus/prometheus/storage/metric"
-	"github.com/prometheus/prometheus/utility"
+	"github.com/prometheus/prometheus/util/strutil"
 )
 
 type parser struct {
@@ -68,6 +68,35 @@ func ParseExpr(input string) (Expr, error) {
 	}
 	err = p.typecheck(expr)
 	return expr, err
+}
+
+// ParseMetric parses the input into a metric
+func ParseMetric(input string) (m clientmodel.Metric, err error) {
+	p := newParser(input)
+	defer p.recover(&err)
+
+	m = p.metric()
+	if p.peek().typ != itemEOF {
+		p.errorf("could not parse remaining input %.15q...", p.lex.input[p.lex.lastPos:])
+	}
+	return m, nil
+}
+
+// ParseMetricSelector parses the provided textual metric selector into a list of
+// label matchers.
+func ParseMetricSelector(input string) (m metric.LabelMatchers, err error) {
+	p := newParser(input)
+	defer p.recover(&err)
+
+	name := ""
+	if t := p.peek().typ; t == itemMetricIdentifier || t == itemIdentifier {
+		name = p.next().val
+	}
+	vs := p.vectorSelector(name)
+	if p.peek().typ != itemEOF {
+		p.errorf("could not parse remaining input %.15q...", p.lex.input[p.lex.lastPos:])
+	}
+	return vs.LabelMatchers, nil
 }
 
 // parseSeriesDesc parses the description of a time series.
@@ -137,20 +166,7 @@ func (v sequenceValue) String() string {
 func (p *parser) parseSeriesDesc() (m clientmodel.Metric, vals []sequenceValue, err error) {
 	defer p.recover(&err)
 
-	name := ""
-	m = clientmodel.Metric{}
-
-	t := p.peek().typ
-	if t == itemIdentifier || t == itemMetricIdentifier {
-		name = p.next().val
-		t = p.peek().typ
-	}
-	if t == itemLeftBrace {
-		m = clientmodel.Metric(p.labelSet())
-	}
-	if name != "" {
-		m[clientmodel.MetricNameLabel] = clientmodel.LabelValue(name)
-	}
+	m = p.metric()
 
 	const ctx = "series values"
 	for {
@@ -363,11 +379,45 @@ func (p *parser) alertStmt() *AlertStmt {
 		lset = p.labelSet()
 	}
 
-	p.expect(itemSummary, ctx)
-	sum := trimOne(p.expect(itemString, ctx).val)
+	var (
+		hasSum, hasDesc, hasRunbook bool
+		sum, desc, runbook          string
+	)
+Loop:
+	for {
+		switch p.next().typ {
+		case itemSummary:
+			if hasSum {
+				p.errorf("summary must not be defined twice")
+			}
+			hasSum = true
+			sum = trimOne(p.expect(itemString, ctx).val)
 
-	p.expect(itemDescription, ctx)
-	desc := trimOne(p.expect(itemString, ctx).val)
+		case itemDescription:
+			if hasDesc {
+				p.errorf("description must not be defined twice")
+			}
+			hasDesc = true
+			desc = trimOne(p.expect(itemString, ctx).val)
+
+		case itemRunbook:
+			if hasRunbook {
+				p.errorf("runbook must not be defined twice")
+			}
+			hasRunbook = true
+			runbook = trimOne(p.expect(itemString, ctx).val)
+
+		default:
+			p.backup()
+			break Loop
+		}
+	}
+	if sum == "" {
+		p.errorf("alert summary missing")
+	}
+	if desc == "" {
+		p.errorf("alert description missing")
+	}
 
 	return &AlertStmt{
 		Name:        name.val,
@@ -376,6 +426,7 @@ func (p *parser) alertStmt() *AlertStmt {
 		Labels:      lset,
 		Summary:     sum,
 		Description: desc,
+		Runbook:     runbook,
 	}
 }
 
@@ -635,8 +686,8 @@ func (p *parser) labels() clientmodel.LabelNames {
 
 // aggrExpr parses an aggregation expression.
 //
-//		<aggr_op> (<vector_expr>) [by <labels>] [keeping_extra]
-//		<aggr_op> [by <labels>] [keeping_extra] (<vector_expr>)
+//		<aggr_op> (<vector_expr>) [by <labels>] [keep_common]
+//		<aggr_op> [by <labels>] [keep_common] (<vector_expr>)
 //
 func (p *parser) aggrExpr() *AggregateExpr {
 	const ctx = "aggregation"
@@ -655,7 +706,7 @@ func (p *parser) aggrExpr() *AggregateExpr {
 		grouping = p.labels()
 		modifiersFirst = true
 	}
-	if p.peek().typ == itemKeepingExtra {
+	if p.peek().typ == itemKeepCommon {
 		p.next()
 		keepExtra = true
 		modifiersFirst = true
@@ -673,7 +724,7 @@ func (p *parser) aggrExpr() *AggregateExpr {
 			p.next()
 			grouping = p.labels()
 		}
-		if p.peek().typ == itemKeepingExtra {
+		if p.peek().typ == itemKeepCommon {
 			p.next()
 			keepExtra = true
 		}
@@ -810,6 +861,32 @@ func (p *parser) labelMatchers(operators ...itemType) metric.LabelMatchers {
 	return matchers
 }
 
+// metric parses a metric.
+//
+//		<label_set>
+//		<metric_identifier> [<label_set>]
+//
+func (p *parser) metric() clientmodel.Metric {
+	name := ""
+	m := clientmodel.Metric{}
+
+	t := p.peek().typ
+	if t == itemIdentifier || t == itemMetricIdentifier {
+		name = p.next().val
+		t = p.peek().typ
+	}
+	if t != itemLeftBrace && name == "" {
+		p.errorf("missing metric name or metric selector")
+	}
+	if t == itemLeftBrace {
+		m = clientmodel.Metric(p.labelSet())
+	}
+	if name != "" {
+		m[clientmodel.MetricNameLabel] = clientmodel.LabelValue(name)
+	}
+	return m
+}
+
 // metricSelector parses a new metric selector.
 //
 //		<metric_identifier> [<label_matchers>] [ offset <duration> ]
@@ -840,6 +917,25 @@ func (p *parser) vectorSelector(name string) *VectorSelector {
 
 	if len(matchers) == 0 {
 		p.errorf("vector selector must contain label matchers or metric name")
+	}
+	// A vector selector must contain at least one non-empty matcher to prevent
+	// implicit selection of all metrics (e.g. by a typo).
+	notEmpty := false
+	for _, lm := range matchers {
+		// Matching changes the inner state of the regex and causes reflect.DeepEqual
+		// to return false, which break tests.
+		// Thus, we create a new label matcher for this testing.
+		lm, err := metric.NewLabelMatcher(lm.Type, lm.Name, lm.Value)
+		if err != nil {
+			p.error(err)
+		}
+		if !lm.Match("") {
+			notEmpty = true
+			break
+		}
+	}
+	if !notEmpty {
+		p.errorf("vector selector must contain at least one non-empty matcher")
 	}
 
 	var err error
@@ -982,7 +1078,7 @@ func (p *parser) checkType(node Node) (typ ExprType) {
 }
 
 func parseDuration(ds string) (time.Duration, error) {
-	dur, err := utility.StringToDuration(ds)
+	dur, err := strutil.StringToDuration(ds)
 	if err != nil {
 		return 0, err
 	}

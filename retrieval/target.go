@@ -31,7 +31,7 @@ import (
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/storage"
-	"github.com/prometheus/prometheus/utility"
+	"github.com/prometheus/prometheus/util/httputil"
 )
 
 const (
@@ -73,11 +73,11 @@ type TargetHealth int
 func (t TargetHealth) String() string {
 	switch t {
 	case HealthUnknown:
-		return "UNKNOWN"
+		return "unknown"
 	case HealthGood:
-		return "HEALTHY"
+		return "healthy"
 	case HealthBad:
-		return "UNHEALTHY"
+		return "unhealthy"
 	}
 	panic("unknown state")
 }
@@ -142,9 +142,6 @@ func (ts *TargetStatus) setLastError(err error) {
 type Target struct {
 	// The status object for the target. It is only set once on initialization.
 	status *TargetStatus
-	// The HTTP client used to scrape the target's endpoint.
-	httpClient *http.Client
-
 	// Closing scraperStopping signals that scraping should stop.
 	scraperStopping chan struct{}
 	// Closing scraperStopped signals that scraping has been stopped.
@@ -154,18 +151,27 @@ type Target struct {
 
 	// Mutex protects the members below.
 	sync.RWMutex
+	// The HTTP client used to scrape the target's endpoint.
+	httpClient *http.Client
 	// url is the URL to be scraped. Its host is immutable.
 	url *url.URL
+	// Labels before any processing.
+	metaLabels clientmodel.LabelSet
 	// Any base labels that are added to this target and its metrics.
 	baseLabels clientmodel.LabelSet
 	// What is the deadline for the HTTP or HTTPS against this endpoint.
 	deadline time.Duration
 	// The time between two scrapes.
 	scrapeInterval time.Duration
+	// Whether the target's labels have precedence over the base labels
+	// assigned by the scraping instance.
+	honorLabels bool
+	// Metric relabel configuration.
+	metricRelabelConfigs []*config.RelabelConfig
 }
 
 // NewTarget creates a reasonably configured target for querying.
-func NewTarget(cfg *config.ScrapeConfig, baseLabels clientmodel.LabelSet) *Target {
+func NewTarget(cfg *config.ScrapeConfig, baseLabels, metaLabels clientmodel.LabelSet) *Target {
 	t := &Target{
 		url: &url.URL{
 			Host: string(baseLabels[clientmodel.AddressLabel]),
@@ -174,7 +180,7 @@ func NewTarget(cfg *config.ScrapeConfig, baseLabels clientmodel.LabelSet) *Targe
 		scraperStopping: make(chan struct{}),
 		scraperStopped:  make(chan struct{}),
 	}
-	t.Update(cfg, baseLabels)
+	t.Update(cfg, baseLabels, metaLabels)
 	return t
 }
 
@@ -185,7 +191,7 @@ func (t *Target) Status() *TargetStatus {
 
 // Update overwrites settings in the target that are derived from the job config
 // it belongs to.
-func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels clientmodel.LabelSet) {
+func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels, metaLabels clientmodel.LabelSet) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -194,11 +200,14 @@ func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels clientmodel.LabelSe
 	if cfg.BasicAuth != nil {
 		t.url.User = url.UserPassword(cfg.BasicAuth.Username, cfg.BasicAuth.Password)
 	}
+	t.url.RawQuery = cfg.Params.Encode()
 
 	t.scrapeInterval = time.Duration(cfg.ScrapeInterval)
 	t.deadline = time.Duration(cfg.ScrapeTimeout)
-	t.httpClient = utility.NewDeadlineClient(time.Duration(cfg.ScrapeTimeout))
+	t.httpClient = httputil.NewDeadlineClient(time.Duration(cfg.ScrapeTimeout))
 
+	t.honorLabels = cfg.HonorLabels
+	t.metaLabels = metaLabels
 	t.baseLabels = clientmodel.LabelSet{}
 	// All remaining internal labels will not be part of the label set.
 	for name, val := range baseLabels {
@@ -209,6 +218,7 @@ func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels clientmodel.LabelSe
 	if _, ok := t.baseLabels[clientmodel.InstanceLabel]; !ok {
 		t.baseLabels[clientmodel.InstanceLabel] = clientmodel.LabelValue(t.InstanceIdentifier())
 	}
+	t.metricRelabelConfigs = cfg.MetricRelabelConfigs
 }
 
 func (t *Target) String() string {
@@ -320,18 +330,26 @@ func (t *Target) scrape(sampleAppender storage.SampleAppender) (err error) {
 	start := time.Now()
 	baseLabels := t.BaseLabels()
 
+	t.RLock()
+	var (
+		honorLabels          = t.honorLabels
+		httpClient           = t.httpClient
+		metricRelabelConfigs = t.metricRelabelConfigs
+	)
+	t.RUnlock()
+
 	defer func() {
 		t.status.setLastError(err)
 		recordScrapeHealth(sampleAppender, clientmodel.TimestampFromTime(start), baseLabels, t.status.Health(), time.Since(start))
 	}()
 
-	req, err := http.NewRequest("GET", t.URL(), nil)
+	req, err := http.NewRequest("GET", t.URL().String(), nil)
 	if err != nil {
 		panic(err)
 	}
 	req.Header.Add("Accept", acceptHeader)
 
-	resp, err := t.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -357,18 +375,50 @@ func (t *Target) scrape(sampleAppender storage.SampleAppender) (err error) {
 
 	for samples := range t.ingestedSamples {
 		for _, s := range samples {
-			s.Metric.MergeFromLabelSet(baseLabels, clientmodel.ExporterLabelPrefix)
+			if honorLabels {
+				// Merge the metric with the baseLabels for labels not already set in the
+				// metric. This also considers labels explicitly set to the empty string.
+				for ln, lv := range baseLabels {
+					if _, ok := s.Metric[ln]; !ok {
+						s.Metric[ln] = lv
+					}
+				}
+			} else {
+				// Merge the ingested metric with the base label set. On a collision the
+				// value of the label is stored in a label prefixed with the exported prefix.
+				for ln, lv := range baseLabels {
+					if v, ok := s.Metric[ln]; ok && v != "" {
+						s.Metric[clientmodel.ExportedLabelPrefix+ln] = v
+					}
+					s.Metric[ln] = lv
+				}
+			}
+			// Avoid the copy in Relabel if there are no configs.
+			if len(metricRelabelConfigs) > 0 {
+				labels, err := Relabel(clientmodel.LabelSet(s.Metric), metricRelabelConfigs...)
+				if err != nil {
+					log.Errorf("Error while relabeling metric %s of instance %s: %s", s.Metric, req.URL, err)
+					continue
+				}
+				// Check if the timeseries was dropped.
+				if labels == nil {
+					continue
+				}
+				s.Metric = clientmodel.Metric(labels)
+			}
 			sampleAppender.Append(s)
 		}
 	}
 	return err
 }
 
-// URL implements Target.
-func (t *Target) URL() string {
+// URL returns a copy of the target's URL.
+func (t *Target) URL() *url.URL {
 	t.RLock()
 	defer t.RUnlock()
-	return t.url.String()
+	u := &url.URL{}
+	*u = *t.url
+	return u
 }
 
 // InstanceIdentifier returns the identifier for the target.
@@ -395,6 +445,17 @@ func (t *Target) BaseLabels() clientmodel.LabelSet {
 	defer t.RUnlock()
 	lset := make(clientmodel.LabelSet, len(t.baseLabels))
 	for ln, lv := range t.baseLabels {
+		lset[ln] = lv
+	}
+	return lset
+}
+
+// MetaLabels returns a copy of the target's labels before any processing.
+func (t *Target) MetaLabels() clientmodel.LabelSet {
+	t.RLock()
+	defer t.RUnlock()
+	lset := make(clientmodel.LabelSet, len(t.metaLabels))
+	for ln, lv := range t.metaLabels {
 		lset[ln] = lv
 	}
 	return lset

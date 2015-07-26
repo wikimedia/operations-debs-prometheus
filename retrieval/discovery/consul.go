@@ -1,3 +1,16 @@
+// Copyright 2015 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package discovery
+
 package discovery
 
 import (
@@ -20,12 +33,18 @@ const (
 	consulWatchTimeout  = 30 * time.Second
 	consulRetryInterval = 15 * time.Second
 
+	// ConsuleAddressLabel is the name for the label containing a target's address.
+	ConsulAddressLabel = clientmodel.MetaLabelPrefix + "consul_address"
 	// ConsuleNodeLabel is the name for the label containing a target's node name.
 	ConsulNodeLabel = clientmodel.MetaLabelPrefix + "consul_node"
 	// ConsulTagsLabel is the name of the label containing the tags assigned to the target.
 	ConsulTagsLabel = clientmodel.MetaLabelPrefix + "consul_tags"
 	// ConsulServiceLabel is the name of the label containing the service name.
 	ConsulServiceLabel = clientmodel.MetaLabelPrefix + "consul_service"
+	// ConsulServiceAddressLabel is the name of the label containing the (optional) service address.
+	ConsulServiceAddressLabel = clientmodel.MetaLabelPrefix + "consul_service_address"
+	// ConsulServicePortLabel is the name of the label containing the service port.
+	ConsulServicePortLabel = clientmodel.MetaLabelPrefix + "consul_service_port"
 	// ConsulDCLabel is the name of the label containing the datacenter ID.
 	ConsulDCLabel = clientmodel.MetaLabelPrefix + "consul_dc"
 )
@@ -167,8 +186,8 @@ func (cd *ConsulDiscovery) watchServices(update chan<- *consulService) {
 	for {
 		catalog := cd.client.Catalog()
 		srvs, meta, err := catalog.Services(&consul.QueryOptions{
-			RequireConsistent: false,
-			WaitIndex:         lastIndex,
+			WaitIndex: lastIndex,
+			WaitTime:  consulWatchTimeout,
 		})
 		if err != nil {
 			log.Errorf("Error refreshing service list: %s", err)
@@ -184,6 +203,7 @@ func (cd *ConsulDiscovery) watchServices(update chan<- *consulService) {
 		cd.mu.Lock()
 		select {
 		case <-cd.srvsDone:
+			cd.mu.Unlock()
 			return
 		default:
 			// Continue.
@@ -245,17 +265,24 @@ func (cd *ConsulDiscovery) watchService(srv *consulService, ch chan<- *config.Ta
 
 		for _, node := range nodes {
 			addr := fmt.Sprintf("%s:%d", node.Address, node.ServicePort)
-			tags := strings.Join(node.ServiceTags, cd.tagSeparator)
+			// We surround the separated list with the separator as well. This way regular expressions
+			// in relabeling rules don't have to consider tag positions.
+			tags := cd.tagSeparator + strings.Join(node.ServiceTags, cd.tagSeparator) + cd.tagSeparator
 
 			srv.tgroup.Targets = append(srv.tgroup.Targets, clientmodel.LabelSet{
-				clientmodel.AddressLabel: clientmodel.LabelValue(addr),
-				ConsulNodeLabel:          clientmodel.LabelValue(node.Node),
-				ConsulTagsLabel:          clientmodel.LabelValue(tags),
+				clientmodel.AddressLabel:  clientmodel.LabelValue(addr),
+				ConsulAddressLabel:        clientmodel.LabelValue(node.Address),
+				ConsulNodeLabel:           clientmodel.LabelValue(node.Node),
+				ConsulTagsLabel:           clientmodel.LabelValue(tags),
+				ConsulServiceAddressLabel: clientmodel.LabelValue(node.ServiceAddress),
+				ConsulServicePortLabel:    clientmodel.LabelValue(node.ServicePort),
 			})
 		}
+
 		cd.mu.Lock()
 		select {
 		case <-srv.done:
+			cd.mu.Unlock()
 			return
 		default:
 			// Continue.

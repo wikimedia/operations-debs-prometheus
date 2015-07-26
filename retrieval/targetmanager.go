@@ -225,14 +225,14 @@ func (tm *TargetManager) updateTargetGroup(tgroup *config.TargetGroup, cfg *conf
 					break
 				}
 			}
-			// Update the exisiting target and discard the new equivalent.
+			// Update the existing target and discard the new equivalent.
 			// Otherwise start scraping the new target.
 			if match != nil {
 				// Updating is blocked during a scrape. We don't want those wait times
 				// to build up.
 				wg.Add(1)
 				go func(t *Target) {
-					match.Update(cfg, t.fullLabels())
+					match.Update(cfg, t.fullLabels(), t.metaLabels)
 					wg.Done()
 				}(tnew)
 				newTargets[i] = match
@@ -284,7 +284,8 @@ func (tm *TargetManager) Pools() map[string][]*Target {
 
 // ApplyConfig resets the manager's target providers and job configurations as defined
 // by the new cfg. The state of targets that are valid in the new configuration remains unchanged.
-func (tm *TargetManager) ApplyConfig(cfg *config.Config) {
+// Returns true on success.
+func (tm *TargetManager) ApplyConfig(cfg *config.Config) bool {
 	tm.m.RLock()
 	running := tm.running
 	tm.m.RUnlock()
@@ -305,6 +306,7 @@ func (tm *TargetManager) ApplyConfig(cfg *config.Config) {
 
 	tm.globalLabels = cfg.GlobalConfig.Labels
 	tm.providers = providers
+	return true
 }
 
 // targetsFromGroup builds targets based on the given TargetGroup and config.
@@ -349,6 +351,8 @@ func (tm *TargetManager) targetsFromGroup(tg *config.TargetGroup, cfg *config.Sc
 			return nil, fmt.Errorf("instance %d in target group %s has no address", i, tg)
 		}
 
+		preRelabelLabels := labels
+
 		labels, err := Relabel(labels, cfg.RelabelConfigs...)
 		if err != nil {
 			return nil, fmt.Errorf("error while relabeling instance %d in target group %s: %s", i, tg, err)
@@ -365,7 +369,7 @@ func (tm *TargetManager) targetsFromGroup(tg *config.TargetGroup, cfg *config.Sc
 				delete(labels, ln)
 			}
 		}
-		tr := NewTarget(cfg, labels)
+		tr := NewTarget(cfg, labels, preRelabelLabels)
 		targets = append(targets, tr)
 	}
 
@@ -384,6 +388,9 @@ func ProvidersFromConfig(cfg *config.ScrapeConfig) []TargetProvider {
 	}
 	for _, c := range cfg.ConsulSDConfigs {
 		providers = append(providers, discovery.NewConsulDiscovery(c))
+	}
+	for _, c := range cfg.ServersetSDConfigs {
+		providers = append(providers, discovery.NewServersetDiscovery(c))
 	}
 	if len(cfg.TargetGroups) > 0 {
 		providers = append(providers, NewStaticProvider(cfg.TargetGroups))
