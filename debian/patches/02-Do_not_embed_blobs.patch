@@ -134,10 +134,10 @@
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/jquery/jquery.js"></script>
-+    <script src="{{ pathPrefix }}/static/bootstrap-3.3.1/js/bootstrap.min.js"></script>
++    <script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css">
-+    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap-3.3.1/css/bootstrap.min.css">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css">
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css">
  
      <script>
