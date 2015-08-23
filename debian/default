@@ -88,9 +88,9 @@ ARGS=""
 #       The timeout to use when sending samples to the remote storage.
 #
 # Web:
-#   -web.console.libraries=/var/lib/prometheus/console_libraries
+#   -web.console.libraries=/etc/prometheus/console_libraries
 #       Path to the console library directory.
-#   -web.console.templates=/var/lib/prometheus/consoles
+#   -web.console.templates=/etc/prometheus/consoles
 #       Path to the console template directory, available at /console.
 #   -web.enable-remote-shutdown=false
 #       Enable remote service shutdown.

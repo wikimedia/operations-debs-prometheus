@@ -16,13 +16,13 @@
  	cfg.fs.StringVar(
 -		&cfg.web.ConsoleTemplatesPath, "web.console.templates", "consoles",
 +		&cfg.web.ConsoleTemplatesPath, "web.console.templates",
-+                "/var/lib/prometheus/consoles",
++                "/etc/prometheus/consoles",
  		"Path to the console template directory, available at /consoles.",
  	)
  	cfg.fs.StringVar(
 -		&cfg.web.ConsoleLibrariesPath, "web.console.libraries", "console_libraries",
 +		&cfg.web.ConsoleLibrariesPath, "web.console.libraries",
-+                "/var/lib/prometheus/console_libraries",
++                "/etc/prometheus/console_libraries",
  		"Path to the console library directory.",
  	)
  

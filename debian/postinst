@@ -30,21 +30,6 @@ case "$1" in
 
     chown -R prometheus:prometheus /var/lib/prometheus/metrics || true
     chown -R prometheus:prometheus /var/log/prometheus || true
-
-    # Copy sample templates if this is the first installation.
-    if [ ! -d /var/lib/prometheus/consoles -a \
-         ! -d /var/lib/prometheus/console_libraries ]; then
-        cp -a /usr/share/doc/prometheus/examples/consoles \
-            /usr/share/doc/prometheus/examples/console_libraries \
-            /var/lib/prometheus
-        # Revert any policy-mandated compression.
-        find /var/lib/prometheus/consoles \
-            /var/lib/prometheus/console_libraries -name \*.gz \
-            -exec gunzip {} \;
-        mv /var/lib/prometheus/consoles/index.html.example \
-            /var/lib/prometheus/consoles/index.html
-    fi
-
   ;;
 
   abort-upgrade|abort-remove|abort-deconfigure)

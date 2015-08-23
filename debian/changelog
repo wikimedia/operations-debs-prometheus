@@ -3,6 +3,8 @@ prometheus (0.15.1+ds-1) UNRELEASED; urgency=medium
   * New upstream release. Closes: #792053.
   * Add missing dependency on adduser. Closes: #792498.
   * Update dependencies, refresh patches.
+  * Stop adding examples as unowned files. Instead leave a README file pointing
+    to the location of the examples. Closes: #792105.
 
  -- Martín Ferrari <tincho@debian.org>  Sat, 22 Aug 2015 00:40:23 +0200
 

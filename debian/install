@@ -1,6 +1,6 @@
 debian/prometheus.yml   etc/prometheus/
-debian/README.consoles  usr/share/doc/prometheus/examples/consoles
-debian/README.consoles  usr/share/doc/prometheus/examples/console_templates
+debian/README.consoles  etc/prometheus/console_libraries
+debian/README.consoles  etc/prometheus/consoles
 web/blob/templates/     usr/share/prometheus/web/
 web/blob/static/css/    usr/share/prometheus/web/static
 web/blob/static/img/    usr/share/prometheus/web/static
