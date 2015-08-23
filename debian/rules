@@ -25,12 +25,12 @@ HOSTNAME   := $(shell hostname -f)
 BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
 GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
 BUILDFLAGS := -ldflags \
-  " -X main.buildVersion $(VERSION)\
-    -X main.buildRevision $(REV)\
-    -X main.buildBranch $(BRANCH)\
-    -X main.buildUser $(USER)\
-    -X main.buildDate $(BUILD_DATE)\
-    -X main.goVersion $(GO_VERSION)"
+  " -X $(DH_GOPKG)/version.Version $(VERSION)\
+    -X $(DH_GOPKG)/version.Revision $(REV)\
+    -X $(DH_GOPKG)/version.Branch $(BRANCH)\
+    -X $(DH_GOPKG)/version.BuildUser $(USER)\
+    -X $(DH_GOPKG)/version.BuildDate $(BUILD_DATE)\
+    -X $(DH_GOPKG)/version.GoVersion $(GO_VERSION)"
 
 %:
 	dh $@ --buildsystem=golang --with=golang
