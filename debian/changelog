@@ -1,10 +1,10 @@
-prometheus (0.15.0+ds-1) UNRELEASED; urgency=medium
+prometheus (0.15.1+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release. Closes: #792053.
   * Add missing dependency on adduser. Closes: #792498.
   * Update dependencies, refresh patches.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 26 Jul 2015 20:12:30 +0200
+ -- Martín Ferrari <tincho@debian.org>  Sat, 22 Aug 2015 00:40:23 +0200
 
 prometheus (0.14.0+ds-1) unstable; urgency=medium
 
