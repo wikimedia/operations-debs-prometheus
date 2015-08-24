@@ -5,6 +5,7 @@ prometheus (0.15.1+ds-1) UNRELEASED; urgency=medium
   * Update dependencies, refresh patches.
   * Stop adding examples as unowned files. Instead leave a README file pointing
     to the location of the examples. Closes: #792105.
+  * debian/rules: Avoid some tests that fail on slow architectures.
 
  -- Martín Ferrari <tincho@debian.org>  Sat, 22 Aug 2015 00:40:23 +0200
 
