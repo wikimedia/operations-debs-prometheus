@@ -1,4 +1,4 @@
-prometheus (0.15.1+ds-1) UNRELEASED; urgency=medium
+prometheus (0.15.1+ds-1) unstable; urgency=medium
 
   * New upstream release. Closes: #792053.
   * Add missing dependency on adduser. Closes: #792498.
@@ -7,7 +7,7 @@ prometheus (0.15.1+ds-1) UNRELEASED; urgency=medium
     to the location of the examples. Closes: #792105.
   * debian/rules: Avoid some tests that fail on slow architectures.
 
- -- Martín Ferrari <tincho@debian.org>  Sat, 22 Aug 2015 00:40:23 +0200
+ -- Martín Ferrari <tincho@debian.org>  Tue, 25 Aug 2015 02:57:50 +0000
 
 prometheus (0.14.0+ds-1) unstable; urgency=medium
 
