@@ -32,11 +32,13 @@ BUILDFLAGS := -ldflags \
     -X $(DH_GOPKG)/version.BuildDate $(BUILD_DATE)\
     -X $(DH_GOPKG)/version.GoVersion $(GO_VERSION)"
 
-# Avoid sometests that fail on slow architectures.
+# Avoid some tests that fail on slow architectures.
 ifeq ($(DEB_HOST_ARCH_CPU),arm)
 SKIP_TESTS := $(DH_GOPKG)/retrieval
+SHORT_TESTS := -short
 else
 SKIP_TESTS :=
+SHORT_TESTS :=
 endif
 
 %:
@@ -62,7 +64,8 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	# Avoid some tests that fail on slow architectures.
-	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" dh_auto_test -O--buildsystem=golang
+	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" \
+		dh_auto_test -O--buildsystem=golang -- $(SHORT_TESTS)
 
 WEB_VENDORED_DIR := debian/prometheus/usr/share/prometheus/web/static/vendor
 override_dh_auto_install:
