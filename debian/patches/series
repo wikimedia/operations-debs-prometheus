@@ -2,3 +2,4 @@
 02-Do_not_embed_blobs.patch
 03-Default_settings.patch
 04-Use_embedded_client_model.patch
+05-Disable_flaky_tests.patch

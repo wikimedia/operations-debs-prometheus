@@ -1,6 +1,7 @@
-prometheus (0.15.1+ds-2) UNRELEASED; urgency=medium
+prometheus (0.15.1+ds-2) UNRELEASED; urgency=high
 
   * Make the build date match the changelog, to improve reproducibility.
+  * Disable completely some tests that depend on timing. Closes: #792053.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 25 Aug 2015 05:00:21 +0000
 

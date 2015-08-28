@@ -35,7 +35,7 @@ BUILDFLAGS := -ldflags \
 
 # Avoid some tests that fail on slow architectures.
 ifeq ($(DEB_HOST_ARCH_CPU),arm)
-SKIP_TESTS := $(DH_GOPKG)/retrieval
+SKIP_TESTS :=
 SHORT_TESTS := -short
 else
 SKIP_TESTS :=
