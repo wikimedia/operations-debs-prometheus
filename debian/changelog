@@ -1,3 +1,9 @@
+prometheus (0.15.1+ds-3) UNRELEASED; urgency=medium
+
+  * debian/rules: improve build-reproducibility.
+
+ -- Martín Ferrari <tincho@debian.org>  Tue, 01 Sep 2015 14:56:50 +0300
+
 prometheus (0.15.1+ds-2) unstable; urgency=high
 
   * Make the build date match the changelog, to improve reproducibility.

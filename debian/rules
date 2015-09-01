@@ -15,14 +15,14 @@ BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
 
 # Taken and modified from the project's Makefile.
 
-DEBVERS    ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
+DEBVERS    ?= $(shell dpkg-parsechangelog -SVersion)
 VERSION    ?= $(shell echo '$(DEBVERS)' | sed 's/^[[:digit:]]*://; s/[-].*//')
-DEBPKGNAME ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Source: //p')
-DEBDATE    ?= $(shell dpkg-parsechangelog | sed -n -e 's/^Date: //p')
+DEBPKGNAME ?= $(shell dpkg-parsechangelog -SSource)
+DEBDATE    ?= $(shell dpkg-parsechangelog -SDate)
 REV        := $(DEBVERS)
 BRANCH     := debian/sid
 USER       := pkg-go-maintainers@lists.alioth.debian.org
-HOSTNAME   := $(shell hostname -f)
+HOSTNAME   := debian
 BUILD_DATE := $(shell date --utc --date='$(DEBDATE)' +%Y%m%d-%H:%M:%S)
 GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
 BUILDFLAGS := -ldflags \
