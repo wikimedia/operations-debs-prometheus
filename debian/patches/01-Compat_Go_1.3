@@ -1,6 +1,6 @@
 --- a/storage/local/persistence.go
 +++ b/storage/local/persistence.go
-@@ -581,7 +581,7 @@
+@@ -583,7 +583,7 @@
  	iter := fingerprintToSeries.iter()
  	defer func() {
  		// Consume the iterator in any case to not leak goroutines.
@@ -11,7 +11,7 @@
  
 --- a/storage/local/storage.go
 +++ b/storage/local/storage.go
-@@ -769,7 +769,7 @@
+@@ -777,7 +777,7 @@
  
  		defer func() {
  			if fpIter != nil {
@@ -20,7 +20,7 @@
  					// Consume the iterator.
  				}
  			}
-@@ -890,9 +890,9 @@
+@@ -902,9 +902,9 @@
  		}
  	}
  	// Wait until both channels are closed.

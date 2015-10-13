@@ -1,6 +1,6 @@
 --- a/retrieval/target_test.go
 +++ b/retrieval/target_test.go
-@@ -139,6 +139,7 @@
+@@ -140,6 +140,7 @@
  }
  
  func TestTargetScrapeWithFullChannel(t *testing.T) {
@@ -10,11 +10,11 @@
  			func(w http.ResponseWriter, r *http.Request) {
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1131,6 +1131,7 @@
+@@ -1163,6 +1163,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunkEncoding) {
 +	t.Skip("Skipping time-dependant test.")
- 	samples := make(clientmodel.Samples, 10000)
+ 	samples := make(model.Samples, 10000)
  	for i := range samples {
- 		samples[i] = &clientmodel.Sample{
+ 		samples[i] = &model.Sample{
