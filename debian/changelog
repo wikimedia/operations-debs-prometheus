@@ -1,8 +1,10 @@
-prometheus (0.15.1+ds-3) UNRELEASED; urgency=medium
+prometheus (0.16.2+ds-1) UNRELEASED; urgency=high
 
+  * New upstream release.
   * debian/rules: improve build-reproducibility.
+  * Fix build issues due to changes in dependencies. Closes: #811236.
 
- -- Martín Ferrari <tincho@debian.org>  Tue, 01 Sep 2015 14:56:50 +0300
+ -- Martín Ferrari <tincho@debian.org>  Mon, 25 Jan 2016 04:45:54 -0300
 
 prometheus (0.15.1+ds-2) unstable; urgency=high
 
