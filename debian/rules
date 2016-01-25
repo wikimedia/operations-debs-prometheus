@@ -54,10 +54,11 @@ override_dh_auto_configure:
         done
 	# Include vendored dependencies.
 	for i in github.com/hashicorp/consul \
-            github.com/influxdb/influxdb; \
+                github.com/influxdb/influxdb; \
         do \
-            mkdir -vp `dirname $(BUILDDIR)/src/$$i`; \
-            cp -av vendor/$$i $(BUILDDIR)/src/$$i; \
+            dst=`dirname $(BUILDDIR)/src/$$i`; \
+            mkdir -vp $$dst; \
+            cp -av vendor/$$i $$dst; \
         done
 
 override_dh_auto_build:
