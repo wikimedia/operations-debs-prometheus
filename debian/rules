@@ -54,10 +54,10 @@ override_dh_auto_configure:
         done
 	# Include vendored dependencies.
 	for i in github.com/hashicorp/consul \
-            github.com/samuel/go-zookeeper; \
+            github.com/influxdb/influxdb; \
         do \
             mkdir -vp `dirname $(BUILDDIR)/src/$$i`; \
-            cp -av Godeps/_workspace/src/$$i $(BUILDDIR)/src/$$i; \
+            cp -av vendor/$$i $(BUILDDIR)/src/$$i; \
         done
 
 override_dh_auto_build:
