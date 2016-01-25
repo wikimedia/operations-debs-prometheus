@@ -14,16 +14,16 @@ Files: debian/*
 Copyright: 2015 Martín Ferrari <tincho@tincho.org>
 License: Apache-2.0
 
-Files: Godeps/_workspace/src/github.com/hashicorp/consul/*
+Files: vendor/github.com/influxdb/*
+Copyright: 2013-2015 Errplane Inc.
+License: MIT
+
+Files: vendor/github.com/hashicorp/consul/*
 Copyright: 2015 HashiCorp Project
 License: MPL-2.0
 Comment: LICENSE was added from the original repository
  (https://github.com/hashicorp/consul), as this directory was missing licensing
  information.
-
-Files: Godeps/_workspace/src/github.com/samuel/go-zookeeper/
-Copyright: 2013, Samuel Stauffer <samuel@descolada.com>
-License: BSD-3-clause
 
 Files: web/blob/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
@@ -95,36 +95,6 @@ License: MIT
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  SOFTWARE.
-
-License: BSD-3-clause
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are
- met:
- .
-   Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- . 
-   Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in
-   the documentation and/or other materials provided with the
-   distribution.
- . 
-   Neither the name of the Open Knowledge Foundation Ltd. nor the
-   names of its contributors may be used to endorse or promote
-   products derived from this software without specific prior written
-   permission.
- . 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 License: MPL-2.0
  Mozilla Public License, version 2.0
