@@ -1,4 +1,4 @@
-prometheus (0.16.2+ds-1) UNRELEASED; urgency=high
+prometheus (0.16.2+ds-1) unstable; urgency=high
 
   * Breaking changes in this release:
    - Remove undocumented 2nd argument of the `delta` function.
