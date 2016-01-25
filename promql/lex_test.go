@@ -99,6 +99,11 @@ var tests = []struct {
 		input:    "0x123",
 		expected: []item{{itemNumber, 0, "0x123"}},
 	},
+	{
+		// See https://github.com/prometheus/prometheus/issues/939.
+		input: ".٩",
+		fail:  true,
+	},
 	// Test duration.
 	{
 		input:    "5s",
@@ -259,6 +264,9 @@ var tests = []struct {
 	}, {
 		input:    "group_right",
 		expected: []item{{itemGroupRight, 0, "group_right"}},
+	}, {
+		input:    "bool",
+		expected: []item{{itemBool, 0, "bool"}},
 	},
 	// Test Selector.
 	{

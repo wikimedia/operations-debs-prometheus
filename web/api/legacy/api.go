@@ -17,23 +17,22 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
-
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/util/httputil"
-	"github.com/prometheus/prometheus/util/route"
 )
 
 // API manages the /api HTTP endpoint.
 type API struct {
-	Now         func() clientmodel.Timestamp
+	Now         func() model.Time
 	Storage     local.Storage
 	QueryEngine *promql.Engine
 }
 
-// RegisterHandler registers the handler for the various endpoints below /api.
+// Register registers the handler for the various endpoints below /api.
 func (api *API) Register(router *route.Router) {
 	router.Get("/query", handle("query", api.Query))
 	router.Get("/query_range", handle("query_range", api.QueryRange))

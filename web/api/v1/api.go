@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 	"golang.org/x/net/context"
-
-	clientmodel "github.com/prometheus/client_golang/model"
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
-	"github.com/prometheus/prometheus/util/route"
+	"github.com/prometheus/prometheus/storage/metric"
+	"github.com/prometheus/prometheus/util/httputil"
 	"github.com/prometheus/prometheus/util/strutil"
 )
 
@@ -53,15 +54,6 @@ type response struct {
 	Error     string      `json:"error,omitempty"`
 }
 
-// API can register a set of endpoints in a router and handle
-// them using the provided storage and query engine.
-type API struct {
-	Storage     local.Storage
-	QueryEngine *promql.Engine
-
-	context func(r *http.Request) context.Context
-}
-
 // Enables cross-site script calls.
 func setCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, Origin")
@@ -72,20 +64,39 @@ func setCORS(w http.ResponseWriter) {
 
 type apiFunc func(r *http.Request) (interface{}, *apiError)
 
+// API can register a set of endpoints in a router and handle
+// them using the provided storage and query engine.
+type API struct {
+	Storage     local.Storage
+	QueryEngine *promql.Engine
+
+	context func(r *http.Request) context.Context
+	now     func() model.Time
+}
+
+// NewAPI returns an initialized API type.
+func NewAPI(qe *promql.Engine, st local.Storage) *API {
+	return &API{
+		QueryEngine: qe,
+		Storage:     st,
+		context:     route.Context,
+		now:         model.Now,
+	}
+}
+
 // Register the API's endpoints in the given router.
 func (api *API) Register(r *route.Router) {
-	if api.context == nil {
-		api.context = route.Context
-	}
-
 	instr := func(name string, f apiFunc) http.HandlerFunc {
-		return prometheus.InstrumentHandlerFunc(name, func(w http.ResponseWriter, r *http.Request) {
+		hf := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			setCORS(w)
 			if data, err := f(r); err != nil {
 				respondError(w, err, data)
 			} else {
 				respond(w, data)
 			}
+		})
+		return prometheus.InstrumentHandler(name, httputil.CompressionHandler{
+			Handler: hf,
 		})
 	}
 
@@ -99,15 +110,22 @@ func (api *API) Register(r *route.Router) {
 }
 
 type queryData struct {
-	ResultType promql.ExprType `json:"resultType"`
-	Result     promql.Value    `json:"result"`
+	ResultType model.ValueType `json:"resultType"`
+	Result     model.Value     `json:"result"`
 }
 
 func (api *API) query(r *http.Request) (interface{}, *apiError) {
-	ts, err := parseTime(r.FormValue("time"))
-	if err != nil {
-		return nil, &apiError{errorBadData, err}
+	var ts model.Time
+	if t := r.FormValue("time"); t != "" {
+		var err error
+		ts, err = parseTime(t)
+		if err != nil {
+			return nil, &apiError{errorBadData, err}
+		}
+	} else {
+		ts = api.now()
 	}
+
 	qry, err := api.QueryEngine.NewInstantQuery(r.FormValue("query"), ts)
 	if err != nil {
 		return nil, &apiError{errorBadData, err}
@@ -174,10 +192,10 @@ func (api *API) queryRange(r *http.Request) (interface{}, *apiError) {
 func (api *API) labelValues(r *http.Request) (interface{}, *apiError) {
 	name := route.Param(api.context(r), "name")
 
-	if !clientmodel.LabelNameRE.MatchString(name) {
+	if !model.LabelNameRE.MatchString(name) {
 		return nil, &apiError{errorBadData, fmt.Errorf("invalid label name: %q", name)}
 	}
-	vals := api.Storage.LabelValuesForLabelName(clientmodel.LabelName(name))
+	vals := api.Storage.LabelValuesForLabelName(model.LabelName(name))
 	sort.Sort(vals)
 
 	return vals, nil
@@ -188,7 +206,7 @@ func (api *API) series(r *http.Request) (interface{}, *apiError) {
 	if len(r.Form["match[]"]) == 0 {
 		return nil, &apiError{errorBadData, fmt.Errorf("no match[] parameter provided")}
 	}
-	res := map[clientmodel.Fingerprint]clientmodel.COWMetric{}
+	res := map[model.Fingerprint]metric.Metric{}
 
 	for _, lm := range r.Form["match[]"] {
 		matchers, err := promql.ParseMetricSelector(lm)
@@ -200,7 +218,7 @@ func (api *API) series(r *http.Request) (interface{}, *apiError) {
 		}
 	}
 
-	metrics := make([]clientmodel.Metric, 0, len(res))
+	metrics := make([]model.Metric, 0, len(res))
 	for _, met := range res {
 		metrics = append(metrics, met.Metric)
 	}
@@ -212,7 +230,7 @@ func (api *API) dropSeries(r *http.Request) (interface{}, *apiError) {
 	if len(r.Form["match[]"]) == 0 {
 		return nil, &apiError{errorBadData, fmt.Errorf("no match[] parameter provided")}
 	}
-	fps := map[clientmodel.Fingerprint]struct{}{}
+	fps := map[model.Fingerprint]struct{}{}
 
 	for _, lm := range r.Form["match[]"] {
 		matchers, err := promql.ParseMetricSelector(lm)
@@ -251,7 +269,19 @@ func respond(w http.ResponseWriter, data interface{}) {
 
 func respondError(w http.ResponseWriter, apiErr *apiError, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(422)
+
+	var code int
+	switch apiErr.typ {
+	case errorBadData:
+		code = http.StatusBadRequest
+	case errorExec:
+		code = 422
+	case errorCanceled, errorTimeout:
+		code = http.StatusServiceUnavailable
+	default:
+		code = http.StatusInternalServerError
+	}
+	w.WriteHeader(code)
 
 	b, err := json.Marshal(&response{
 		Status:    statusError,
@@ -265,13 +295,13 @@ func respondError(w http.ResponseWriter, apiErr *apiError, data interface{}) {
 	w.Write(b)
 }
 
-func parseTime(s string) (clientmodel.Timestamp, error) {
+func parseTime(s string) (model.Time, error) {
 	if t, err := strconv.ParseFloat(s, 64); err == nil {
 		ts := int64(t * float64(time.Second))
-		return clientmodel.TimestampFromUnixNano(ts), nil
+		return model.TimeFromUnixNano(ts), nil
 	}
 	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
-		return clientmodel.TimestampFromTime(t), nil
+		return model.TimeFromUnixNano(t.UnixNano()), nil
 	}
 	return 0, fmt.Errorf("cannot parse %q to a valid timestamp", s)
 }

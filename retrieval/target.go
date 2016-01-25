@@ -16,6 +16,8 @@ package retrieval
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -23,11 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/extraction"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
-
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/storage"
@@ -35,12 +36,9 @@ import (
 )
 
 const (
-	// ScrapeHealthMetricName is the metric name for the synthetic health
-	// variable.
-	scrapeHealthMetricName clientmodel.LabelValue = "up"
-	// ScrapeTimeMetricName is the metric name for the synthetic scrape duration
-	// variable.
-	scrapeDurationMetricName clientmodel.LabelValue = "scrape_duration_seconds"
+	scrapeHealthMetricName   = "up"
+	scrapeDurationMetricName = "scrape_duration_seconds"
+
 	// Capacity of the channel to buffer samples during ingestion.
 	ingestedSamplesCap = 256
 
@@ -75,19 +73,26 @@ func (t TargetHealth) String() string {
 	case HealthUnknown:
 		return "unknown"
 	case HealthGood:
-		return "healthy"
+		return "up"
 	case HealthBad:
-		return "unhealthy"
+		return "down"
 	}
 	panic("unknown state")
 }
 
+func (t TargetHealth) value() model.SampleValue {
+	if t == HealthGood {
+		return 1
+	}
+	return 0
+}
+
 const (
-	// Unknown is the state of a Target before it is first scraped.
+	// HealthUnknown is the state of a Target before it is first scraped.
 	HealthUnknown TargetHealth = iota
-	// Healthy is the state of a Target that has been successfully scraped.
+	// HealthGood is the state of a Target that has been successfully scraped.
 	HealthGood
-	// Unhealthy is the state of a Target that was scraped unsuccessfully.
+	// HealthBad is the state of a Target that was scraped unsuccessfully.
 	HealthBad
 )
 
@@ -147,7 +152,7 @@ type Target struct {
 	// Closing scraperStopped signals that scraping has been stopped.
 	scraperStopped chan struct{}
 	// Channel to buffer ingested samples.
-	ingestedSamples chan clientmodel.Samples
+	ingestedSamples chan model.Vector
 
 	// Mutex protects the members below.
 	sync.RWMutex
@@ -156,9 +161,11 @@ type Target struct {
 	// url is the URL to be scraped. Its host is immutable.
 	url *url.URL
 	// Labels before any processing.
-	metaLabels clientmodel.LabelSet
+	metaLabels model.LabelSet
 	// Any base labels that are added to this target and its metrics.
-	baseLabels clientmodel.LabelSet
+	baseLabels model.LabelSet
+	// Internal labels, such as scheme.
+	internalLabels model.LabelSet
 	// What is the deadline for the HTTP or HTTPS against this endpoint.
 	deadline time.Duration
 	// The time between two scrapes.
@@ -171,10 +178,11 @@ type Target struct {
 }
 
 // NewTarget creates a reasonably configured target for querying.
-func NewTarget(cfg *config.ScrapeConfig, baseLabels, metaLabels clientmodel.LabelSet) *Target {
+func NewTarget(cfg *config.ScrapeConfig, baseLabels, metaLabels model.LabelSet) *Target {
 	t := &Target{
 		url: &url.URL{
-			Host: string(baseLabels[clientmodel.AddressLabel]),
+			Scheme: string(baseLabels[model.SchemeLabel]),
+			Host:   string(baseLabels[model.AddressLabel]),
 		},
 		status:          &TargetStatus{},
 		scraperStopping: make(chan struct{}),
@@ -191,63 +199,108 @@ func (t *Target) Status() *TargetStatus {
 
 // Update overwrites settings in the target that are derived from the job config
 // it belongs to.
-func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels, metaLabels clientmodel.LabelSet) {
+func (t *Target) Update(cfg *config.ScrapeConfig, baseLabels, metaLabels model.LabelSet) {
 	t.Lock()
 	defer t.Unlock()
 
-	t.url.Scheme = cfg.Scheme
-	t.url.Path = string(baseLabels[clientmodel.MetricsPathLabel])
-	if cfg.BasicAuth != nil {
-		t.url.User = url.UserPassword(cfg.BasicAuth.Username, cfg.BasicAuth.Password)
+	httpClient, err := newHTTPClient(cfg)
+	if err != nil {
+		log.Errorf("cannot create HTTP client: %v", err)
+		return
 	}
-	t.url.RawQuery = cfg.Params.Encode()
+	t.httpClient = httpClient
+
+	t.url.Scheme = string(baseLabels[model.SchemeLabel])
+	t.url.Path = string(baseLabels[model.MetricsPathLabel])
+
+	t.internalLabels = model.LabelSet{}
+	t.internalLabels[model.SchemeLabel] = baseLabels[model.SchemeLabel]
+	t.internalLabels[model.MetricsPathLabel] = baseLabels[model.MetricsPathLabel]
+	t.internalLabels[model.AddressLabel] = model.LabelValue(t.url.Host)
+
+	params := url.Values{}
+
+	for k, v := range cfg.Params {
+		params[k] = make([]string, len(v))
+		copy(params[k], v)
+	}
+	for k, v := range baseLabels {
+		if strings.HasPrefix(string(k), model.ParamLabelPrefix) {
+			if len(params[string(k[len(model.ParamLabelPrefix):])]) > 0 {
+				params[string(k[len(model.ParamLabelPrefix):])][0] = string(v)
+			} else {
+				params[string(k[len(model.ParamLabelPrefix):])] = []string{string(v)}
+			}
+			t.internalLabels[model.ParamLabelPrefix+k[len(model.ParamLabelPrefix):]] = v
+		}
+	}
+	t.url.RawQuery = params.Encode()
 
 	t.scrapeInterval = time.Duration(cfg.ScrapeInterval)
 	t.deadline = time.Duration(cfg.ScrapeTimeout)
-	t.httpClient = httputil.NewDeadlineClient(time.Duration(cfg.ScrapeTimeout))
 
 	t.honorLabels = cfg.HonorLabels
 	t.metaLabels = metaLabels
-	t.baseLabels = clientmodel.LabelSet{}
+	t.baseLabels = model.LabelSet{}
 	// All remaining internal labels will not be part of the label set.
 	for name, val := range baseLabels {
-		if !strings.HasPrefix(string(name), clientmodel.ReservedLabelPrefix) {
+		if !strings.HasPrefix(string(name), model.ReservedLabelPrefix) {
 			t.baseLabels[name] = val
 		}
 	}
-	if _, ok := t.baseLabels[clientmodel.InstanceLabel]; !ok {
-		t.baseLabels[clientmodel.InstanceLabel] = clientmodel.LabelValue(t.InstanceIdentifier())
+	if _, ok := t.baseLabels[model.InstanceLabel]; !ok {
+		t.baseLabels[model.InstanceLabel] = model.LabelValue(t.InstanceIdentifier())
 	}
 	t.metricRelabelConfigs = cfg.MetricRelabelConfigs
+}
+
+func newHTTPClient(cfg *config.ScrapeConfig) (*http.Client, error) {
+	rt := httputil.NewDeadlineRoundTripper(time.Duration(cfg.ScrapeTimeout), cfg.ProxyURL.URL)
+
+	tlsOpts := httputil.TLSOptions{
+		InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify,
+		CAFile:             cfg.TLSConfig.CAFile,
+	}
+	if len(cfg.TLSConfig.CertFile) > 0 && len(cfg.TLSConfig.KeyFile) > 0 {
+		tlsOpts.CertFile = cfg.TLSConfig.CertFile
+		tlsOpts.KeyFile = cfg.TLSConfig.KeyFile
+	}
+	tlsConfig, err := httputil.NewTLSConfig(tlsOpts)
+	if err != nil {
+		return nil, err
+	}
+	// Get a default roundtripper with the scrape timeout.
+	tr := rt.(*http.Transport)
+	// Set the TLS config from above
+	tr.TLSClientConfig = tlsConfig
+	rt = tr
+
+	// If a bearer token is provided, create a round tripper that will set the
+	// Authorization header correctly on each request.
+	bearerToken := cfg.BearerToken
+	if len(bearerToken) == 0 && len(cfg.BearerTokenFile) > 0 {
+		b, err := ioutil.ReadFile(cfg.BearerTokenFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read bearer token file %s: %s", cfg.BearerTokenFile, err)
+		}
+		bearerToken = string(b)
+	}
+
+	if len(bearerToken) > 0 {
+		rt = httputil.NewBearerAuthRoundTripper(bearerToken, rt)
+	}
+
+	if cfg.BasicAuth != nil {
+		rt = httputil.NewBasicAuthRoundTripper(cfg.BasicAuth.Username, cfg.BasicAuth.Password, rt)
+	}
+
+	// Return a new client with the configured round tripper.
+	return httputil.NewClient(rt), nil
 }
 
 func (t *Target) String() string {
 	return t.url.Host
 }
-
-// Ingest implements an extraction.Ingester.
-func (t *Target) Ingest(s clientmodel.Samples) error {
-	t.RLock()
-	deadline := t.deadline
-	t.RUnlock()
-	// Since the regular case is that ingestedSamples is ready to receive,
-	// first try without setting a timeout so that we don't need to allocate
-	// a timer most of the time.
-	select {
-	case t.ingestedSamples <- s:
-		return nil
-	default:
-		select {
-		case t.ingestedSamples <- s:
-			return nil
-		case <-time.After(deadline / 10):
-			return errIngestChannelFull
-		}
-	}
-}
-
-// Ensure that Target implements extraction.Ingester at compile time.
-var _ extraction.Ingester = (*Target)(nil)
 
 // RunScraper implements Target.
 func (t *Target) RunScraper(sampleAppender storage.SampleAppender) {
@@ -324,28 +377,67 @@ func (t *Target) StopScraper() {
 	log.Debugf("Scraper for target %v stopped.", t)
 }
 
+func (t *Target) ingest(s model.Vector) error {
+	t.RLock()
+	deadline := t.deadline
+	t.RUnlock()
+	// Since the regular case is that ingestedSamples is ready to receive,
+	// first try without setting a timeout so that we don't need to allocate
+	// a timer most of the time.
+	select {
+	case t.ingestedSamples <- s:
+		return nil
+	default:
+		select {
+		case t.ingestedSamples <- s:
+			return nil
+		case <-time.After(deadline / 10):
+			return errIngestChannelFull
+		}
+	}
+}
+
 const acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3,application/json;schema="prometheus/telemetry";version=0.0.2;q=0.2,*/*;q=0.1`
 
-func (t *Target) scrape(sampleAppender storage.SampleAppender) (err error) {
+func (t *Target) scrape(appender storage.SampleAppender) (err error) {
 	start := time.Now()
 	baseLabels := t.BaseLabels()
 
-	t.RLock()
-	var (
-		honorLabels          = t.honorLabels
-		httpClient           = t.httpClient
-		metricRelabelConfigs = t.metricRelabelConfigs
-	)
-	t.RUnlock()
-
-	defer func() {
+	defer func(appender storage.SampleAppender) {
 		t.status.setLastError(err)
-		recordScrapeHealth(sampleAppender, clientmodel.TimestampFromTime(start), baseLabels, t.status.Health(), time.Since(start))
-	}()
+		recordScrapeHealth(appender, start, baseLabels, t.status.Health(), time.Since(start))
+	}(appender)
+
+	t.RLock()
+
+	// The relabelAppender has to be inside the label-modifying appenders
+	// so the relabeling rules are applied to the correct label set.
+	if len(t.metricRelabelConfigs) > 0 {
+		appender = relabelAppender{
+			app:         appender,
+			relabelings: t.metricRelabelConfigs,
+		}
+	}
+
+	if t.honorLabels {
+		appender = honorLabelsAppender{
+			app:    appender,
+			labels: baseLabels,
+		}
+	} else {
+		appender = ruleLabelsAppender{
+			app:    appender,
+			labels: baseLabels,
+		}
+	}
+
+	httpClient := t.httpClient
+
+	t.RUnlock()
 
 	req, err := http.NewRequest("GET", t.URL().String(), nil)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	req.Header.Add("Accept", acceptHeader)
 
@@ -354,68 +446,115 @@ func (t *Target) scrape(sampleAppender storage.SampleAppender) (err error) {
 		return err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned HTTP status %s", resp.Status)
 	}
 
-	processor, err := extraction.ProcessorForRequestHeader(resp.Header)
-	if err != nil {
-		return err
+	dec := expfmt.NewDecoder(resp.Body, expfmt.ResponseFormat(resp.Header))
+
+	sdec := expfmt.SampleDecoder{
+		Dec: dec,
+		Opts: &expfmt.DecodeOptions{
+			Timestamp: model.TimeFromUnixNano(start.UnixNano()),
+		},
 	}
 
-	t.ingestedSamples = make(chan clientmodel.Samples, ingestedSamplesCap)
+	t.ingestedSamples = make(chan model.Vector, ingestedSamplesCap)
 
-	processOptions := &extraction.ProcessOptions{
-		Timestamp: clientmodel.TimestampFromTime(start),
-	}
 	go func() {
-		err = processor.ProcessSingle(resp.Body, t, processOptions)
+		for {
+			// TODO(fabxc): Change the SampleAppender interface to return an error
+			// so we can proceed based on the status and don't leak goroutines trying
+			// to append a single sample after dropping all the other ones.
+			//
+			// This will also allow use to reuse this vector and save allocations.
+			var samples model.Vector
+			if err = sdec.Decode(&samples); err != nil {
+				break
+			}
+			if err = t.ingest(samples); err != nil {
+				break
+			}
+		}
 		close(t.ingestedSamples)
 	}()
 
 	for samples := range t.ingestedSamples {
 		for _, s := range samples {
-			if honorLabels {
-				// Merge the metric with the baseLabels for labels not already set in the
-				// metric. This also considers labels explicitly set to the empty string.
-				for ln, lv := range baseLabels {
-					if _, ok := s.Metric[ln]; !ok {
-						s.Metric[ln] = lv
-					}
-				}
-			} else {
-				// Merge the ingested metric with the base label set. On a collision the
-				// value of the label is stored in a label prefixed with the exported prefix.
-				for ln, lv := range baseLabels {
-					if v, ok := s.Metric[ln]; ok && v != "" {
-						s.Metric[clientmodel.ExportedLabelPrefix+ln] = v
-					}
-					s.Metric[ln] = lv
-				}
-			}
-			// Avoid the copy in Relabel if there are no configs.
-			if len(metricRelabelConfigs) > 0 {
-				labels, err := Relabel(clientmodel.LabelSet(s.Metric), metricRelabelConfigs...)
-				if err != nil {
-					log.Errorf("Error while relabeling metric %s of instance %s: %s", s.Metric, req.URL, err)
-					continue
-				}
-				// Check if the timeseries was dropped.
-				if labels == nil {
-					continue
-				}
-				s.Metric = clientmodel.Metric(labels)
-			}
-			sampleAppender.Append(s)
+			appender.Append(s)
 		}
 	}
+
+	if err == io.EOF {
+		return nil
+	}
 	return err
+}
+
+// Merges the ingested sample's metric with the label set. On a collision the
+// value of the ingested label is stored in a label prefixed with 'exported_'.
+type ruleLabelsAppender struct {
+	app    storage.SampleAppender
+	labels model.LabelSet
+}
+
+func (app ruleLabelsAppender) Append(s *model.Sample) {
+	for ln, lv := range app.labels {
+		if v, ok := s.Metric[ln]; ok && v != "" {
+			s.Metric[model.ExportedLabelPrefix+ln] = v
+		}
+		s.Metric[ln] = lv
+	}
+
+	app.app.Append(s)
+}
+
+type honorLabelsAppender struct {
+	app    storage.SampleAppender
+	labels model.LabelSet
+}
+
+// Merges the sample's metric with the given labels if the label is not
+// already present in the metric.
+// This also considers labels explicitly set to the empty string.
+func (app honorLabelsAppender) Append(s *model.Sample) {
+	for ln, lv := range app.labels {
+		if _, ok := s.Metric[ln]; !ok {
+			s.Metric[ln] = lv
+		}
+	}
+
+	app.app.Append(s)
+}
+
+// Applies a set of relabel configurations to the sample's metric
+// before actually appending it.
+type relabelAppender struct {
+	app         storage.SampleAppender
+	relabelings []*config.RelabelConfig
+}
+
+func (app relabelAppender) Append(s *model.Sample) {
+	labels, err := Relabel(model.LabelSet(s.Metric), app.relabelings...)
+	if err != nil {
+		log.Errorf("Error while relabeling metric %s: %s", s.Metric, err)
+		return
+	}
+	// Check if the timeseries was dropped.
+	if labels == nil {
+		return
+	}
+	s.Metric = model.Metric(labels)
+
+	app.app.Append(s)
 }
 
 // URL returns a copy of the target's URL.
 func (t *Target) URL() *url.URL {
 	t.RLock()
 	defer t.RUnlock()
+
 	u := &url.URL{}
 	*u = *t.url
 	return u
@@ -427,23 +566,24 @@ func (t *Target) InstanceIdentifier() string {
 }
 
 // fullLabels returns the base labels plus internal labels defining the target.
-func (t *Target) fullLabels() clientmodel.LabelSet {
+func (t *Target) fullLabels() model.LabelSet {
 	t.RLock()
 	defer t.RUnlock()
-	lset := make(clientmodel.LabelSet, len(t.baseLabels)+2)
+	lset := make(model.LabelSet, len(t.baseLabels)+len(t.internalLabels))
 	for ln, lv := range t.baseLabels {
 		lset[ln] = lv
 	}
-	lset[clientmodel.MetricsPathLabel] = clientmodel.LabelValue(t.url.Path)
-	lset[clientmodel.AddressLabel] = clientmodel.LabelValue(t.url.Host)
+	for k, v := range t.internalLabels {
+		lset[k] = v
+	}
 	return lset
 }
 
 // BaseLabels returns a copy of the target's base labels.
-func (t *Target) BaseLabels() clientmodel.LabelSet {
+func (t *Target) BaseLabels() model.LabelSet {
 	t.RLock()
 	defer t.RUnlock()
-	lset := make(clientmodel.LabelSet, len(t.baseLabels))
+	lset := make(model.LabelSet, len(t.baseLabels))
 	for ln, lv := range t.baseLabels {
 		lset[ln] = lv
 	}
@@ -451,10 +591,10 @@ func (t *Target) BaseLabels() clientmodel.LabelSet {
 }
 
 // MetaLabels returns a copy of the target's labels before any processing.
-func (t *Target) MetaLabels() clientmodel.LabelSet {
+func (t *Target) MetaLabels() model.LabelSet {
 	t.RLock()
 	defer t.RUnlock()
-	lset := make(clientmodel.LabelSet, len(t.metaLabels))
+	lset := make(model.LabelSet, len(t.metaLabels))
 	for ln, lv := range t.metaLabels {
 		lset[ln] = lv
 	}
@@ -463,36 +603,33 @@ func (t *Target) MetaLabels() clientmodel.LabelSet {
 
 func recordScrapeHealth(
 	sampleAppender storage.SampleAppender,
-	timestamp clientmodel.Timestamp,
-	baseLabels clientmodel.LabelSet,
+	timestamp time.Time,
+	baseLabels model.LabelSet,
 	health TargetHealth,
 	scrapeDuration time.Duration,
 ) {
-	healthMetric := make(clientmodel.Metric, len(baseLabels)+1)
-	durationMetric := make(clientmodel.Metric, len(baseLabels)+1)
+	healthMetric := make(model.Metric, len(baseLabels)+1)
+	durationMetric := make(model.Metric, len(baseLabels)+1)
 
-	healthMetric[clientmodel.MetricNameLabel] = clientmodel.LabelValue(scrapeHealthMetricName)
-	durationMetric[clientmodel.MetricNameLabel] = clientmodel.LabelValue(scrapeDurationMetricName)
+	healthMetric[model.MetricNameLabel] = scrapeHealthMetricName
+	durationMetric[model.MetricNameLabel] = scrapeDurationMetricName
 
-	for label, value := range baseLabels {
-		healthMetric[label] = value
-		durationMetric[label] = value
+	for ln, lv := range baseLabels {
+		healthMetric[ln] = lv
+		durationMetric[ln] = lv
 	}
 
-	healthValue := clientmodel.SampleValue(0)
-	if health == HealthGood {
-		healthValue = clientmodel.SampleValue(1)
-	}
+	ts := model.TimeFromUnixNano(timestamp.UnixNano())
 
-	healthSample := &clientmodel.Sample{
+	healthSample := &model.Sample{
 		Metric:    healthMetric,
-		Timestamp: timestamp,
-		Value:     healthValue,
+		Timestamp: ts,
+		Value:     health.value(),
 	}
-	durationSample := &clientmodel.Sample{
+	durationSample := &model.Sample{
 		Metric:    durationMetric,
-		Timestamp: timestamp,
-		Value:     clientmodel.SampleValue(float64(scrapeDuration) / float64(time.Second)),
+		Timestamp: ts,
+		Value:     model.SampleValue(float64(scrapeDuration) / float64(time.Second)),
 	}
 
 	sampleAppender.Append(healthSample)

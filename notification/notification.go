@@ -20,13 +20,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 
-	clientmodel "github.com/prometheus/client_golang/model"
-
+	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/util/httputil"
 )
 
@@ -51,9 +52,9 @@ type NotificationReq struct {
 	// A reference to the runbook for the alert.
 	Runbook string
 	// Labels associated with this alert notification, including alert name.
-	Labels clientmodel.LabelSet
+	Labels model.LabelSet
 	// Current value of alert
-	Value clientmodel.SampleValue
+	Value model.SampleValue
 	// Since when this alert has been active (pending or firing).
 	ActiveSince time.Time
 	// A textual representation of the rule that triggered the alert.
@@ -87,7 +88,9 @@ type NotificationHandler struct {
 	notificationsQueueLength   prometheus.Gauge
 	notificationsQueueCapacity prometheus.Metric
 
-	stopped chan struct{}
+	externalLabels model.LabelSet
+	mtx            sync.RWMutex
+	stopped        chan struct{}
 }
 
 // NotificationHandlerOptions are the configurable parameters of a NotificationHandler.
@@ -103,7 +106,7 @@ func NewNotificationHandler(o *NotificationHandlerOptions) *NotificationHandler 
 		alertmanagerURL:      strings.TrimRight(o.AlertmanagerURL, "/"),
 		pendingNotifications: make(chan NotificationReqs, o.QueueCapacity),
 
-		httpClient: httputil.NewDeadlineClient(o.Deadline),
+		httpClient: httputil.NewDeadlineClient(o.Deadline, nil),
 
 		notificationLatency: prometheus.NewSummary(prometheus.SummaryOpts{
 			Namespace: namespace,
@@ -142,10 +145,28 @@ func NewNotificationHandler(o *NotificationHandlerOptions) *NotificationHandler 
 	}
 }
 
+// ApplyConfig updates the status state as the new config requires.
+// Returns true on success.
+func (n *NotificationHandler) ApplyConfig(conf *config.Config) bool {
+	n.mtx.Lock()
+	defer n.mtx.Unlock()
+
+	n.externalLabels = conf.GlobalConfig.ExternalLabels
+	return true
+}
+
 // Send a list of notifications to the configured alert manager.
 func (n *NotificationHandler) sendNotifications(reqs NotificationReqs) error {
+	n.mtx.RLock()
+	defer n.mtx.RUnlock()
+
 	alerts := make([]map[string]interface{}, 0, len(reqs))
 	for _, req := range reqs {
+		for ln, lv := range n.externalLabels {
+			if _, ok := req.Labels[ln]; !ok {
+				req.Labels[ln] = lv
+			}
+		}
 		alerts = append(alerts, map[string]interface{}{
 			"summary":     req.Summary,
 			"description": req.Description,

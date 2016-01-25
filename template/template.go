@@ -25,7 +25,7 @@ import (
 	html_template "html/template"
 	text_template "text/template"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/util/strutil"
@@ -55,7 +55,7 @@ func (q queryResultByLabelSorter) Swap(i, j int) {
 	q.results[i], q.results[j] = q.results[j], q.results[i]
 }
 
-func query(q string, timestamp clientmodel.Timestamp, queryEngine *promql.Engine) (queryResult, error) {
+func query(q string, timestamp model.Time, queryEngine *promql.Engine) (queryResult, error) {
 	query, err := queryEngine.NewInstantQuery(q, timestamp)
 	if err != nil {
 		return nil, err
@@ -64,24 +64,21 @@ func query(q string, timestamp clientmodel.Timestamp, queryEngine *promql.Engine
 	if res.Err != nil {
 		return nil, res.Err
 	}
-	var vector promql.Vector
+	var vector model.Vector
 
 	switch v := res.Value.(type) {
-	case promql.Matrix:
+	case model.Matrix:
 		return nil, errors.New("matrix return values not supported")
-	case promql.Vector:
+	case model.Vector:
 		vector = v
-	case *promql.Scalar:
-		vector = promql.Vector{&promql.Sample{
+	case *model.Scalar:
+		vector = model.Vector{&model.Sample{
 			Value:     v.Value,
 			Timestamp: v.Timestamp,
 		}}
-	case *promql.String:
-		vector = promql.Vector{&promql.Sample{
-			Metric: clientmodel.COWMetric{
-				Metric: clientmodel.Metric{"__value__": clientmodel.LabelValue(v.Value)},
-				Copied: true,
-			},
+	case *model.String:
+		vector = model.Vector{&model.Sample{
+			Metric:    model.Metric{"__value__": model.LabelValue(v.Value)},
 			Timestamp: v.Timestamp,
 		}}
 	default:
@@ -96,7 +93,7 @@ func query(q string, timestamp clientmodel.Timestamp, queryEngine *promql.Engine
 			Value:  float64(v.Value),
 			Labels: make(map[string]string),
 		}
-		for label, value := range v.Metric.Metric {
+		for label, value := range v.Metric {
 			s.Labels[string(label)] = string(value)
 		}
 		result[n] = &s
@@ -104,7 +101,8 @@ func query(q string, timestamp clientmodel.Timestamp, queryEngine *promql.Engine
 	return result, nil
 }
 
-type templateExpander struct {
+// Expander executes templates in text or HTML mode with a common set of Prometheus template functions.
+type Expander struct {
 	text    string
 	name    string
 	data    interface{}
@@ -112,8 +110,8 @@ type templateExpander struct {
 }
 
 // NewTemplateExpander returns a template expander ready to use.
-func NewTemplateExpander(text string, name string, data interface{}, timestamp clientmodel.Timestamp, queryEngine *promql.Engine, pathPrefix string) *templateExpander {
-	return &templateExpander{
+func NewTemplateExpander(text string, name string, data interface{}, timestamp model.Time, queryEngine *promql.Engine, pathPrefix string) *Expander {
+	return &Expander{
 		text: text,
 		name: name,
 		data: data,
@@ -242,7 +240,7 @@ func NewTemplateExpander(text string, name string, data interface{}, timestamp c
 				if math.IsNaN(v) || math.IsInf(v, 0) {
 					return fmt.Sprintf("%.4g", v)
 				}
-				t := clientmodel.TimestampFromUnixNano(int64(v * 1e9)).Time().UTC()
+				t := model.TimeFromUnixNano(int64(v * 1e9)).Time().UTC()
 				return fmt.Sprint(t)
 			},
 			"pathPrefix": func() string {
@@ -252,16 +250,16 @@ func NewTemplateExpander(text string, name string, data interface{}, timestamp c
 	}
 }
 
-// Funcs adds the functions in fm to the templateExpander's function map.
+// Funcs adds the functions in fm to the Expander's function map.
 // Existing functions will be overwritten in case of conflict.
-func (te templateExpander) Funcs(fm text_template.FuncMap) {
+func (te Expander) Funcs(fm text_template.FuncMap) {
 	for k, v := range fm {
 		te.funcMap[k] = v
 	}
 }
 
-// Expand a template.
-func (te templateExpander) Expand() (result string, resultErr error) {
+// Expand expands a template in text (non-HTML) mode.
+func (te Expander) Expand() (result string, resultErr error) {
 	// It'd better to have no alert description than to kill the whole process
 	// if there's a bug in the template.
 	defer func() {
@@ -274,11 +272,11 @@ func (te templateExpander) Expand() (result string, resultErr error) {
 		}
 	}()
 
-	var buffer bytes.Buffer
 	tmpl, err := text_template.New(te.name).Funcs(te.funcMap).Parse(te.text)
 	if err != nil {
 		return "", fmt.Errorf("error parsing template %v: %v", te.name, err)
 	}
+	var buffer bytes.Buffer
 	err = tmpl.Execute(&buffer, te.data)
 	if err != nil {
 		return "", fmt.Errorf("error executing template %v: %v", te.name, err)
@@ -286,8 +284,8 @@ func (te templateExpander) Expand() (result string, resultErr error) {
 	return buffer.String(), nil
 }
 
-// Expand a template with HTML escaping, with templates read from the given files.
-func (te templateExpander) ExpandHTML(templateFiles []string) (result string, resultErr error) {
+// ExpandHTML expands a template with HTML escaping, with templates read from the given files.
+func (te Expander) ExpandHTML(templateFiles []string) (result string, resultErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			var ok bool
@@ -298,7 +296,6 @@ func (te templateExpander) ExpandHTML(templateFiles []string) (result string, re
 		}
 	}()
 
-	var buffer bytes.Buffer
 	tmpl := html_template.New(te.name).Funcs(html_template.FuncMap(te.funcMap))
 	tmpl.Funcs(html_template.FuncMap{
 		"tmpl": func(name string, data interface{}) (html_template.HTML, error) {
@@ -317,6 +314,7 @@ func (te templateExpander) ExpandHTML(templateFiles []string) (result string, re
 			return "", fmt.Errorf("error parsing template files for %v: %v", te.name, err)
 		}
 	}
+	var buffer bytes.Buffer
 	err = tmpl.Execute(&buffer, te.data)
 	if err != nil {
 		return "", fmt.Errorf("error executing template %v: %v", te.name, err)

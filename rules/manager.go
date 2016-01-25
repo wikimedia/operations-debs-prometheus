@@ -24,9 +24,8 @@ import (
 	html_template "html/template"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
-
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/notification"
@@ -81,7 +80,7 @@ type Rule interface {
 	// Name returns the name of the rule.
 	Name() string
 	// Eval evaluates the rule, including any associated recording or alerting actions.
-	eval(clientmodel.Timestamp, *promql.Engine) (promql.Vector, error)
+	eval(model.Time, *promql.Engine) (model.Vector, error)
 	// String returns a human-readable string representation of the rule.
 	String() string
 	// HTMLSnippet returns a human-readable string representation of the rule,
@@ -104,7 +103,6 @@ type Manager struct {
 	notificationHandler *notification.NotificationHandler
 
 	externalURL *url.URL
-	baseDir     string
 }
 
 // ManagerOptions bundles options for the Manager.
@@ -116,7 +114,6 @@ type ManagerOptions struct {
 	SampleAppender      storage.SampleAppender
 
 	ExternalURL *url.URL
-	BaseDir     string
 }
 
 // NewManager returns an implementation of Manager, ready to be started
@@ -131,7 +128,6 @@ func NewManager(o *ManagerOptions) *Manager {
 		queryEngine:         o.QueryEngine,
 		notificationHandler: o.NotificationHandler,
 		externalURL:         o.ExternalURL,
-		baseDir:             o.BaseDir,
 	}
 	return manager
 }
@@ -182,7 +178,7 @@ func (m *Manager) Stop() {
 	m.done <- true
 }
 
-func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmodel.Timestamp) {
+func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp model.Time) {
 	activeAlerts := rule.ActiveAlerts()
 	if len(activeAlerts) == 0 {
 		return
@@ -202,10 +198,10 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 		}
 		tmplData := struct {
 			Labels map[string]string
-			Value  clientmodel.SampleValue
+			Value  float64
 		}{
 			Labels: l,
-			Value:  aa.Value,
+			Value:  float64(aa.Value),
 		}
 		// Inject some convenience variables that are easier to remember for users
 		// who are not used to Go's templating system.
@@ -225,8 +221,8 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 			Summary:     expand(rule.summary),
 			Description: expand(rule.description),
 			Runbook:     rule.runbook,
-			Labels: aa.Labels.Merge(clientmodel.LabelSet{
-				alertNameLabel: clientmodel.LabelValue(rule.Name()),
+			Labels: aa.Labels.Merge(model.LabelSet{
+				alertNameLabel: model.LabelValue(rule.Name()),
 			}),
 			Value:        aa.Value,
 			ActiveSince:  aa.ActiveSince.Time(),
@@ -238,7 +234,7 @@ func (m *Manager) queueAlertNotifications(rule *AlertingRule, timestamp clientmo
 }
 
 func (m *Manager) runIteration() {
-	now := clientmodel.Now()
+	now := model.Now()
 	wg := sync.WaitGroup{}
 
 	m.Lock()
@@ -273,15 +269,11 @@ func (m *Manager) runIteration() {
 					float64(duration / time.Millisecond),
 				)
 			default:
-				panic(fmt.Errorf("Unknown rule type: %T", rule))
+				panic(fmt.Errorf("unknown rule type: %T", rule))
 			}
 
 			for _, s := range vector {
-				m.sampleAppender.Append(&clientmodel.Sample{
-					Metric:    s.Metric.Metric,
-					Value:     s.Value,
-					Timestamp: s.Timestamp,
-				})
+				m.sampleAppender.Append(s)
 			}
 		}(rule)
 	}
@@ -330,10 +322,6 @@ func (m *Manager) ApplyConfig(conf *config.Config) bool {
 
 	var files []string
 	for _, pat := range conf.RuleFiles {
-		if !filepath.IsAbs(pat) {
-			pat = filepath.Join(m.baseDir, pat)
-		}
-
 		fs, err := filepath.Glob(pat)
 		if err != nil {
 			// The only error can be a bad pattern.

@@ -14,24 +14,72 @@
 package retrieval
 
 import (
+	"net/url"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
 )
+
+func TestPrefixedTargetProvider(t *testing.T) {
+	targetGroups := []*config.TargetGroup{
+		{
+			Targets: []model.LabelSet{
+				{model.AddressLabel: "test-1:1234"},
+			},
+		}, {
+			Targets: []model.LabelSet{
+				{model.AddressLabel: "test-1:1235"},
+			},
+		},
+	}
+
+	tp := &prefixedTargetProvider{
+		job:            "job-x",
+		mechanism:      "static",
+		idx:            123,
+		TargetProvider: NewStaticProvider(targetGroups),
+	}
+
+	expSources := []string{
+		"job-x:static:123:0",
+		"job-x:static:123:1",
+	}
+	if !reflect.DeepEqual(tp.Sources(), expSources) {
+		t.Fatalf("expected sources %v, got %v", expSources, tp.Sources())
+	}
+
+	ch := make(chan config.TargetGroup)
+	done := make(chan struct{})
+
+	defer close(done)
+	go tp.Run(ch, done)
+
+	expGroup1 := *targetGroups[0]
+	expGroup2 := *targetGroups[1]
+	expGroup1.Source = "job-x:static:123:0"
+	expGroup2.Source = "job-x:static:123:1"
+
+	// The static target provider sends on the channel once per target group.
+	if tg := <-ch; !reflect.DeepEqual(tg, expGroup1) {
+		t.Fatalf("expected target group %v, got %v", expGroup1, tg)
+	}
+	if tg := <-ch; !reflect.DeepEqual(tg, expGroup2) {
+		t.Fatalf("expected target group %v, got %v", expGroup2, tg)
+	}
+}
 
 func TestTargetManagerChan(t *testing.T) {
 	testJob1 := &config.ScrapeConfig{
 		JobName:        "test_job1",
 		ScrapeInterval: config.Duration(1 * time.Minute),
 		TargetGroups: []*config.TargetGroup{{
-			Targets: []clientmodel.LabelSet{
-				{clientmodel.AddressLabel: "example.org:80"},
-				{clientmodel.AddressLabel: "example.com:80"},
+			Targets: []model.LabelSet{
+				{model.AddressLabel: "example.org:80"},
+				{model.AddressLabel: "example.com:80"},
 			},
 		}},
 	}
@@ -52,72 +100,72 @@ func TestTargetManagerChan(t *testing.T) {
 
 	sequence := []struct {
 		tgroup   *config.TargetGroup
-		expected map[string][]clientmodel.LabelSet
+		expected map[string][]model.LabelSet
 	}{
 		{
 			tgroup: &config.TargetGroup{
 				Source: "src1",
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "test-1:1234"},
-					{clientmodel.AddressLabel: "test-2:1234", "label": "set"},
-					{clientmodel.AddressLabel: "test-3:1234"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "test-1:1234"},
+					{model.AddressLabel: "test-2:1234", "label": "set"},
+					{model.AddressLabel: "test-3:1234"},
 				},
 			},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:src1": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-1:1234"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-2:1234", "label": "set"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-3:1234"},
+			expected: map[string][]model.LabelSet{
+				"src1": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-1:1234"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-2:1234", "label": "set"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-3:1234"},
 				},
 			},
 		}, {
 			tgroup: &config.TargetGroup{
 				Source: "src2",
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "test-1:1235"},
-					{clientmodel.AddressLabel: "test-2:1235"},
-					{clientmodel.AddressLabel: "test-3:1235"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "test-1:1235"},
+					{model.AddressLabel: "test-2:1235"},
+					{model.AddressLabel: "test-3:1235"},
 				},
-				Labels: clientmodel.LabelSet{"group": "label"},
+				Labels: model.LabelSet{"group": "label"},
 			},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:src1": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-1:1234"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-2:1234", "label": "set"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-3:1234"},
+			expected: map[string][]model.LabelSet{
+				"src1": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-1:1234"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-2:1234", "label": "set"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-3:1234"},
 				},
-				"test_job1:src2": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-1:1235", "group": "label"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-2:1235", "group": "label"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-3:1235", "group": "label"},
+				"src2": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-1:1235", "group": "label"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-2:1235", "group": "label"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-3:1235", "group": "label"},
 				},
 			},
 		}, {
 			tgroup: &config.TargetGroup{
 				Source:  "src2",
-				Targets: []clientmodel.LabelSet{},
+				Targets: []model.LabelSet{},
 			},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:src1": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-1:1234"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-2:1234", "label": "set"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-3:1234"},
+			expected: map[string][]model.LabelSet{
+				"src1": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-1:1234"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-2:1234", "label": "set"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-3:1234"},
 				},
 			},
 		}, {
 			tgroup: &config.TargetGroup{
 				Source: "src1",
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "test-1:1234", "added": "label"},
-					{clientmodel.AddressLabel: "test-3:1234"},
-					{clientmodel.AddressLabel: "test-4:1234", "fancy": "label"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "test-1:1234", "added": "label"},
+					{model.AddressLabel: "test-3:1234"},
+					{model.AddressLabel: "test-4:1234", "fancy": "label"},
 				},
 			},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:src1": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-1:1234", "added": "label"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-3:1234"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "test-4:1234", "fancy": "label"},
+			expected: map[string][]model.LabelSet{
+				"src1": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-1:1234", "added": "label"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-3:1234"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "test-4:1234", "fancy": "label"},
 				},
 			},
 		},
@@ -126,10 +174,10 @@ func TestTargetManagerChan(t *testing.T) {
 	for i, step := range sequence {
 		prov1.update <- step.tgroup
 
-		<-time.After(1 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 
 		if len(targetManager.targets) != len(step.expected) {
-			t.Fatalf("step %d: sources mismatch %v, %v", targetManager.targets, step.expected)
+			t.Fatalf("step %d: sources mismatch %v, %v", i, targetManager.targets, step.expected)
 		}
 
 		for source, actTargets := range targetManager.targets {
@@ -157,51 +205,64 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 	testJob1 := &config.ScrapeConfig{
 		JobName:        "test_job1",
 		ScrapeInterval: config.Duration(1 * time.Minute),
+		Params: url.Values{
+			"testParam": []string{"paramValue", "secondValue"},
+		},
 		TargetGroups: []*config.TargetGroup{{
-			Targets: []clientmodel.LabelSet{
-				{clientmodel.AddressLabel: "example.org:80"},
-				{clientmodel.AddressLabel: "example.com:80"},
+			Targets: []model.LabelSet{
+				{model.AddressLabel: "example.org:80"},
+				{model.AddressLabel: "example.com:80"},
 			},
 		}},
+		RelabelConfigs: []*config.RelabelConfig{
+			{
+				// Copy out the URL parameter.
+				SourceLabels: model.LabelNames{"__param_testParam"},
+				Regex:        config.MustNewRegexp("(.*)"),
+				TargetLabel:  "testParam",
+				Replacement:  "$1",
+				Action:       config.RelabelReplace,
+			},
+		},
 	}
 	testJob2 := &config.ScrapeConfig{
 		JobName:        "test_job2",
 		ScrapeInterval: config.Duration(1 * time.Minute),
 		TargetGroups: []*config.TargetGroup{
 			{
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "example.org:8080"},
-					{clientmodel.AddressLabel: "example.com:8081"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "example.org:8080"},
+					{model.AddressLabel: "example.com:8081"},
 				},
-				Labels: clientmodel.LabelSet{
+				Labels: model.LabelSet{
 					"foo":  "bar",
 					"boom": "box",
 				},
 			},
 			{
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "test.com:1234"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "test.com:1234"},
 				},
 			},
 			{
-				Targets: []clientmodel.LabelSet{
-					{clientmodel.AddressLabel: "test.com:1235"},
+				Targets: []model.LabelSet{
+					{model.AddressLabel: "test.com:1235"},
 				},
-				Labels: clientmodel.LabelSet{"instance": "fixed"},
+				Labels: model.LabelSet{"instance": "fixed"},
 			},
 		},
 		RelabelConfigs: []*config.RelabelConfig{
 			{
-				SourceLabels: clientmodel.LabelNames{clientmodel.AddressLabel},
-				Regex:        &config.Regexp{*regexp.MustCompile(`^test\.(.*?):(.*)`)},
+				SourceLabels: model.LabelNames{model.AddressLabel},
+				Regex:        config.MustNewRegexp(`test\.(.*?):(.*)`),
 				Replacement:  "foo.${1}:${2}",
-				TargetLabel:  clientmodel.AddressLabel,
+				TargetLabel:  model.AddressLabel,
 				Action:       config.RelabelReplace,
 			},
 			{
 				// Add a new label for example.* targets.
-				SourceLabels: clientmodel.LabelNames{clientmodel.AddressLabel, "boom", "foo"},
-				Regex:        &config.Regexp{*regexp.MustCompile("^example.*?-b([a-z-]+)r$")},
+				SourceLabels: model.LabelNames{model.AddressLabel, "boom", "foo"},
+				Regex:        config.MustNewRegexp("example.*?-b([a-z-]+)r"),
 				TargetLabel:  "new",
 				Replacement:  "$1",
 				Separator:    "-",
@@ -209,10 +270,29 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 			},
 			{
 				// Drop an existing label.
-				SourceLabels: clientmodel.LabelNames{"boom"},
-				Regex:        &config.Regexp{*regexp.MustCompile(".*")},
+				SourceLabels: model.LabelNames{"boom"},
+				Regex:        config.MustNewRegexp(".*"),
 				TargetLabel:  "boom",
 				Replacement:  "",
+				Action:       config.RelabelReplace,
+			},
+		},
+	}
+	// Test that targets without host:port addresses are dropped.
+	testJob3 := &config.ScrapeConfig{
+		JobName:        "test_job1",
+		ScrapeInterval: config.Duration(1 * time.Minute),
+		TargetGroups: []*config.TargetGroup{{
+			Targets: []model.LabelSet{
+				{model.AddressLabel: "example.net:80"},
+			},
+		}},
+		RelabelConfigs: []*config.RelabelConfig{
+			{
+				SourceLabels: model.LabelNames{model.AddressLabel},
+				Regex:        config.MustNewRegexp("(.*)"),
+				TargetLabel:  "__address__",
+				Replacement:  "http://$1",
 				Action:       config.RelabelReplace,
 			},
 		},
@@ -220,59 +300,76 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 
 	sequence := []struct {
 		scrapeConfigs []*config.ScrapeConfig
-		expected      map[string][]clientmodel.LabelSet
+		expected      map[string][]model.LabelSet
 	}{
 		{
 			scrapeConfigs: []*config.ScrapeConfig{testJob1},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:static:0": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.org:80"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.com:80"},
+			expected: map[string][]model.LabelSet{
+				"test_job1:static:0:0": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.org:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.org:80", model.ParamLabelPrefix + "testParam": "paramValue"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.com:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.com:80", model.ParamLabelPrefix + "testParam": "paramValue"},
 				},
 			},
 		}, {
 			scrapeConfigs: []*config.ScrapeConfig{testJob1},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:static:0": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.org:80"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.com:80"},
+			expected: map[string][]model.LabelSet{
+				"test_job1:static:0:0": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.org:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.org:80", model.ParamLabelPrefix + "testParam": "paramValue"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.com:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.com:80", model.ParamLabelPrefix + "testParam": "paramValue"},
 				},
 			},
 		}, {
 			scrapeConfigs: []*config.ScrapeConfig{testJob1, testJob2},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job1:static:0": {
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.org:80"},
-					{clientmodel.JobLabel: "test_job1", clientmodel.InstanceLabel: "example.com:80"},
+			expected: map[string][]model.LabelSet{
+				"test_job1:static:0:0": {
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.org:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.org:80", model.ParamLabelPrefix + "testParam": "paramValue"},
+					{model.JobLabel: "test_job1", model.InstanceLabel: "example.com:80", "testParam": "paramValue",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.com:80", model.ParamLabelPrefix + "testParam": "paramValue"},
 				},
-				"test_job2:static:0": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "example.org:8080", "foo": "bar", "new": "ox-ba"},
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "example.com:8081", "foo": "bar", "new": "ox-ba"},
+				"test_job2:static:0:0": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "example.org:8080", "foo": "bar", "new": "ox-ba",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.org:8080"},
+					{model.JobLabel: "test_job2", model.InstanceLabel: "example.com:8081", "foo": "bar", "new": "ox-ba",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.com:8081"},
 				},
-				"test_job2:static:1": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "foo.com:1234"},
+				"test_job2:static:0:1": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "foo.com:1234",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "foo.com:1234"},
 				},
-				"test_job2:static:2": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "fixed"},
+				"test_job2:static:0:2": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "fixed",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "foo.com:1235"},
 				},
 			},
 		}, {
 			scrapeConfigs: []*config.ScrapeConfig{},
-			expected:      map[string][]clientmodel.LabelSet{},
+			expected:      map[string][]model.LabelSet{},
 		}, {
 			scrapeConfigs: []*config.ScrapeConfig{testJob2},
-			expected: map[string][]clientmodel.LabelSet{
-				"test_job2:static:0": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "example.org:8080", "foo": "bar", "new": "ox-ba"},
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "example.com:8081", "foo": "bar", "new": "ox-ba"},
+			expected: map[string][]model.LabelSet{
+				"test_job2:static:0:0": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "example.org:8080", "foo": "bar", "new": "ox-ba",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.org:8080"},
+					{model.JobLabel: "test_job2", model.InstanceLabel: "example.com:8081", "foo": "bar", "new": "ox-ba",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "example.com:8081"},
 				},
-				"test_job2:static:1": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "foo.com:1234"},
+				"test_job2:static:0:1": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "foo.com:1234",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "foo.com:1234"},
 				},
-				"test_job2:static:2": {
-					{clientmodel.JobLabel: "test_job2", clientmodel.InstanceLabel: "fixed"},
+				"test_job2:static:0:2": {
+					{model.JobLabel: "test_job2", model.InstanceLabel: "fixed",
+						model.SchemeLabel: "", model.MetricsPathLabel: "", model.AddressLabel: "foo.com:1235"},
 				},
 			},
+		}, {
+			scrapeConfigs: []*config.ScrapeConfig{testJob3},
+			expected:      map[string][]model.LabelSet{},
 		},
 	}
 	conf := &config.Config{}
@@ -288,10 +385,10 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 		conf.ScrapeConfigs = step.scrapeConfigs
 		targetManager.ApplyConfig(conf)
 
-		<-time.After(1 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
 		if len(targetManager.targets) != len(step.expected) {
-			t.Fatalf("step %d: sources mismatch %v, %v", targetManager.targets, step.expected)
+			t.Fatalf("step %d: sources mismatch: expected %v, got %v", i, step.expected, targetManager.targets)
 		}
 
 		for source, actTargets := range targetManager.targets {
@@ -302,7 +399,7 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 			for _, expt := range expTargets {
 				found := false
 				for _, actt := range actTargets {
-					if reflect.DeepEqual(expt, actt.BaseLabels()) {
+					if reflect.DeepEqual(expt, actt.fullLabels()) {
 						found = true
 						break
 					}
@@ -313,4 +410,11 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestHandleUpdatesReturnsWhenUpdateChanIsClosed(t *testing.T) {
+	tm := NewTargetManager(nopAppender{})
+	ch := make(chan targetGroupUpdate)
+	close(ch)
+	tm.handleUpdates(ch, make(chan struct{}))
 }

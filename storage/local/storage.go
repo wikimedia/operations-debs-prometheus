@@ -21,9 +21,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
-
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage/metric"
 )
@@ -153,6 +152,7 @@ type MemorySeriesStorageOptions struct {
 	Dirty                      bool          // Force the storage to consider itself dirty on startup.
 	PedanticChecks             bool          // If dirty, perform crash-recovery checks on each series file.
 	SyncStrategy               SyncStrategy  // Which sync strategy to apply to series files.
+	MinShrinkRatio             float64       // Minimum ratio a series file has to shrink during truncation.
 }
 
 // NewMemorySeriesStorage returns a newly allocated Storage. Storage.Serve still
@@ -244,7 +244,12 @@ func (s *memorySeriesStorage) Start() (err error) {
 	}
 
 	var p *persistence
-	p, err = newPersistence(s.options.PersistenceStoragePath, s.options.Dirty, s.options.PedanticChecks, syncStrategy)
+	p, err = newPersistence(
+		s.options.PersistenceStoragePath,
+		s.options.Dirty, s.options.PedanticChecks,
+		syncStrategy,
+		s.options.MinShrinkRatio,
+	)
 	if err != nil {
 		return err
 	}
@@ -309,7 +314,7 @@ func (s *memorySeriesStorage) WaitForIndexing() {
 }
 
 // NewIterator implements Storage.
-func (s *memorySeriesStorage) NewIterator(fp clientmodel.Fingerprint) SeriesIterator {
+func (s *memorySeriesStorage) NewIterator(fp model.Fingerprint) SeriesIterator {
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
@@ -324,12 +329,12 @@ func (s *memorySeriesStorage) NewIterator(fp clientmodel.Fingerprint) SeriesIter
 	}
 	return &boundedIterator{
 		it:    series.newIterator(),
-		start: clientmodel.Now().Add(-s.dropAfter),
+		start: model.Now().Add(-s.dropAfter),
 	}
 }
 
 // LastSampleForFingerprint implements Storage.
-func (s *memorySeriesStorage) LastSamplePairForFingerprint(fp clientmodel.Fingerprint) *metric.SamplePair {
+func (s *memorySeriesStorage) LastSamplePairForFingerprint(fp model.Fingerprint) *model.SamplePair {
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
@@ -344,21 +349,21 @@ func (s *memorySeriesStorage) LastSamplePairForFingerprint(fp clientmodel.Finger
 // data from earlier than the configured start time.
 type boundedIterator struct {
 	it    SeriesIterator
-	start clientmodel.Timestamp
+	start model.Time
 }
 
 // ValueAtTime implements the SeriesIterator interface.
-func (bit *boundedIterator) ValueAtTime(ts clientmodel.Timestamp) metric.Values {
+func (bit *boundedIterator) ValueAtTime(ts model.Time) []model.SamplePair {
 	if ts < bit.start {
-		return metric.Values{}
+		return []model.SamplePair{}
 	}
 	return bit.it.ValueAtTime(ts)
 }
 
 // BoundaryValues implements the SeriesIterator interface.
-func (bit *boundedIterator) BoundaryValues(interval metric.Interval) metric.Values {
+func (bit *boundedIterator) BoundaryValues(interval metric.Interval) []model.SamplePair {
 	if interval.NewestInclusive < bit.start {
-		return metric.Values{}
+		return []model.SamplePair{}
 	}
 	if interval.OldestInclusive < bit.start {
 		interval.OldestInclusive = bit.start
@@ -367,9 +372,9 @@ func (bit *boundedIterator) BoundaryValues(interval metric.Interval) metric.Valu
 }
 
 // RangeValues implements the SeriesIterator interface.
-func (bit *boundedIterator) RangeValues(interval metric.Interval) metric.Values {
+func (bit *boundedIterator) RangeValues(interval metric.Interval) []model.SamplePair {
 	if interval.NewestInclusive < bit.start {
-		return metric.Values{}
+		return []model.SamplePair{}
 	}
 	if interval.OldestInclusive < bit.start {
 		interval.OldestInclusive = bit.start
@@ -386,10 +391,10 @@ func (s *memorySeriesStorage) NewPreloader() Preloader {
 
 // fingerprintsForLabelPairs returns the set of fingerprints that have the given labels.
 // This does not work with empty label values.
-func (s *memorySeriesStorage) fingerprintsForLabelPairs(pairs ...metric.LabelPair) map[clientmodel.Fingerprint]struct{} {
-	var result map[clientmodel.Fingerprint]struct{}
+func (s *memorySeriesStorage) fingerprintsForLabelPairs(pairs ...model.LabelPair) map[model.Fingerprint]struct{} {
+	var result map[model.Fingerprint]struct{}
 	for _, pair := range pairs {
-		intersection := map[clientmodel.Fingerprint]struct{}{}
+		intersection := map[model.Fingerprint]struct{}{}
 		fps, err := s.persistence.fingerprintsForLabelPair(pair)
 		if err != nil {
 			log.Error("Error getting fingerprints for label pair: ", err)
@@ -411,14 +416,14 @@ func (s *memorySeriesStorage) fingerprintsForLabelPairs(pairs ...metric.LabelPai
 }
 
 // MetricsForLabelMatchers implements Storage.
-func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelMatcher) map[clientmodel.Fingerprint]clientmodel.COWMetric {
+func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelMatcher) map[model.Fingerprint]metric.Metric {
 	var (
-		equals  []metric.LabelPair
+		equals  []model.LabelPair
 		filters []*metric.LabelMatcher
 	)
 	for _, lm := range matchers {
 		if lm.Type == metric.Equal && lm.Value != "" {
-			equals = append(equals, metric.LabelPair{
+			equals = append(equals, model.LabelPair{
 				Name:  lm.Name,
 				Value: lm.Value,
 			})
@@ -427,7 +432,7 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 		}
 	}
 
-	var resFPs map[clientmodel.Fingerprint]struct{}
+	var resFPs map[model.Fingerprint]struct{}
 	if len(equals) > 0 {
 		resFPs = s.fingerprintsForLabelPairs(equals...)
 	} else {
@@ -440,14 +445,14 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 				remaining = append(remaining, matcher)
 				continue
 			}
-			intersection := map[clientmodel.Fingerprint]struct{}{}
+			intersection := map[model.Fingerprint]struct{}{}
 
 			matches := matcher.Filter(s.LabelValuesForLabelName(matcher.Name))
 			if len(matches) == 0 {
 				return nil
 			}
 			for _, v := range matches {
-				fps := s.fingerprintsForLabelPairs(metric.LabelPair{
+				fps := s.fingerprintsForLabelPairs(model.LabelPair{
 					Name:  matcher.Name,
 					Value: v,
 				})
@@ -463,7 +468,7 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 		filters = remaining
 	}
 
-	result := make(map[clientmodel.Fingerprint]clientmodel.COWMetric, len(resFPs))
+	result := make(map[model.Fingerprint]metric.Metric, len(resFPs))
 	for fp := range resFPs {
 		result[fp] = s.MetricForFingerprint(fp)
 	}
@@ -478,7 +483,7 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 }
 
 // LabelValuesForLabelName implements Storage.
-func (s *memorySeriesStorage) LabelValuesForLabelName(labelName clientmodel.LabelName) clientmodel.LabelValues {
+func (s *memorySeriesStorage) LabelValuesForLabelName(labelName model.LabelName) model.LabelValues {
 	lvs, err := s.persistence.labelValuesForLabelName(labelName)
 	if err != nil {
 		log.Errorf("Error getting label values for label name %q: %v", labelName, err)
@@ -487,7 +492,7 @@ func (s *memorySeriesStorage) LabelValuesForLabelName(labelName clientmodel.Labe
 }
 
 // MetricForFingerprint implements Storage.
-func (s *memorySeriesStorage) MetricForFingerprint(fp clientmodel.Fingerprint) clientmodel.COWMetric {
+func (s *memorySeriesStorage) MetricForFingerprint(fp model.Fingerprint) metric.Metric {
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
@@ -495,21 +500,23 @@ func (s *memorySeriesStorage) MetricForFingerprint(fp clientmodel.Fingerprint) c
 	if ok {
 		// Wrap the returned metric in a copy-on-write (COW) metric here because
 		// the caller might mutate it.
-		return clientmodel.COWMetric{
+		return metric.Metric{
 			Metric: series.metric,
 		}
 	}
-	metric, err := s.persistence.archivedMetric(fp)
+	met, err := s.persistence.archivedMetric(fp)
 	if err != nil {
 		log.Errorf("Error retrieving archived metric for fingerprint %v: %v", fp, err)
 	}
-	return clientmodel.COWMetric{
-		Metric: metric,
+
+	return metric.Metric{
+		Metric: met,
+		Copied: false,
 	}
 }
 
 // DropMetric implements Storage.
-func (s *memorySeriesStorage) DropMetricsForFingerprints(fps ...clientmodel.Fingerprint) {
+func (s *memorySeriesStorage) DropMetricsForFingerprints(fps ...model.Fingerprint) {
 	for _, fp := range fps {
 		s.fpLocker.Lock(fp)
 
@@ -517,19 +524,21 @@ func (s *memorySeriesStorage) DropMetricsForFingerprints(fps ...clientmodel.Fing
 			s.fpToSeries.del(fp)
 			s.numSeries.Dec()
 			s.persistence.unindexMetric(fp, series.metric)
-			if _, err := s.persistence.deleteSeriesFile(fp); err != nil {
-				log.Errorf("Error deleting series file for %v: %v", fp, err)
-			}
 		} else if err := s.persistence.purgeArchivedMetric(fp); err != nil {
 			log.Errorf("Error purging metric with fingerprint %v: %v", fp, err)
 		}
+		// Attempt to delete series file in any case.
+		if _, err := s.persistence.deleteSeriesFile(fp); err != nil {
+			log.Errorf("Error deleting series file for %v: %v", fp, err)
+		}
 
 		s.fpLocker.Unlock(fp)
+		s.seriesOps.WithLabelValues(requestedPurge).Inc()
 	}
 }
 
 // Append implements Storage.
-func (s *memorySeriesStorage) Append(sample *clientmodel.Sample) {
+func (s *memorySeriesStorage) Append(sample *model.Sample) {
 	for ln, lv := range sample.Metric {
 		if len(lv) == 0 {
 			delete(sample.Metric, ln)
@@ -560,12 +569,18 @@ func (s *memorySeriesStorage) Append(sample *clientmodel.Sample) {
 	series := s.getOrCreateSeries(fp, sample.Metric)
 
 	if sample.Timestamp <= series.lastTime {
+		// Don't log and track equal timestamps, as they are a common occurrence
+		// when using client-side timestamps (e.g. Pushgateway or federation).
+		// It would be even better to also compare the sample values here, but
+		// we don't have efficient access to a series's last value.
+		if sample.Timestamp != series.lastTime {
+			log.Warnf("Ignoring sample with out-of-order timestamp for fingerprint %v (%v): %v is not after %v", fp, series.metric, sample.Timestamp, series.lastTime)
+			s.outOfOrderSamplesCount.Inc()
+		}
 		s.fpLocker.Unlock(fp)
-		log.Warnf("Ignoring sample with out-of-order timestamp for fingerprint %v (%v): %v is not after %v", fp, series.metric, sample.Timestamp, series.lastTime)
-		s.outOfOrderSamplesCount.Inc()
 		return
 	}
-	completedChunksCount := series.add(&metric.SamplePair{
+	completedChunksCount := series.add(&model.SamplePair{
 		Value:     sample.Value,
 		Timestamp: sample.Timestamp,
 	})
@@ -574,7 +589,7 @@ func (s *memorySeriesStorage) Append(sample *clientmodel.Sample) {
 	s.incNumChunksToPersist(completedChunksCount)
 }
 
-func (s *memorySeriesStorage) getOrCreateSeries(fp clientmodel.Fingerprint, m clientmodel.Metric) *memorySeries {
+func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Metric) *memorySeries {
 	series, ok := s.fpToSeries.get(fp)
 	if !ok {
 		var cds []*chunkDesc
@@ -608,8 +623,8 @@ func (s *memorySeriesStorage) getOrCreateSeries(fp clientmodel.Fingerprint, m cl
 }
 
 func (s *memorySeriesStorage) preloadChunksForRange(
-	fp clientmodel.Fingerprint,
-	from clientmodel.Timestamp, through clientmodel.Timestamp,
+	fp model.Fingerprint,
+	from model.Time, through model.Time,
 	stalenessDelta time.Duration,
 ) ([]*chunkDesc, error) {
 	s.fpLocker.Lock(fp)
@@ -762,10 +777,10 @@ func (s *memorySeriesStorage) waitForNextFP(numberOfFPs int, maxWaitDurationFact
 // cycleThroughMemoryFingerprints returns a channel that emits fingerprints for
 // series in memory in a throttled fashion. It continues to cycle through all
 // fingerprints in memory until s.loopStopping is closed.
-func (s *memorySeriesStorage) cycleThroughMemoryFingerprints() chan clientmodel.Fingerprint {
-	memoryFingerprints := make(chan clientmodel.Fingerprint)
+func (s *memorySeriesStorage) cycleThroughMemoryFingerprints() chan model.Fingerprint {
+	memoryFingerprints := make(chan model.Fingerprint)
 	go func() {
-		var fpIter <-chan clientmodel.Fingerprint
+		var fpIter <-chan model.Fingerprint
 
 		defer func() {
 			if fpIter != nil {
@@ -809,14 +824,14 @@ func (s *memorySeriesStorage) cycleThroughMemoryFingerprints() chan clientmodel.
 // cycleThroughArchivedFingerprints returns a channel that emits fingerprints
 // for archived series in a throttled fashion. It continues to cycle through all
 // archived fingerprints until s.loopStopping is closed.
-func (s *memorySeriesStorage) cycleThroughArchivedFingerprints() chan clientmodel.Fingerprint {
-	archivedFingerprints := make(chan clientmodel.Fingerprint)
+func (s *memorySeriesStorage) cycleThroughArchivedFingerprints() chan model.Fingerprint {
+	archivedFingerprints := make(chan model.Fingerprint)
 	go func() {
 		defer close(archivedFingerprints)
 
 		for {
 			archivedFPs, err := s.persistence.fingerprintsModifiedBefore(
-				clientmodel.Now().Add(-s.dropAfter),
+				model.Now().Add(-s.dropAfter),
 			)
 			if err != nil {
 				log.Error("Failed to lookup archived fingerprint ranges: ", err)
@@ -868,11 +883,15 @@ loop:
 		case <-s.loopStopping:
 			break loop
 		case <-checkpointTimer.C:
-			s.persistence.checkpointSeriesMapAndHeads(s.fpToSeries, s.fpLocker)
-			dirtySeriesCount = 0
+			err := s.persistence.checkpointSeriesMapAndHeads(s.fpToSeries, s.fpLocker)
+			if err != nil {
+				log.Errorln("Error while checkpointing:", err)
+			} else {
+				dirtySeriesCount = 0
+			}
 			checkpointTimer.Reset(s.checkpointInterval)
 		case fp := <-memoryFingerprints:
-			if s.maintainMemorySeries(fp, clientmodel.Now().Add(-s.dropAfter)) {
+			if s.maintainMemorySeries(fp, model.Now().Add(-s.dropAfter)) {
 				dirtySeriesCount++
 				// Check if we have enough "dirty" series so that we need an early checkpoint.
 				// However, if we are already behind persisting chunks, creating a checkpoint
@@ -880,13 +899,13 @@ loop:
 				// while in a situation like that, where we are clearly lacking speed of disk
 				// maintenance, the best we can do for crash recovery is to persist chunks as
 				// quickly as possible. So only checkpoint if the storage is not in "graceful
-				// degratadion mode".
+				// degradation mode".
 				if dirtySeriesCount >= s.checkpointDirtySeriesLimit && !s.isDegraded() {
 					checkpointTimer.Reset(0)
 				}
 			}
 		case fp := <-archivedFingerprints:
-			s.maintainArchivedSeries(fp, clientmodel.Now().Add(-s.dropAfter))
+			s.maintainArchivedSeries(fp, model.Now().Add(-s.dropAfter))
 		}
 	}
 	// Wait until both channels are closed.
@@ -928,7 +947,7 @@ loop:
 //
 // Finally, it evicts chunkDescs if there are too many.
 func (s *memorySeriesStorage) maintainMemorySeries(
-	fp clientmodel.Fingerprint, beforeTime clientmodel.Timestamp,
+	fp model.Fingerprint, beforeTime model.Time,
 ) (becameDirty bool) {
 	defer func(begin time.Time) {
 		s.maintainSeriesDuration.WithLabelValues(maintainInMemory).Observe(
@@ -996,7 +1015,7 @@ func (s *memorySeriesStorage) maintainMemorySeries(
 //
 // The caller must have locked the fp.
 func (s *memorySeriesStorage) writeMemorySeries(
-	fp clientmodel.Fingerprint, series *memorySeries, beforeTime clientmodel.Timestamp,
+	fp model.Fingerprint, series *memorySeries, beforeTime model.Time,
 ) bool {
 	cds := series.chunksToPersist()
 	defer func() {
@@ -1065,7 +1084,7 @@ func (s *memorySeriesStorage) writeMemorySeries(
 
 // maintainArchivedSeries drops chunks older than beforeTime from an archived
 // series. If the series contains no chunks after that, it is purged entirely.
-func (s *memorySeriesStorage) maintainArchivedSeries(fp clientmodel.Fingerprint, beforeTime clientmodel.Timestamp) {
+func (s *memorySeriesStorage) maintainArchivedSeries(fp model.Fingerprint, beforeTime model.Time) {
 	defer func(begin time.Time) {
 		s.maintainSeriesDuration.WithLabelValues(maintainArchived).Observe(
 			float64(time.Since(begin)) / float64(time.Millisecond),
@@ -1099,16 +1118,18 @@ func (s *memorySeriesStorage) maintainArchivedSeries(fp clientmodel.Fingerprint,
 		s.seriesOps.WithLabelValues(archivePurge).Inc()
 		return
 	}
-	s.persistence.updateArchivedTimeRange(fp, newFirstTime, lastTime)
+	if err := s.persistence.updateArchivedTimeRange(fp, newFirstTime, lastTime); err != nil {
+		log.Errorf("Error updating archived time range for fingerprint %v: %s", fp, err)
+	}
 }
 
 // See persistence.loadChunks for detailed explanation.
-func (s *memorySeriesStorage) loadChunks(fp clientmodel.Fingerprint, indexes []int, indexOffset int) ([]chunk, error) {
+func (s *memorySeriesStorage) loadChunks(fp model.Fingerprint, indexes []int, indexOffset int) ([]chunk, error) {
 	return s.persistence.loadChunks(fp, indexes, indexOffset)
 }
 
 // See persistence.loadChunkDescs for detailed explanation.
-func (s *memorySeriesStorage) loadChunkDescs(fp clientmodel.Fingerprint, offsetFromEnd int) ([]*chunkDesc, error) {
+func (s *memorySeriesStorage) loadChunkDescs(fp model.Fingerprint, offsetFromEnd int) ([]*chunkDesc, error) {
 	return s.persistence.loadChunkDescs(fp, offsetFromEnd)
 }
 

@@ -1,29 +1,39 @@
+// Copyright 2015 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package web
 
 import (
-	"io"
 	"net/http"
 
-	"bitbucket.org/ww/goautoneg"
 	"github.com/golang/protobuf/proto"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/text"
 
 	"github.com/prometheus/prometheus/promql"
-	"github.com/prometheus/prometheus/storage/local"
+	"github.com/prometheus/prometheus/storage/metric"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
+
 	dto "github.com/prometheus/client_model/go"
 )
 
-type Federation struct {
-	Storage local.Storage
-}
+func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
+	h.mtx.RLock()
+	defer h.mtx.RUnlock()
 
-func (fed *Federation) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 
-	metrics := map[clientmodel.Fingerprint]clientmodel.COWMetric{}
+	metrics := map[model.Fingerprint]metric.Metric{}
 
 	for _, s := range req.Form["match[]"] {
 		matchers, err := promql.ParseMetricSelector(s)
@@ -31,13 +41,17 @@ func (fed *Federation) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		for fp, met := range fed.Storage.MetricsForLabelMatchers(matchers...) {
+		for fp, met := range h.storage.MetricsForLabelMatchers(matchers...) {
 			metrics[fp] = met
 		}
 	}
 
-	enc, contentType := chooseEncoder(req)
-	w.Header().Set("Content-Type", contentType)
+	var (
+		minTimestamp = model.Now().Add(-promql.StalenessDelta)
+		format       = expfmt.Negotiate(req.Header)
+		enc          = expfmt.NewEncoder(w, format)
+	)
+	w.Header().Set("Content-Type", string(format))
 
 	protMetric := &dto.Metric{
 		Label:   []*dto.LabelPair{},
@@ -49,8 +63,11 @@ func (fed *Federation) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	for fp, met := range metrics {
-		sp := fed.Storage.LastSamplePairForFingerprint(fp)
-		if sp == nil {
+		globalUsed := map[model.LabelName]struct{}{}
+
+		sp := h.storage.LastSamplePairForFingerprint(fp)
+		// Discard if sample does not exist or lays before the staleness interval.
+		if sp == nil || sp.Timestamp.Before(minTimestamp) {
 			continue
 		}
 
@@ -58,7 +75,7 @@ func (fed *Federation) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		protMetric.Label = protMetric.Label[:0]
 
 		for ln, lv := range met.Metric {
-			if ln == clientmodel.MetricNameLabel {
+			if ln == model.MetricNameLabel {
 				protMetricFam.Name = proto.String(string(lv))
 				continue
 			}
@@ -66,43 +83,27 @@ func (fed *Federation) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				Name:  proto.String(string(ln)),
 				Value: proto.String(string(lv)),
 			})
+			if _, ok := h.externalLabels[ln]; ok {
+				globalUsed[ln] = struct{}{}
+			}
 		}
-		protMetric.TimestampMs = (*int64)(&sp.Timestamp)
-		protMetric.Untyped.Value = (*float64)(&sp.Value)
 
-		if _, err := enc(w, protMetricFam); err != nil {
+		// Attach global labels if they do not exist yet.
+		for ln, lv := range h.externalLabels {
+			if _, ok := globalUsed[ln]; !ok {
+				protMetric.Label = append(protMetric.Label, &dto.LabelPair{
+					Name:  proto.String(string(ln)),
+					Value: proto.String(string(lv)),
+				})
+			}
+		}
+
+		protMetric.TimestampMs = proto.Int64(int64(sp.Timestamp))
+		protMetric.Untyped.Value = proto.Float64(float64(sp.Value))
+
+		if err := enc.Encode(protMetricFam); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
-}
-
-type encoder func(w io.Writer, p *dto.MetricFamily) (int, error)
-
-func chooseEncoder(req *http.Request) (encoder, string) {
-	accepts := goautoneg.ParseAccept(req.Header.Get("Accept"))
-	for _, accept := range accepts {
-		switch {
-		case accept.Type == "application" &&
-			accept.SubType == "vnd.google.protobuf" &&
-			accept.Params["proto"] == "io.prometheus.client.MetricFamily":
-			switch accept.Params["encoding"] {
-			case "delimited":
-				return text.WriteProtoDelimited, prometheus.DelimitedTelemetryContentType
-			case "text":
-				return text.WriteProtoText, prometheus.ProtoTextTelemetryContentType
-			case "compact-text":
-				return text.WriteProtoCompactText, prometheus.ProtoCompactTextTelemetryContentType
-			default:
-				continue
-			}
-		case accept.Type == "text" &&
-			accept.SubType == "plain" &&
-			(accept.Params["version"] == "0.0.4" || accept.Params["version"] == ""):
-			return text.MetricFamilyToText, prometheus.TextTelemetryContentType
-		default:
-			continue
-		}
-	}
-	return text.MetricFamilyToText, prometheus.TextTelemetryContentType
 }

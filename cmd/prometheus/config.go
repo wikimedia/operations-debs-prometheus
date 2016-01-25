@@ -24,7 +24,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/prometheus/notification"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
@@ -48,6 +48,7 @@ var cfg = struct {
 	remote       remote.Options
 
 	prometheusURL string
+	influxdbURL   string
 }{}
 
 func init() {
@@ -75,7 +76,7 @@ func init() {
 	)
 	cfg.fs.StringVar(
 		&cfg.prometheusURL, "web.external-url", "",
-		"The URL under which Prometheus is externally reachable (for example, if Prometheus is served via a reverse proxy). Used for generating relative and absolute links back to Prometheus itself. If omitted, relevant URL components will be derived automatically.",
+		"The URL under which Prometheus is externally reachable (for example, if Prometheus is served via a reverse proxy). Used for generating relative and absolute links back to Prometheus itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by Prometheus. If omitted, relevant URL components will be derived automatically.",
 	)
 	cfg.fs.StringVar(
 		&cfg.web.MetricsPath, "web.telemetry-path", "/metrics",
@@ -131,6 +132,10 @@ func init() {
 		&cfg.storage.SyncStrategy, "storage.local.series-sync-strategy",
 		"When to sync series files after modification. Possible values: 'never', 'always', 'adaptive'. Sync'ing slows down storage performance but reduces the risk of data loss in case of an OS crash. With the 'adaptive' strategy, series files are sync'd for as long as the storage is not too much behind on chunk persistence.",
 	)
+	cfg.fs.Float64Var(
+		&cfg.storage.MinShrinkRatio, "storage.local.series-file-shrink-ratio", 0.1,
+		"A series file is only truncated (to delete samples that have exceeded the retention period) if it shrinks by at least the provided ratio. This saves I/O operations while causing only a limited storage space overhead. If 0 or smaller, truncation will be performed even for a single dropped chunk, while 1 or larger will effectively prevent any truncation.",
+	)
 	cfg.fs.BoolVar(
 		&cfg.storage.Dirty, "storage.local.dirty", false,
 		"If set, the local storage layer will perform crash recovery even if the last shutdown appears to be clean.",
@@ -163,16 +168,32 @@ func init() {
 
 	// Remote storage.
 	cfg.fs.StringVar(
+		&cfg.remote.GraphiteAddress, "storage.remote.graphite-address", "",
+		"The host:port of the remote Graphite server to send samples to. None, if empty.",
+	)
+	cfg.fs.StringVar(
+		&cfg.remote.GraphiteTransport, "storage.remote.graphite-transport", "tcp",
+		"Transport protocol to use to communicate with Graphite. 'tcp', if empty.",
+	)
+	cfg.fs.StringVar(
+		&cfg.remote.GraphitePrefix, "storage.remote.graphite-prefix", "",
+		"The prefix to prepend to all metrics exported to Graphite. None, if empty.",
+	)
+	cfg.fs.StringVar(
 		&cfg.remote.OpentsdbURL, "storage.remote.opentsdb-url", "",
 		"The URL of the remote OpenTSDB server to send samples to. None, if empty.",
 	)
 	cfg.fs.StringVar(
-		&cfg.remote.InfluxdbURL, "storage.remote.influxdb-url", "",
+		&cfg.influxdbURL, "storage.remote.influxdb-url", "",
 		"The URL of the remote InfluxDB server to send samples to. None, if empty.",
 	)
 	cfg.fs.StringVar(
 		&cfg.remote.InfluxdbRetentionPolicy, "storage.remote.influxdb.retention-policy", "default",
 		"The InfluxDB retention policy to use.",
+	)
+	cfg.fs.StringVar(
+		&cfg.remote.InfluxdbUsername, "storage.remote.influxdb.username", "",
+		"The username to use when sending samples to InfluxDB. The corresponding password must be provided via the INFLUXDB_PW environment variable.",
 	)
 	cfg.fs.StringVar(
 		&cfg.remote.InfluxdbDatabase, "storage.remote.influxdb.database", "prometheus",
@@ -221,6 +242,20 @@ func parse(args []string) error {
 		return err
 	}
 
+	if err := parsePrometheusURL(); err != nil {
+		return err
+	}
+
+	if err := parseInfluxdbURL(); err != nil {
+		return err
+	}
+
+	cfg.remote.InfluxdbPassword = os.Getenv("INFLUXDB_PW")
+
+	return nil
+}
+
+func parsePrometheusURL() error {
 	if cfg.prometheusURL == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
@@ -244,7 +279,20 @@ func parse(args []string) error {
 		ppref = "/" + ppref
 	}
 	cfg.web.ExternalURL.Path = ppref
+	return nil
+}
 
+func parseInfluxdbURL() error {
+	if cfg.influxdbURL == "" {
+		return nil
+	}
+
+	url, err := url.Parse(cfg.influxdbURL)
+	if err != nil {
+		return err
+	}
+
+	cfg.remote.InfluxdbURL = url
 	return nil
 }
 
@@ -304,5 +352,7 @@ func usage() {
 		}
 	}
 
-	t.Execute(os.Stdout, groups)
+	if err := t.Execute(os.Stdout, groups); err != nil {
+		panic(fmt.Errorf("error executing usage template: %s", err))
+	}
 }

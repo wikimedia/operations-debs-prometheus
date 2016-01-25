@@ -61,6 +61,10 @@
 {{ template "_menuItem" (args . "cassandra.html" "Cassandra") }}
 {{ end }}
 
+{{ if query "up{job='blackbox'}" }}
+{{ template "_menuItem" (args . "blackbox.html" "Blackbox") }}
+{{ end }}
+
 {{ if query "up{job='node'}" }}
 {{ template "_menuItem" (args . "node.html" "Node") }}
 {{ if match "^node" .Path }}
@@ -77,6 +81,33 @@
         <a href="node-disk.html?instance={{ .Params.instance }}">Disk</a>
       </li>
     </ul>
+  </ul>
+  {{ end }}
+{{ end }}
+{{ end }}
+
+{{ if query "up{job='prometheus'}" }}
+{{ template "_menuItem" (args . "prometheus.html" "Prometheus") }}
+{{ if match "^prometheus" .Path }}
+  {{ if .Params.instance }}
+  <ul>
+    <li {{ if eq .Path "prometheus-overview.html" }}class="prom_lhs_menu_selected"{{ end }}>
+      <a href="prometheus-overview.html?instance={{ .Params.instance }}">{{.Params.instance }}</a>
+    </li>
+  </ul>
+  {{ end }}
+{{ end }}
+{{ end }}
+
+
+{{ if query "up{job='snmp'}" }}
+{{ template "_menuItem" (args . "snmp.html" "SNMP") }}
+{{ if match "^snmp" .Path }}
+  {{ if .Params.instance }}
+  <ul>
+    <li {{ if eq .Path "snmp-overview.html" }}class="prom_lhs_menu_selected"{{ end }}>
+      <a href="snmp-overview.html?instance={{ .Params.instance }}">{{.Params.instance }}</a>
+    </li>
   </ul>
   {{ end }}
 {{ end }}

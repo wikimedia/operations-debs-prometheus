@@ -12,13 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 	"golang.org/x/net/context"
 
-	clientmodel "github.com/prometheus/client_golang/model"
-
 	"github.com/prometheus/prometheus/promql"
-	"github.com/prometheus/prometheus/storage/metric"
-	"github.com/prometheus/prometheus/util/route"
 )
 
 func TestEndpoints(t *testing.T) {
@@ -37,12 +35,14 @@ func TestEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	now := model.Now()
 	api := &API{
 		Storage:     suite.Storage(),
 		QueryEngine: suite.QueryEngine(),
+		now:         func() model.Time { return now },
 	}
 
-	start := clientmodel.Timestamp(0)
+	start := model.Time(0)
 	var tests = []struct {
 		endpoint apiFunc
 		params   map[string]string
@@ -57,8 +57,8 @@ func TestEndpoints(t *testing.T) {
 				"time":  []string{"123.3"},
 			},
 			response: &queryData{
-				ResultType: promql.ExprScalar,
-				Result: &promql.Scalar{
+				ResultType: model.ValScalar,
+				Result: &model.Scalar{
 					Value:     2,
 					Timestamp: start.Add(123*time.Second + 300*time.Millisecond),
 				},
@@ -71,8 +71,8 @@ func TestEndpoints(t *testing.T) {
 				"time":  []string{"1970-01-01T00:02:03Z"},
 			},
 			response: &queryData{
-				ResultType: promql.ExprScalar,
-				Result: &promql.Scalar{
+				ResultType: model.ValScalar,
+				Result: &model.Scalar{
 					Value:     0.333,
 					Timestamp: start.Add(123 * time.Second),
 				},
@@ -85,10 +85,23 @@ func TestEndpoints(t *testing.T) {
 				"time":  []string{"1970-01-01T01:02:03+01:00"},
 			},
 			response: &queryData{
-				ResultType: promql.ExprScalar,
-				Result: &promql.Scalar{
+				ResultType: model.ValScalar,
+				Result: &model.Scalar{
 					Value:     0.333,
 					Timestamp: start.Add(123 * time.Second),
+				},
+			},
+		},
+		{
+			endpoint: api.query,
+			query: url.Values{
+				"query": []string{"0.333"},
+			},
+			response: &queryData{
+				ResultType: model.ValScalar,
+				Result: &model.Scalar{
+					Value:     0.333,
+					Timestamp: now,
 				},
 			},
 		},
@@ -101,14 +114,15 @@ func TestEndpoints(t *testing.T) {
 				"step":  []string{"1"},
 			},
 			response: &queryData{
-				ResultType: promql.ExprMatrix,
-				Result: promql.Matrix{
-					&promql.SampleStream{
-						Values: metric.Values{
+				ResultType: model.ValMatrix,
+				Result: model.Matrix{
+					&model.SampleStream{
+						Values: []model.SamplePair{
 							{Value: 0, Timestamp: start},
 							{Value: 1, Timestamp: start.Add(1 * time.Second)},
 							{Value: 2, Timestamp: start.Add(2 * time.Second)},
 						},
+						Metric: model.Metric{},
 					},
 				},
 			},
@@ -141,14 +155,6 @@ func TestEndpoints(t *testing.T) {
 			},
 			errType: errorBadData,
 		},
-		// Missing evaluation time.
-		{
-			endpoint: api.query,
-			query: url.Values{
-				"query": []string{"0.333"},
-			},
-			errType: errorBadData,
-		},
 		// Bad query expression.
 		{
 			endpoint: api.query,
@@ -173,7 +179,7 @@ func TestEndpoints(t *testing.T) {
 			params: map[string]string{
 				"name": "__name__",
 			},
-			response: clientmodel.LabelValues{
+			response: model.LabelValues{
 				"test_metric1",
 				"test_metric2",
 			},
@@ -183,7 +189,7 @@ func TestEndpoints(t *testing.T) {
 			params: map[string]string{
 				"name": "foo",
 			},
-			response: clientmodel.LabelValues{
+			response: model.LabelValues{
 				"bar",
 				"boo",
 			},
@@ -201,7 +207,7 @@ func TestEndpoints(t *testing.T) {
 			query: url.Values{
 				"match[]": []string{`test_metric2`},
 			},
-			response: []clientmodel.Metric{
+			response: []model.Metric{
 				{
 					"__name__": "test_metric2",
 					"foo":      "boo",
@@ -213,7 +219,7 @@ func TestEndpoints(t *testing.T) {
 			query: url.Values{
 				"match[]": []string{`test_metric1{foo=~"o$"}`},
 			},
-			response: []clientmodel.Metric{
+			response: []model.Metric{
 				{
 					"__name__": "test_metric1",
 					"foo":      "boo",
@@ -225,7 +231,7 @@ func TestEndpoints(t *testing.T) {
 			query: url.Values{
 				"match[]": []string{`test_metric1{foo=~"o$"}`, `test_metric1{foo=~"o$"}`},
 			},
-			response: []clientmodel.Metric{
+			response: []model.Metric{
 				{
 					"__name__": "test_metric1",
 					"foo":      "boo",
@@ -237,7 +243,7 @@ func TestEndpoints(t *testing.T) {
 			query: url.Values{
 				"match[]": []string{`test_metric1{foo=~"o$"}`, `none`},
 			},
-			response: []clientmodel.Metric{
+			response: []model.Metric{
 				{
 					"__name__": "test_metric1",
 					"foo":      "boo",
@@ -269,7 +275,7 @@ func TestEndpoints(t *testing.T) {
 			query: url.Values{
 				"match[]": []string{`test_metric1`},
 			},
-			response: []clientmodel.Metric{
+			response: []model.Metric{
 				{
 					"__name__": "test_metric1",
 					"foo":      "bar",
@@ -314,7 +320,7 @@ func TestEndpoints(t *testing.T) {
 			t.Fatalf("Expected error of type %q but got none", test.errType)
 		}
 		if !reflect.DeepEqual(resp, test.response) {
-			t.Fatalf("Response does not match, expected:\n%#v\ngot:\n%#v", test.response, resp)
+			t.Fatalf("Response does not match, expected:\n%+v\ngot:\n%+v", test.response, resp)
 		}
 		// Ensure that removed metrics are unindexed before the next request.
 		suite.Storage().WaitForIndexing()
@@ -374,8 +380,8 @@ func TestRespondError(t *testing.T) {
 		t.Fatalf("Error reading response body: %s", err)
 	}
 
-	if resp.StatusCode != 422 {
-		t.Fatalf("Return code %d expected in error response but got %d", 422, resp.StatusCode)
+	if want, have := http.StatusServiceUnavailable, resp.StatusCode; want != have {
+		t.Fatalf("Return code %d expected in error response but got %d", want, have)
 	}
 	if h := resp.Header.Get("Content-Type"); h != "application/json" {
 		t.Fatalf("Expected Content-Type %q but got %q", "application/json", h)
@@ -445,7 +451,7 @@ func TestParseTime(t *testing.T) {
 			t.Errorf("Expected error for %q but got none", test.input)
 			continue
 		}
-		res := clientmodel.TimestampFromTime(test.result)
+		res := model.TimeFromUnixNano(test.result.UnixNano())
 		if !test.fail && ts != res {
 			t.Errorf("Expected time %v for input %q but got %v", res, test.input, ts)
 		}

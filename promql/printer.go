@@ -17,53 +17,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage/metric"
 	"github.com/prometheus/prometheus/util/strutil"
 )
-
-func (matrix Matrix) String() string {
-	metricStrings := make([]string, 0, len(matrix))
-	for _, sampleStream := range matrix {
-		metricName, hasName := sampleStream.Metric.Metric[clientmodel.MetricNameLabel]
-		numLabels := len(sampleStream.Metric.Metric)
-		if hasName {
-			numLabels--
-		}
-		labelStrings := make([]string, 0, numLabels)
-		for label, value := range sampleStream.Metric.Metric {
-			if label != clientmodel.MetricNameLabel {
-				labelStrings = append(labelStrings, fmt.Sprintf("%s=%q", label, value))
-			}
-		}
-		sort.Strings(labelStrings)
-		valueStrings := make([]string, 0, len(sampleStream.Values))
-		for _, value := range sampleStream.Values {
-			valueStrings = append(valueStrings,
-				fmt.Sprintf("\n%v @[%v]", value.Value, value.Timestamp))
-		}
-		metricStrings = append(metricStrings,
-			fmt.Sprintf("%s{%s} => %s",
-				metricName,
-				strings.Join(labelStrings, ", "),
-				strings.Join(valueStrings, ", ")))
-	}
-	sort.Strings(metricStrings)
-	return strings.Join(metricStrings, "\n")
-}
-
-func (vector Vector) String() string {
-	metricStrings := make([]string, 0, len(vector))
-	for _, sample := range vector {
-		metricStrings = append(metricStrings,
-			fmt.Sprintf("%s => %v @[%v]",
-				sample.Metric,
-				sample.Value, sample.Timestamp))
-	}
-	return strings.Join(metricStrings, "\n")
-}
 
 // Tree returns a string of the tree structure of the given node.
 func Tree(node Node) string {
@@ -187,6 +147,11 @@ func (node *AggregateExpr) String() string {
 }
 
 func (node *BinaryExpr) String() string {
+	returnBool := ""
+	if node.ReturnBool {
+		returnBool = " BOOL"
+	}
+
 	matching := ""
 	vm := node.VectorMatching
 	if vm != nil && len(vm.On) > 0 {
@@ -198,7 +163,7 @@ func (node *BinaryExpr) String() string {
 			matching += fmt.Sprintf(" GROUP_RIGHT(%s)", vm.Include)
 		}
 	}
-	return fmt.Sprintf("%s %s%s %s", node.LHS, node.Op, matching, node.RHS)
+	return fmt.Sprintf("%s %s%s%s %s", node.LHS, node.Op, returnBool, matching, node.RHS)
 }
 
 func (node *Call) String() string {
@@ -210,7 +175,11 @@ func (node *MatrixSelector) String() string {
 		Name:          node.Name,
 		LabelMatchers: node.LabelMatchers,
 	}
-	return fmt.Sprintf("%s[%s]", vecSelector.String(), strutil.DurationToString(node.Range))
+	offset := ""
+	if node.Offset != time.Duration(0) {
+		offset = fmt.Sprintf(" OFFSET %s", strutil.DurationToString(node.Offset))
+	}
+	return fmt.Sprintf("%s[%s]%s", vecSelector.String(), strutil.DurationToString(node.Range), offset)
 }
 
 func (node *NumberLiteral) String() string {
@@ -233,15 +202,19 @@ func (node *VectorSelector) String() string {
 	labelStrings := make([]string, 0, len(node.LabelMatchers)-1)
 	for _, matcher := range node.LabelMatchers {
 		// Only include the __name__ label if its no equality matching.
-		if matcher.Name == clientmodel.MetricNameLabel && matcher.Type == metric.Equal {
+		if matcher.Name == model.MetricNameLabel && matcher.Type == metric.Equal {
 			continue
 		}
 		labelStrings = append(labelStrings, matcher.String())
 	}
+	offset := ""
+	if node.Offset != time.Duration(0) {
+		offset = fmt.Sprintf(" OFFSET %s", strutil.DurationToString(node.Offset))
+	}
 
 	if len(labelStrings) == 0 {
-		return node.Name
+		return fmt.Sprintf("%s%s", node.Name, offset)
 	}
 	sort.Strings(labelStrings)
-	return fmt.Sprintf("%s{%s}", node.Name, strings.Join(labelStrings, ","))
+	return fmt.Sprintf("%s{%s}%s", node.Name, strings.Join(labelStrings, ","), offset)
 }

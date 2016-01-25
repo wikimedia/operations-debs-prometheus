@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
-	"github.com/prometheus/prometheus/util/route"
 )
 
 // This is a bit annoying. On one hand, we have to choose a current timestamp
@@ -35,9 +35,9 @@ import (
 // query layer precisely without any change. Thus we round to seconds and then
 // add known-good digits after the decimal point which behave well in
 // parsing/re-formatting.
-var testTimestamp = clientmodel.TimestampFromTime(time.Now().Round(time.Second)).Add(124 * time.Millisecond)
+var testTimestamp = model.TimeFromUnix(time.Now().Round(time.Second).Unix()).Add(124 * time.Millisecond)
 
-func testNow() clientmodel.Timestamp {
+func testNow() model.Time {
 	return testTimestamp
 }
 
@@ -53,7 +53,7 @@ func TestQuery(t *testing.T) {
 		{
 			queryStr: "",
 			status:   http.StatusOK,
-			bodyRe:   `{"type":"error","value":"Parse error at char 1: no expression found in input","version":1}`,
+			bodyRe:   `{"type":"error","value":"parse error at char 1: no expression found in input","version":1}`,
 		},
 		{
 			queryStr: "expr=1.4",
@@ -83,15 +83,15 @@ func TestQuery(t *testing.T) {
 		{
 			queryStr: "expr=(badexpression",
 			status:   http.StatusOK,
-			bodyRe:   `{"type":"error","value":"Parse error at char 15: unclosed left parenthesis","version":1}`,
+			bodyRe:   `{"type":"error","value":"parse error at char 15: unclosed left parenthesis","version":1}`,
 		},
 	}
 
 	storage, closer := local.NewTestStorage(t, 1)
 	defer closer.Close()
-	storage.Append(&clientmodel.Sample{
-		Metric: clientmodel.Metric{
-			clientmodel.MetricNameLabel: "testmetric",
+	storage.Append(&model.Sample{
+		Metric: model.Metric{
+			model.MetricNameLabel: "testmetric",
 		},
 		Timestamp: testTimestamp,
 		Value:     0,

@@ -1,38 +1,50 @@
+// Copyright 2015 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package retrieval
 
 import (
 	"reflect"
-	"regexp"
 	"testing"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
 )
 
 func TestRelabel(t *testing.T) {
 	tests := []struct {
-		input   clientmodel.LabelSet
+		input   model.LabelSet
 		relabel []*config.RelabelConfig
-		output  clientmodel.LabelSet
+		output  model.LabelSet
 	}{
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 				"b": "bar",
 				"c": "baz",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("f(.*)")},
-					TargetLabel:  clientmodel.LabelName("d"),
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("f(.*)"),
+					TargetLabel:  model.LabelName("d"),
 					Separator:    ";",
 					Replacement:  "ch${1}-ch${1}",
 					Action:       config.RelabelReplace,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "foo",
 				"b": "bar",
 				"c": "baz",
@@ -40,30 +52,30 @@ func TestRelabel(t *testing.T) {
 			},
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 				"b": "bar",
 				"c": "baz",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a", "b"},
-					Regex:        &config.Regexp{*regexp.MustCompile("^f(.*);(.*)r$")},
-					TargetLabel:  clientmodel.LabelName("a"),
+					SourceLabels: model.LabelNames{"a", "b"},
+					Regex:        config.MustNewRegexp("f(.*);(.*)r"),
+					TargetLabel:  model.LabelName("a"),
 					Separator:    ";",
 					Replacement:  "b${1}${2}m", // boobam
 					Action:       config.RelabelReplace,
 				},
 				{
-					SourceLabels: clientmodel.LabelNames{"c", "a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("(b).*b(.*)ba(.*)")},
-					TargetLabel:  clientmodel.LabelName("d"),
+					SourceLabels: model.LabelNames{"c", "a"},
+					Regex:        config.MustNewRegexp("(b).*b(.*)ba(.*)"),
+					TargetLabel:  model.LabelName("d"),
 					Separator:    ";",
 					Replacement:  "$1$2$2$3",
 					Action:       config.RelabelReplace,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "boobam",
 				"b": "bar",
 				"c": "baz",
@@ -71,18 +83,18 @@ func TestRelabel(t *testing.T) {
 			},
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("o$")},
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp(".*o.*"),
 					Action:       config.RelabelDrop,
 				}, {
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("f(.*)")},
-					TargetLabel:  clientmodel.LabelName("d"),
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("f(.*)"),
+					TargetLabel:  model.LabelName("d"),
 					Separator:    ";",
 					Replacement:  "ch$1-ch$1",
 					Action:       config.RelabelReplace,
@@ -91,86 +103,164 @@ func TestRelabel(t *testing.T) {
 			output: nil,
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
+				"a": "abc",
+			},
+			relabel: []*config.RelabelConfig{
+				{
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp(".*(b).*"),
+					TargetLabel:  model.LabelName("d"),
+					Separator:    ";",
+					Replacement:  "$1",
+					Action:       config.RelabelReplace,
+				},
+			},
+			output: model.LabelSet{
+				"a": "abc",
+				"d": "b",
+			},
+		},
+		{
+			input: model.LabelSet{
 				"a": "foo",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("no-match")},
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("no-match"),
 					Action:       config.RelabelDrop,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "foo",
 			},
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("no-match")},
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("f|o"),
+					Action:       config.RelabelDrop,
+				},
+			},
+			output: model.LabelSet{
+				"a": "foo",
+			},
+		},
+		{
+			input: model.LabelSet{
+				"a": "foo",
+			},
+			relabel: []*config.RelabelConfig{
+				{
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("no-match"),
 					Action:       config.RelabelKeep,
 				},
 			},
 			output: nil,
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("^f")},
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("f.*"),
 					Action:       config.RelabelKeep,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "foo",
 			},
 		},
 		{
 			// No replacement must be applied if there is no match.
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "boo",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"a"},
-					Regex:        &config.Regexp{*regexp.MustCompile("^f")},
-					TargetLabel:  clientmodel.LabelName("b"),
+					SourceLabels: model.LabelNames{"a"},
+					Regex:        config.MustNewRegexp("f"),
+					TargetLabel:  model.LabelName("b"),
 					Replacement:  "bar",
 					Action:       config.RelabelReplace,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "boo",
 			},
 		},
 		{
-			input: clientmodel.LabelSet{
+			input: model.LabelSet{
 				"a": "foo",
 				"b": "bar",
 				"c": "baz",
 			},
 			relabel: []*config.RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"c"},
-					TargetLabel:  clientmodel.LabelName("d"),
+					SourceLabels: model.LabelNames{"c"},
+					TargetLabel:  model.LabelName("d"),
 					Separator:    ";",
 					Action:       config.RelabelHashMod,
 					Modulus:      1000,
 				},
 			},
-			output: clientmodel.LabelSet{
+			output: model.LabelSet{
 				"a": "foo",
 				"b": "bar",
 				"c": "baz",
-				"d": "58",
+				"d": "976",
+			},
+		},
+		{
+			input: model.LabelSet{
+				"a":  "foo",
+				"b1": "bar",
+				"b2": "baz",
+			},
+			relabel: []*config.RelabelConfig{
+				{
+					Regex:       config.MustNewRegexp("(b.*)"),
+					Replacement: "bar_${1}",
+					Action:      config.RelabelLabelMap,
+				},
+			},
+			output: model.LabelSet{
+				"a":      "foo",
+				"b1":     "bar",
+				"b2":     "baz",
+				"bar_b1": "bar",
+				"bar_b2": "baz",
+			},
+		},
+		{
+			input: model.LabelSet{
+				"a":             "foo",
+				"__meta_my_bar": "aaa",
+				"__meta_my_baz": "bbb",
+				"__meta_other":  "ccc",
+			},
+			relabel: []*config.RelabelConfig{
+				{
+					Regex:       config.MustNewRegexp("__meta_(my.*)"),
+					Replacement: "${1}",
+					Action:      config.RelabelLabelMap,
+				},
+			},
+			output: model.LabelSet{
+				"a":             "foo",
+				"__meta_my_bar": "aaa",
+				"__meta_my_baz": "bbb",
+				"__meta_other":  "ccc",
+				"my_bar":        "aaa",
+				"my_baz":        "bbb",
 			},
 		},
 	}

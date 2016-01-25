@@ -24,11 +24,12 @@ func testFileSD(t *testing.T, ext string) {
 	conf.Names = []string{"fixtures/_*" + ext}
 	conf.RefreshInterval = config.Duration(1 * time.Hour)
 
-	fsd := NewFileDiscovery(&conf)
-
-	ch := make(chan *config.TargetGroup)
-	go fsd.Run(ch)
-	defer fsd.Stop()
+	var (
+		fsd  = NewFileDiscovery(&conf)
+		ch   = make(chan config.TargetGroup)
+		done = make(chan struct{})
+	)
+	go fsd.Run(ch, done)
 
 	select {
 	case <-time.After(25 * time.Millisecond):
@@ -63,15 +64,15 @@ func testFileSD(t *testing.T, ext string) {
 		if _, ok := tg.Labels["foo"]; !ok {
 			t.Fatalf("Label not parsed")
 		}
-		if tg.String() != fmt.Sprintf("file:fixtures/_test%s:0", ext) {
-			t.Fatalf("Unexpected target group", tg)
+		if tg.String() != fmt.Sprintf("fixtures/_test%s:0", ext) {
+			t.Fatalf("Unexpected target group %s", tg)
 		}
 	}
 	select {
 	case <-time.After(15 * time.Second):
 		t.Fatalf("Expected new target group but got none")
 	case tg := <-ch:
-		if tg.String() != fmt.Sprintf("file:fixtures/_test%s:1", ext) {
+		if tg.String() != fmt.Sprintf("fixtures/_test%s:1", ext) {
 			t.Fatalf("Unexpected target group %s", tg)
 		}
 	}
@@ -79,6 +80,7 @@ func testFileSD(t *testing.T, ext string) {
 	// some runs (which might be empty, chains of different operations etc.).
 	// We have to drain those (as the target manager would) to avoid deadlocking and must
 	// not try to make sense of it all...
+	drained := make(chan struct{})
 	go func() {
 		for tg := range ch {
 			// Below we will change the file to a bad syntax. Previously extracted target
@@ -87,6 +89,7 @@ func testFileSD(t *testing.T, ext string) {
 				t.Errorf("Unexpected empty target group received: %s", tg)
 			}
 		}
+		close(drained)
 	}()
 
 	newf, err = os.Create("fixtures/_test.new")
@@ -102,6 +105,6 @@ func testFileSD(t *testing.T, ext string) {
 
 	os.Rename(newf.Name(), "fixtures/_test"+ext)
 
-	// Give notifcations some time to arrive.
-	time.Sleep(50 * time.Millisecond)
+	close(done)
+	<-drained
 }

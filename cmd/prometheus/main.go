@@ -21,13 +21,12 @@ import (
 	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"text/template"
 	"time"
 
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -47,6 +46,20 @@ func main() {
 	os.Exit(Main())
 }
 
+var (
+	configSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "prometheus",
+		Name:      "config_last_reload_successful",
+		Help:      "Whether the last configuration reload attempt was successful.",
+	})
+	configSuccessTime = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "prometheus",
+		Name:      "config_last_reload_success_timestamp_seconds",
+		Help:      "Timestamp of the last successful configuration reload.",
+	})
+)
+
+// Main manages the startup and shutdown lifecycle of the entire Prometheus server.
 func Main() int {
 	if err := parse(os.Args[1:]); err != nil {
 		return 2
@@ -57,6 +70,8 @@ func Main() int {
 		return 0
 	}
 
+	var reloadables []Reloadable
+
 	var (
 		memStorage     = local.NewMemorySeriesStorage(&cfg.storage)
 		remoteStorage  = remote.New(&cfg.remote)
@@ -64,6 +79,7 @@ func Main() int {
 	)
 	if remoteStorage != nil {
 		sampleAppender = append(sampleAppender, remoteStorage)
+		reloadables = append(reloadables, remoteStorage)
 	}
 
 	var (
@@ -77,7 +93,6 @@ func Main() int {
 		NotificationHandler: notificationHandler,
 		QueryEngine:         queryEngine,
 		ExternalURL:         cfg.web.ExternalURL,
-		BaseDir:             filepath.Dir(cfg.configFile),
 	})
 
 	flags := map[string]string{}
@@ -94,7 +109,9 @@ func Main() int {
 
 	webHandler := web.New(memStorage, queryEngine, ruleManager, status, &cfg.web)
 
-	if !reloadConfig(cfg.configFile, status, targetManager, ruleManager) {
+	reloadables = append(reloadables, status, targetManager, ruleManager, webHandler, notificationHandler)
+
+	if !reloadConfig(cfg.configFile, reloadables...) {
 		return 1
 	}
 
@@ -106,8 +123,12 @@ func Main() int {
 	signal.Notify(hup, syscall.SIGHUP)
 	go func() {
 		<-hupReady
-		for range hup {
-			reloadConfig(cfg.configFile, status, targetManager, ruleManager)
+		for {
+			select {
+			case <-hup:
+			case <-webHandler.Reload():
+			}
+			reloadConfig(cfg.configFile, reloadables...)
 		}
 	}()
 
@@ -131,6 +152,8 @@ func Main() int {
 	// The storage has to be fully initialized before registering.
 	prometheus.MustRegister(memStorage)
 	prometheus.MustRegister(notificationHandler)
+	prometheus.MustRegister(configSuccess)
+	prometheus.MustRegister(configSuccessTime)
 
 	go ruleManager.Run()
 	defer ruleManager.Stop()
@@ -155,9 +178,9 @@ func Main() int {
 		log.Warn("Received SIGTERM, exiting gracefully...")
 	case <-webHandler.Quit():
 		log.Warn("Received termination request via web service, exiting gracefully...")
+	case err := <-webHandler.ListenError():
+		log.Errorln("Error starting web server, exiting gracefully:", err)
 	}
-
-	close(hup)
 
 	log.Info("See you next time!")
 	return 0
@@ -169,16 +192,23 @@ type Reloadable interface {
 	ApplyConfig(*config.Config) bool
 }
 
-func reloadConfig(filename string, rls ...Reloadable) bool {
+func reloadConfig(filename string, rls ...Reloadable) (success bool) {
 	log.Infof("Loading configuration file %s", filename)
+	defer func() {
+		if success {
+			configSuccess.Set(1)
+			configSuccessTime.Set(float64(time.Now().Unix()))
+		} else {
+			configSuccess.Set(0)
+		}
+	}()
 
-	conf, err := config.LoadFromFile(filename)
+	conf, err := config.LoadFile(filename)
 	if err != nil {
 		log.Errorf("Couldn't load configuration (-config.file=%s): %v", filename, err)
-		log.Errorf("Note: The configuration format has changed with version 0.14. Please see the documentation (http://prometheus.io/docs/operating/configuration/) and the provided configuration migration tool (https://github.com/prometheus/migrate).")
 		return false
 	}
-	success := true
+	success = true
 
 	for _, rl := range rls {
 		success = success && rl.ApplyConfig(conf)

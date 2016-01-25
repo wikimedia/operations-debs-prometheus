@@ -14,29 +14,30 @@
 package retrieval
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
-	"github.com/prometheus/prometheus/util/httputil"
 )
 
 func TestBaseLabels(t *testing.T) {
-	target := newTestTarget("example.com:80", 0, clientmodel.LabelSet{"job": "some_job", "foo": "bar"})
-	want := clientmodel.LabelSet{
-		clientmodel.JobLabel:      "some_job",
-		clientmodel.InstanceLabel: "example.com:80",
-		"foo": "bar",
+	target := newTestTarget("example.com:80", 0, model.LabelSet{"job": "some_job", "foo": "bar"})
+	want := model.LabelSet{
+		model.JobLabel:      "some_job",
+		model.InstanceLabel: "example.com:80",
+		"foo":               "bar",
 	}
 	got := target.BaseLabels()
 	if !reflect.DeepEqual(want, got) {
@@ -47,8 +48,8 @@ func TestBaseLabels(t *testing.T) {
 func TestOverwriteLabels(t *testing.T) {
 	type test struct {
 		metric       string
-		resultNormal clientmodel.Metric
-		resultHonor  clientmodel.Metric
+		resultNormal model.Metric
+		resultHonor  model.Metric
 	}
 	var tests []test
 
@@ -64,45 +65,45 @@ func TestOverwriteLabels(t *testing.T) {
 		),
 	)
 	defer server.Close()
-	addr := clientmodel.LabelValue(strings.Split(server.URL, "://")[1])
+	addr := model.LabelValue(strings.Split(server.URL, "://")[1])
 
 	tests = []test{
 		{
 			metric: `foo{}`,
-			resultNormal: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "foo",
-				clientmodel.InstanceLabel:   addr,
+			resultNormal: model.Metric{
+				model.MetricNameLabel: "foo",
+				model.InstanceLabel:   addr,
 			},
-			resultHonor: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "foo",
-				clientmodel.InstanceLabel:   addr,
+			resultHonor: model.Metric{
+				model.MetricNameLabel: "foo",
+				model.InstanceLabel:   addr,
 			},
 		},
 		{
 			metric: `foo{instance=""}`,
-			resultNormal: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "foo",
-				clientmodel.InstanceLabel:   addr,
+			resultNormal: model.Metric{
+				model.MetricNameLabel: "foo",
+				model.InstanceLabel:   addr,
 			},
-			resultHonor: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "foo",
+			resultHonor: model.Metric{
+				model.MetricNameLabel: "foo",
 			},
 		},
 		{
 			metric: `foo{instance="other_instance"}`,
-			resultNormal: clientmodel.Metric{
-				clientmodel.MetricNameLabel:                                 "foo",
-				clientmodel.InstanceLabel:                                   addr,
-				clientmodel.ExportedLabelPrefix + clientmodel.InstanceLabel: "other_instance",
+			resultNormal: model.Metric{
+				model.MetricNameLabel:                           "foo",
+				model.InstanceLabel:                             addr,
+				model.ExportedLabelPrefix + model.InstanceLabel: "other_instance",
 			},
-			resultHonor: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "foo",
-				clientmodel.InstanceLabel:   "other_instance",
+			resultHonor: model.Metric{
+				model.MetricNameLabel: "foo",
+				model.InstanceLabel:   "other_instance",
 			},
 		},
 	}
 
-	target := newTestTarget(server.URL, 10*time.Millisecond, nil)
+	target := newTestTarget(server.URL, time.Second, nil)
 
 	target.honorLabels = false
 	app := &collectResultAppender{}
@@ -153,7 +154,9 @@ func TestTargetScrapeWithFullChannel(t *testing.T) {
 	)
 	defer server.Close()
 
-	testTarget := newTestTarget(server.URL, 10*time.Millisecond, clientmodel.LabelSet{"dings": "bums"})
+	testTarget := newTestTarget(server.URL, time.Second, model.LabelSet{"dings": "bums"})
+	// Affects full channel but not HTTP fetch
+	testTarget.deadline = 0
 
 	testTarget.scrape(slowAppender{})
 	if testTarget.status.Health() != HealthBad {
@@ -175,16 +178,16 @@ func TestTargetScrapeMetricRelabelConfigs(t *testing.T) {
 		),
 	)
 	defer server.Close()
-	testTarget := newTestTarget(server.URL, 10*time.Millisecond, clientmodel.LabelSet{})
+	testTarget := newTestTarget(server.URL, time.Second, model.LabelSet{})
 	testTarget.metricRelabelConfigs = []*config.RelabelConfig{
 		{
-			SourceLabels: clientmodel.LabelNames{"__name__"},
-			Regex:        &config.Regexp{*regexp.MustCompile(".*drop.*")},
+			SourceLabels: model.LabelNames{"__name__"},
+			Regex:        config.MustNewRegexp(".*drop.*"),
 			Action:       config.RelabelDrop,
 		},
 		{
-			SourceLabels: clientmodel.LabelNames{"__name__"},
-			Regex:        &config.Regexp{*regexp.MustCompile(".*(relabel|up).*")},
+			SourceLabels: model.LabelNames{"__name__"},
+			Regex:        config.MustNewRegexp(".*(relabel|up).*"),
 			TargetLabel:  "foo",
 			Replacement:  "bar",
 			Action:       config.RelabelReplace,
@@ -192,7 +195,9 @@ func TestTargetScrapeMetricRelabelConfigs(t *testing.T) {
 	}
 
 	appender := &collectResultAppender{}
-	testTarget.scrape(appender)
+	if err := testTarget.scrape(appender); err != nil {
+		t.Fatal(err)
+	}
 
 	// Remove variables part of result.
 	for _, sample := range appender.result {
@@ -200,29 +205,29 @@ func TestTargetScrapeMetricRelabelConfigs(t *testing.T) {
 		sample.Value = 0
 	}
 
-	expected := []*clientmodel.Sample{
+	expected := []*model.Sample{
 		{
-			Metric: clientmodel.Metric{
-				clientmodel.MetricNameLabel: "test_metric_relabel",
-				"foo": "bar",
-				clientmodel.InstanceLabel: clientmodel.LabelValue(testTarget.url.Host),
+			Metric: model.Metric{
+				model.MetricNameLabel: "test_metric_relabel",
+				"foo":               "bar",
+				model.InstanceLabel: model.LabelValue(testTarget.url.Host),
 			},
 			Timestamp: 0,
 			Value:     0,
 		},
 		// The metrics about the scrape are not affected.
 		{
-			Metric: clientmodel.Metric{
-				clientmodel.MetricNameLabel: scrapeHealthMetricName,
-				clientmodel.InstanceLabel:   clientmodel.LabelValue(testTarget.url.Host),
+			Metric: model.Metric{
+				model.MetricNameLabel: scrapeHealthMetricName,
+				model.InstanceLabel:   model.LabelValue(testTarget.url.Host),
 			},
 			Timestamp: 0,
 			Value:     0,
 		},
 		{
-			Metric: clientmodel.Metric{
-				clientmodel.MetricNameLabel: scrapeDurationMetricName,
-				clientmodel.InstanceLabel:   clientmodel.LabelValue(testTarget.url.Host),
+			Metric: model.Metric{
+				model.MetricNameLabel: scrapeDurationMetricName,
+				model.InstanceLabel:   model.LabelValue(testTarget.url.Host),
 			},
 			Timestamp: 0,
 			Value:     0,
@@ -236,12 +241,12 @@ func TestTargetScrapeMetricRelabelConfigs(t *testing.T) {
 }
 
 func TestTargetRecordScrapeHealth(t *testing.T) {
-	testTarget := newTestTarget("example.url:80", 0, clientmodel.LabelSet{clientmodel.JobLabel: "testjob"})
+	testTarget := newTestTarget("example.url:80", 0, model.LabelSet{model.JobLabel: "testjob"})
 
-	now := clientmodel.Now()
+	now := model.Now()
 	appender := &collectResultAppender{}
 	testTarget.status.setLastError(nil)
-	recordScrapeHealth(appender, now, testTarget.BaseLabels(), testTarget.status.Health(), 2*time.Second)
+	recordScrapeHealth(appender, now.Time(), testTarget.BaseLabels(), testTarget.status.Health(), 2*time.Second)
 
 	result := appender.result
 
@@ -250,11 +255,11 @@ func TestTargetRecordScrapeHealth(t *testing.T) {
 	}
 
 	actual := result[0]
-	expected := &clientmodel.Sample{
-		Metric: clientmodel.Metric{
-			clientmodel.MetricNameLabel: scrapeHealthMetricName,
-			clientmodel.InstanceLabel:   "example.url:80",
-			clientmodel.JobLabel:        "testjob",
+	expected := &model.Sample{
+		Metric: model.Metric{
+			model.MetricNameLabel: scrapeHealthMetricName,
+			model.InstanceLabel:   "example.url:80",
+			model.JobLabel:        "testjob",
 		},
 		Timestamp: now,
 		Value:     1,
@@ -265,11 +270,11 @@ func TestTargetRecordScrapeHealth(t *testing.T) {
 	}
 
 	actual = result[1]
-	expected = &clientmodel.Sample{
-		Metric: clientmodel.Metric{
-			clientmodel.MetricNameLabel: scrapeDurationMetricName,
-			clientmodel.InstanceLabel:   "example.url:80",
-			clientmodel.JobLabel:        "testjob",
+	expected = &model.Sample{
+		Metric: model.Metric{
+			model.MetricNameLabel: scrapeDurationMetricName,
+			model.InstanceLabel:   "example.url:80",
+			model.JobLabel:        "testjob",
 		},
 		Timestamp: now,
 		Value:     2.0,
@@ -293,7 +298,7 @@ func TestTargetScrapeTimeout(t *testing.T) {
 	)
 	defer server.Close()
 
-	testTarget := newTestTarget(server.URL, 50*time.Millisecond, clientmodel.LabelSet{})
+	testTarget := newTestTarget(server.URL, 50*time.Millisecond, model.LabelSet{})
 
 	appender := nopAppender{}
 
@@ -336,7 +341,7 @@ func TestTargetScrape404(t *testing.T) {
 	)
 	defer server.Close()
 
-	testTarget := newTestTarget(server.URL, 10*time.Millisecond, clientmodel.LabelSet{})
+	testTarget := newTestTarget(server.URL, time.Second, model.LabelSet{})
 	appender := nopAppender{}
 
 	want := errors.New("server returned HTTP status 404 Not Found")
@@ -352,17 +357,17 @@ func TestTargetRunScraperScrapes(t *testing.T) {
 	go testTarget.RunScraper(nopAppender{})
 
 	// Enough time for a scrape to happen.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	if testTarget.status.LastScrape().IsZero() {
 		t.Errorf("Scrape hasn't occured.")
 	}
 
 	testTarget.StopScraper()
 	// Wait for it to take effect.
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	last := testTarget.status.LastScrape()
 	// Enough time for a scrape to happen.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 	if testTarget.status.LastScrape() != last {
 		t.Errorf("Scrape occured after it was stopped.")
 	}
@@ -379,7 +384,7 @@ func BenchmarkScrape(b *testing.B) {
 	)
 	defer server.Close()
 
-	testTarget := newTestTarget(server.URL, 100*time.Millisecond, clientmodel.LabelSet{"dings": "bums"})
+	testTarget := newTestTarget(server.URL, time.Second, model.LabelSet{"dings": "bums"})
 	appender := nopAppender{}
 
 	b.ResetTimer()
@@ -390,7 +395,55 @@ func BenchmarkScrape(b *testing.B) {
 	}
 }
 
-func newTestTarget(targetURL string, deadline time.Duration, baseLabels clientmodel.LabelSet) *Target {
+func TestURLParams(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+				w.Write([]byte{})
+				r.ParseForm()
+				if r.Form["foo"][0] != "bar" {
+					t.Fatalf("URL parameter 'foo' had unexpected first value '%v'", r.Form["foo"][0])
+				}
+				if r.Form["foo"][1] != "baz" {
+					t.Fatalf("URL parameter 'foo' had unexpected second value '%v'", r.Form["foo"][1])
+				}
+			},
+		),
+	)
+	defer server.Close()
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	target := NewTarget(
+		&config.ScrapeConfig{
+			JobName:        "test_job1",
+			ScrapeInterval: config.Duration(1 * time.Minute),
+			ScrapeTimeout:  config.Duration(1 * time.Second),
+			Scheme:         serverURL.Scheme,
+			Params: url.Values{
+				"foo": []string{"bar", "baz"},
+			},
+		},
+		model.LabelSet{
+			model.SchemeLabel:  model.LabelValue(serverURL.Scheme),
+			model.AddressLabel: model.LabelValue(serverURL.Host),
+			"__param_foo":      "bar",
+		},
+		nil)
+	app := &collectResultAppender{}
+	if err = target.scrape(app); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newTestTarget(targetURL string, deadline time.Duration, baseLabels model.LabelSet) *Target {
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: config.Duration(deadline),
+	}
+	c, _ := newHTTPClient(cfg)
 	t := &Target{
 		url: &url.URL{
 			Scheme: "http",
@@ -400,15 +453,184 @@ func newTestTarget(targetURL string, deadline time.Duration, baseLabels clientmo
 		deadline:        deadline,
 		status:          &TargetStatus{},
 		scrapeInterval:  1 * time.Millisecond,
-		httpClient:      httputil.NewDeadlineClient(deadline),
+		httpClient:      c,
 		scraperStopping: make(chan struct{}),
 		scraperStopped:  make(chan struct{}),
 	}
-	t.baseLabels = clientmodel.LabelSet{
-		clientmodel.InstanceLabel: clientmodel.LabelValue(t.InstanceIdentifier()),
+	t.baseLabels = model.LabelSet{
+		model.InstanceLabel: model.LabelValue(t.InstanceIdentifier()),
 	}
 	for baseLabel, baseValue := range baseLabels {
 		t.baseLabels[baseLabel] = baseValue
 	}
 	return t
+}
+
+func TestNewHTTPBearerToken(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				expected := "Bearer 1234"
+				received := r.Header.Get("Authorization")
+				if expected != received {
+					t.Fatalf("Authorization header was not set correctly: expected '%v', got '%v'", expected, received)
+				}
+			},
+		),
+	)
+	defer server.Close()
+
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: config.Duration(1 * time.Second),
+		BearerToken:   "1234",
+	}
+	c, err := newHTTPClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewHTTPBearerTokenFile(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				expected := "Bearer 12345"
+				received := r.Header.Get("Authorization")
+				if expected != received {
+					t.Fatalf("Authorization header was not set correctly: expected '%v', got '%v'", expected, received)
+				}
+			},
+		),
+	)
+	defer server.Close()
+
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout:   config.Duration(1 * time.Second),
+		BearerTokenFile: "testdata/bearertoken.txt",
+	}
+	c, err := newHTTPClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewHTTPBasicAuth(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				username, password, ok := r.BasicAuth()
+				if !(ok && username == "user" && password == "password123") {
+					t.Fatalf("Basic authorization header was not set correctly: expected '%v:%v', got '%v:%v'", "user", "password123", username, password)
+				}
+			},
+		),
+	)
+	defer server.Close()
+
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: config.Duration(1 * time.Second),
+		BasicAuth: &config.BasicAuth{
+			Username: "user",
+			Password: "password123",
+		},
+	}
+	c, err := newHTTPClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewHTTPCACert(t *testing.T) {
+	server := httptest.NewUnstartedServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+				w.Write([]byte{})
+			},
+		),
+	)
+	server.TLS = newTLSConfig(t)
+	server.StartTLS()
+	defer server.Close()
+
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: config.Duration(1 * time.Second),
+		TLSConfig: config.TLSConfig{
+			CAFile: "testdata/ca.cer",
+		},
+	}
+	c, err := newHTTPClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewHTTPClientCert(t *testing.T) {
+	server := httptest.NewUnstartedServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
+				w.Write([]byte{})
+			},
+		),
+	)
+	tlsConfig := newTLSConfig(t)
+	tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	tlsConfig.ClientCAs = tlsConfig.RootCAs
+	tlsConfig.BuildNameToCertificate()
+	server.TLS = tlsConfig
+	server.StartTLS()
+	defer server.Close()
+
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: config.Duration(1 * time.Second),
+		TLSConfig: config.TLSConfig{
+			CAFile:   "testdata/ca.cer",
+			CertFile: "testdata/client.cer",
+			KeyFile:  "testdata/client.key",
+		},
+	}
+	c, err := newHTTPClient(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newTLSConfig(t *testing.T) *tls.Config {
+	tlsConfig := &tls.Config{}
+	caCertPool := x509.NewCertPool()
+	caCert, err := ioutil.ReadFile("testdata/ca.cer")
+	if err != nil {
+		t.Fatalf("Couldn't set up TLS server: %v", err)
+	}
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig.RootCAs = caCertPool
+	tlsConfig.ServerName = "127.0.0.1"
+	cert, err := tls.LoadX509KeyPair("testdata/server.cer", "testdata/server.key")
+	if err != nil {
+		t.Errorf("Unable to use specified server cert (%s) & key (%v): %s", "testdata/server.cer", "testdata/server.key", err)
+	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig
 }

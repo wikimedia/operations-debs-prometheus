@@ -17,38 +17,34 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 	"github.com/samuel/go-zookeeper/zk"
 
-	clientmodel "github.com/prometheus/client_golang/model"
-
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/util/strutil"
 )
 
 const (
-	serversetSourcePrefix = "serverset"
-
 	serversetNodePrefix = "member_"
 
-	serversetLabelPrefix         = clientmodel.MetaLabelPrefix + "serverset_"
+	serversetLabelPrefix         = model.MetaLabelPrefix + "serverset_"
 	serversetStatusLabel         = serversetLabelPrefix + "status"
 	serversetPathLabel           = serversetLabelPrefix + "path"
 	serversetEndpointLabelPrefix = serversetLabelPrefix + "endpoint"
-)
-
-var (
-	invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	serversetShardLabel          = serversetLabelPrefix + "shard"
 )
 
 type serversetMember struct {
 	ServiceEndpoint     serversetEndpoint
 	AdditionalEndpoints map[string]serversetEndpoint
 	Status              string `json:"status"`
+	Shard               int    `json:"shard"`
 }
 
 type serversetEndpoint struct {
@@ -56,31 +52,30 @@ type serversetEndpoint struct {
 	Port int
 }
 
-type ZookeeperLogger struct {
+type zookeeperLogger struct {
 }
 
 // Implements zk.Logger
-func (zl ZookeeperLogger) Printf(s string, i ...interface{}) {
+func (zl zookeeperLogger) Printf(s string, i ...interface{}) {
 	log.Infof(s, i...)
 }
 
 // ServersetDiscovery retrieves target information from a Serverset server
 // and updates them via watches.
 type ServersetDiscovery struct {
-	conf      *config.ServersetSDConfig
-	conn      *zk.Conn
-	mu        sync.RWMutex
-	sources   map[string]*config.TargetGroup
-	sdUpdates *chan<- *config.TargetGroup
-	updates   chan zookeeperTreeCacheEvent
-	runDone   chan struct{}
-	treeCache *zookeeperTreeCache
+	conf       *config.ServersetSDConfig
+	conn       *zk.Conn
+	mu         sync.RWMutex
+	sources    map[string]*config.TargetGroup
+	sdUpdates  *chan<- config.TargetGroup
+	updates    chan zookeeperTreeCacheEvent
+	treeCaches []*zookeeperTreeCache
 }
 
 // NewServersetDiscovery returns a new ServersetDiscovery for the given config.
 func NewServersetDiscovery(conf *config.ServersetSDConfig) *ServersetDiscovery {
 	conn, _, err := zk.Connect(conf.Servers, time.Duration(conf.Timeout))
-	conn.SetLogger(ZookeeperLogger{})
+	conn.SetLogger(zookeeperLogger{})
 	if err != nil {
 		return nil
 	}
@@ -90,10 +85,11 @@ func NewServersetDiscovery(conf *config.ServersetSDConfig) *ServersetDiscovery {
 		conn:    conn,
 		updates: updates,
 		sources: map[string]*config.TargetGroup{},
-		runDone: make(chan struct{}),
 	}
 	go sd.processUpdates()
-	sd.treeCache = NewZookeeperTreeCache(conn, conf.Paths[0], updates)
+	for _, path := range conf.Paths {
+		sd.treeCaches = append(sd.treeCaches, newZookeeperTreeCache(conn, path, updates))
+	}
 	return sd
 }
 
@@ -112,13 +108,13 @@ func (sd *ServersetDiscovery) processUpdates() {
 	defer sd.conn.Close()
 	for event := range sd.updates {
 		tg := &config.TargetGroup{
-			Source: serversetSourcePrefix + event.Path,
+			Source: event.Path,
 		}
 		sd.mu.Lock()
 		if event.Data != nil {
 			labelSet, err := parseServersetMember(*event.Data, event.Path)
 			if err == nil {
-				tg.Targets = []clientmodel.LabelSet{*labelSet}
+				tg.Targets = []model.LabelSet{*labelSet}
 				sd.sources[event.Path] = tg
 			} else {
 				delete(sd.sources, event.Path)
@@ -128,7 +124,7 @@ func (sd *ServersetDiscovery) processUpdates() {
 		}
 		sd.mu.Unlock()
 		if sd.sdUpdates != nil {
-			*sd.sdUpdates <- tg
+			*sd.sdUpdates <- *tg
 		}
 	}
 
@@ -138,55 +134,48 @@ func (sd *ServersetDiscovery) processUpdates() {
 }
 
 // Run implements the TargetProvider interface.
-func (sd *ServersetDiscovery) Run(ch chan<- *config.TargetGroup) {
+func (sd *ServersetDiscovery) Run(ch chan<- config.TargetGroup, done <-chan struct{}) {
 	// Send on everything we have seen so far.
 	sd.mu.Lock()
 	for _, targetGroup := range sd.sources {
-		ch <- targetGroup
+		ch <- *targetGroup
 	}
 	// Tell processUpdates to send future updates.
 	sd.sdUpdates = &ch
 	sd.mu.Unlock()
 
-	<-sd.runDone
-	sd.treeCache.Stop()
+	<-done
+	for _, tc := range sd.treeCaches {
+		tc.Stop()
+	}
 }
 
-// Stop implements the TargetProvider interface.
-func (sd *ServersetDiscovery) Stop() {
-	log.Debugf("Stopping serverset service discovery for %s %s", sd.conf.Servers, sd.conf.Paths)
-
-	// Terminate Run.
-	sd.runDone <- struct{}{}
-
-	log.Debugf("Serverset service discovery for %s %s stopped", sd.conf.Servers, sd.conf.Paths)
-}
-
-func parseServersetMember(data []byte, path string) (*clientmodel.LabelSet, error) {
+func parseServersetMember(data []byte, path string) (*model.LabelSet, error) {
 	member := serversetMember{}
 	err := json.Unmarshal(data, &member)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling serverset member %q: %s", path, err)
 	}
 
-	labels := clientmodel.LabelSet{}
-	labels[serversetPathLabel] = clientmodel.LabelValue(path)
-	labels[clientmodel.AddressLabel] = clientmodel.LabelValue(
+	labels := model.LabelSet{}
+	labels[serversetPathLabel] = model.LabelValue(path)
+	labels[model.AddressLabel] = model.LabelValue(
 		fmt.Sprintf("%s:%d", member.ServiceEndpoint.Host, member.ServiceEndpoint.Port))
 
-	labels[serversetEndpointLabelPrefix+"_host"] = clientmodel.LabelValue(member.ServiceEndpoint.Host)
-	labels[serversetEndpointLabelPrefix+"_port"] = clientmodel.LabelValue(fmt.Sprintf("%d", member.ServiceEndpoint.Port))
+	labels[serversetEndpointLabelPrefix+"_host"] = model.LabelValue(member.ServiceEndpoint.Host)
+	labels[serversetEndpointLabelPrefix+"_port"] = model.LabelValue(fmt.Sprintf("%d", member.ServiceEndpoint.Port))
 
 	for name, endpoint := range member.AdditionalEndpoints {
-		cleanName := clientmodel.LabelName(invalidLabelCharRE.ReplaceAllString(name, "_"))
-		labels[serversetEndpointLabelPrefix+"_host_"+cleanName] = clientmodel.LabelValue(
+		cleanName := model.LabelName(strutil.SanitizeLabelName(name))
+		labels[serversetEndpointLabelPrefix+"_host_"+cleanName] = model.LabelValue(
 			endpoint.Host)
-		labels[serversetEndpointLabelPrefix+"_port_"+cleanName] = clientmodel.LabelValue(
+		labels[serversetEndpointLabelPrefix+"_port_"+cleanName] = model.LabelValue(
 			fmt.Sprintf("%d", endpoint.Port))
 
 	}
 
-	labels[serversetStatusLabel] = clientmodel.LabelValue(member.Status)
+	labels[serversetStatusLabel] = model.LabelValue(member.Status)
+	labels[serversetShardLabel] = model.LabelValue(strconv.Itoa(member.Shard))
 
 	return &labels, nil
 }
@@ -213,7 +202,7 @@ type zookeeperTreeCacheNode struct {
 	children map[string]*zookeeperTreeCacheNode
 }
 
-func NewZookeeperTreeCache(conn *zk.Conn, path string, events chan zookeeperTreeCacheEvent) *zookeeperTreeCache {
+func newZookeeperTreeCache(conn *zk.Conn, path string, events chan zookeeperTreeCacheEvent) *zookeeperTreeCache {
 	tc := &zookeeperTreeCache{
 		conn:   conn,
 		prefix: path,
@@ -257,6 +246,7 @@ func (tc *zookeeperTreeCache) loop(failureMode bool) {
 			if failureMode {
 				continue
 			}
+
 			if ev.Type == zk.EventNotWatching {
 				log.Infof("Lost connection to Zookeeper.")
 				failure()
@@ -276,6 +266,7 @@ func (tc *zookeeperTreeCache) loop(failureMode bool) {
 					}
 					node = childNode
 				}
+
 				err := tc.recursiveNodeUpdate(ev.Path, node)
 				if err != nil {
 					log.Errorf("Error during processing of Zookeeper event: %s", err)
@@ -287,6 +278,8 @@ func (tc *zookeeperTreeCache) loop(failureMode bool) {
 			}
 		case <-retryChan:
 			log.Infof("Attempting to resync state with Zookeeper")
+			// Reset root child nodes before traversing the Zookeeper path.
+			tc.head.children = make(map[string]*zookeeperTreeCacheNode)
 			err := tc.recursiveNodeUpdate(tc.prefix, tc.head)
 			if err != nil {
 				log.Errorf("Error during Zookeeper resync: %s", err)
@@ -331,19 +324,21 @@ func (tc *zookeeperTreeCache) recursiveNodeUpdate(path string, node *zookeeperTr
 	for _, child := range children {
 		currentChildren[child] = struct{}{}
 		childNode := node.children[child]
-		// Does not already exists, create it.
-		if childNode == nil {
+		// Does not already exists or we previous had a watch that
+		// triggered.
+		if childNode == nil || childNode.stopped {
 			node.children[child] = &zookeeperTreeCacheNode{
 				events:   node.events,
 				children: map[string]*zookeeperTreeCacheNode{},
 				done:     make(chan struct{}, 1),
 			}
-		}
-		err = tc.recursiveNodeUpdate(path+"/"+child, node.children[child])
-		if err != nil {
-			return err
+			err = tc.recursiveNodeUpdate(path+"/"+child, node.children[child])
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	// Remove nodes that no longer exist
 	for name, childNode := range node.children {
 		if _, ok := currentChildren[name]; !ok || node.data == nil {

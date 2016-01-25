@@ -31,9 +31,10 @@ import (
 	pprof_runtime "runtime/pprof"
 	template_text "text/template"
 
-	clientmodel "github.com/prometheus/client_golang/model"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/promql"
@@ -41,7 +42,7 @@ import (
 	"github.com/prometheus/prometheus/rules"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/template"
-	"github.com/prometheus/prometheus/util/route"
+	"github.com/prometheus/prometheus/util/httputil"
 	"github.com/prometheus/prometheus/version"
 	"github.com/prometheus/prometheus/web/api/legacy"
 	"github.com/prometheus/prometheus/web/api/v1"
@@ -54,17 +55,31 @@ var localhostRepresentations = []string{"127.0.0.1", "localhost"}
 type Handler struct {
 	ruleManager *rules.Manager
 	queryEngine *promql.Engine
+	storage     local.Storage
 
-	apiV1      *v1.API
-	apiLegacy  *legacy.API
-	federation *Federation
+	apiV1     *v1.API
+	apiLegacy *legacy.API
 
-	router     *route.Router
-	quitCh     chan struct{}
-	options    *Options
-	statusInfo *PrometheusStatus
+	router      *route.Router
+	listenErrCh chan error
+	quitCh      chan struct{}
+	reloadCh    chan struct{}
+	options     *Options
+	statusInfo  *PrometheusStatus
 
-	muAlerts sync.Mutex
+	externalLabels model.LabelSet
+	mtx            sync.RWMutex
+}
+
+// ApplyConfig updates the status state as the new config requires.
+// Returns true on success.
+func (h *Handler) ApplyConfig(conf *config.Config) bool {
+	h.mtx.Lock()
+	defer h.mtx.Unlock()
+
+	h.externalLabels = conf.GlobalConfig.ExternalLabels
+
+	return true
 }
 
 // PrometheusStatus contains various information about the status
@@ -87,8 +102,10 @@ type PrometheusStatus struct {
 // Returns true on success.
 func (s *PrometheusStatus) ApplyConfig(conf *config.Config) bool {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.Config = conf.String()
-	s.mu.Unlock()
+
 	return true
 }
 
@@ -109,25 +126,22 @@ func New(st local.Storage, qe *promql.Engine, rm *rules.Manager, status *Prometh
 	router := route.New()
 
 	h := &Handler{
-		router:     router,
-		quitCh:     make(chan struct{}),
-		options:    o,
-		statusInfo: status,
+		router:      router,
+		listenErrCh: make(chan error),
+		quitCh:      make(chan struct{}),
+		reloadCh:    make(chan struct{}),
+		options:     o,
+		statusInfo:  status,
 
 		ruleManager: rm,
 		queryEngine: qe,
+		storage:     st,
 
-		apiV1: &v1.API{
-			QueryEngine: qe,
-			Storage:     st,
-		},
+		apiV1: v1.NewAPI(qe, st),
 		apiLegacy: &legacy.API{
 			QueryEngine: qe,
 			Storage:     st,
-			Now:         clientmodel.Now,
-		},
-		federation: &Federation{
-			Storage: st,
+			Now:         model.Now,
 		},
 	}
 
@@ -139,18 +153,25 @@ func New(st local.Storage, qe *promql.Engine, rm *rules.Manager, status *Prometh
 		router = router.WithPrefix(o.ExternalURL.Path)
 	}
 
-	instrf := prometheus.InstrumentHandlerFunc
 	instrh := prometheus.InstrumentHandler
+	instrf := prometheus.InstrumentHandlerFunc
 
-	router.Get("/", instrf("status", h.status))
-	router.Get("/alerts", instrf("alerts", h.alerts))
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		router.Redirect(w, r, "/graph", http.StatusFound)
+	})
 	router.Get("/graph", instrf("graph", h.graph))
+
+	router.Get("/status", instrf("status", h.status))
+	router.Get("/alerts", instrf("alerts", h.alerts))
 	router.Get("/version", instrf("version", h.version))
 
 	router.Get("/heap", instrf("heap", dumpHeap))
 
-	router.Get("/federate", instrh("federate", h.federation))
 	router.Get(o.MetricsPath, prometheus.Handler().ServeHTTP)
+
+	router.Get("/federate", instrh("federate", httputil.CompressionHandler{
+		Handler: http.HandlerFunc(h.federation),
+	}))
 
 	h.apiLegacy.Register(router.WithPrefix("/api"))
 	h.apiV1.Register(router.WithPrefix("/api/v1"))
@@ -171,9 +192,17 @@ func New(st local.Storage, qe *promql.Engine, rm *rules.Manager, status *Prometh
 		router.Post("/-/quit", h.quit)
 	}
 
+	router.Post("/-/reload", h.reload)
+
 	router.Get("/debug/*subpath", http.DefaultServeMux.ServeHTTP)
+	router.Post("/debug/*subpath", http.DefaultServeMux.ServeHTTP)
 
 	return h
+}
+
+// ListenError returns the receive-only channel that signals errors while starting the web server.
+func (h *Handler) ListenError() <-chan error {
+	return h.listenErrCh
 }
 
 // Quit returns the receive-only quit channel.
@@ -181,24 +210,18 @@ func (h *Handler) Quit() <-chan struct{} {
 	return h.quitCh
 }
 
+// Reload returns the receive-only channel that signals configuration reload requests.
+func (h *Handler) Reload() <-chan struct{} {
+	return h.reloadCh
+}
+
 // Run serves the HTTP endpoints.
 func (h *Handler) Run() {
 	log.Infof("Listening on %s", h.options.ListenAddress)
-
-	// If we cannot bind to a port, retry after 30 seconds.
-	for {
-		err := http.ListenAndServe(h.options.ListenAddress, h.router)
-		if err != nil {
-			log.Errorf("Could not listen on %s: %s", h.options.ListenAddress, err)
-		}
-		time.Sleep(30 * time.Second)
-	}
+	h.listenErrCh <- http.ListenAndServe(h.options.ListenAddress, h.router)
 }
 
 func (h *Handler) alerts(w http.ResponseWriter, r *http.Request) {
-	h.muAlerts.Lock()
-	defer h.muAlerts.Unlock()
-
 	alerts := h.ruleManager.AlertingRules()
 	alertsSorter := byAlertStateSorter{alerts: alerts}
 	sort.Sort(alertsSorter)
@@ -250,7 +273,7 @@ func (h *Handler) consoles(w http.ResponseWriter, r *http.Request) {
 		Path:      strings.TrimLeft(name, "/"),
 	}
 
-	tmpl := template.NewTemplateExpander(string(text), "__console_"+name, data, clientmodel.Now(), h.queryEngine, h.options.ExternalURL.Path)
+	tmpl := template.NewTemplateExpander(string(text), "__console_"+name, data, model.Now(), h.queryEngine, h.options.ExternalURL.Path)
 	filenames, err := filepath.Glob(h.options.ConsoleLibrariesPath + "/*.lib")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -293,6 +316,11 @@ func (h *Handler) quit(w http.ResponseWriter, r *http.Request) {
 	close(h.quitCh)
 }
 
+func (h *Handler) reload(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Reloading configuration file...")
+	h.reloadCh <- struct{}{}
+}
+
 func (h *Handler) getTemplateFile(name string) (string, error) {
 	if h.options.UseLocalAssets {
 		file, err := ioutil.ReadFile(fmt.Sprintf("web/blob/templates/%s.html", name))
@@ -325,11 +353,11 @@ func (h *Handler) consolesPath() string {
 func (h *Handler) getTemplate(name string) (string, error) {
 	baseTmpl, err := h.getTemplateFile("_base")
 	if err != nil {
-		return "", fmt.Errorf("Error reading base template: %s", err)
+		return "", fmt.Errorf("error reading base template: %s", err)
 	}
 	pageTmpl, err := h.getTemplateFile(name)
 	if err != nil {
-		return "", fmt.Errorf("Error reading page template %s: %s", name, err)
+		return "", fmt.Errorf("error reading page template %s: %s", name, err)
 	}
 	return baseTmpl + pageTmpl, nil
 }
@@ -339,7 +367,7 @@ func tmplFuncs(consolesPath string, opts *Options) template_text.FuncMap {
 		"since":        time.Since,
 		"consolesPath": func() string { return consolesPath },
 		"pathPrefix":   func() string { return opts.ExternalURL.Path },
-		"stripLabels": func(lset clientmodel.LabelSet, labels ...clientmodel.LabelName) clientmodel.LabelSet {
+		"stripLabels": func(lset model.LabelSet, labels ...model.LabelName) model.LabelSet {
 			for _, ln := range labels {
 				delete(lset, ln)
 			}
@@ -414,7 +442,7 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	tmpl := template.NewTemplateExpander(text, name, data, clientmodel.Now(), h.queryEngine, h.options.ExternalURL.Path)
+	tmpl := template.NewTemplateExpander(text, name, data, model.Now(), h.queryEngine, h.options.ExternalURL.Path)
 	tmpl.Funcs(tmplFuncs(h.consolesPath(), h.options))
 
 	result, err := tmpl.ExpandHTML(nil)

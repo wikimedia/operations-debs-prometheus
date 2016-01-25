@@ -1,7 +1,7 @@
 package promql
 
 import (
-	"sync"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,36 +12,37 @@ var noop = testStmt(func(context.Context) error {
 	return nil
 })
 
-func TestQueryConcurreny(t *testing.T) {
+func TestQueryConcurrency(t *testing.T) {
 	engine := NewEngine(nil, nil)
 	defer engine.Stop()
 
 	block := make(chan struct{})
 	processing := make(chan struct{})
-	f1 := testStmt(func(context.Context) error {
+
+	f := func(context.Context) error {
 		processing <- struct{}{}
 		<-block
 		return nil
-	})
+	}
 
 	for i := 0; i < DefaultEngineOptions.MaxConcurrentQueries; i++ {
-		q := engine.newTestQuery(f1)
+		q := engine.newTestQuery(f)
 		go q.Exec()
 		select {
 		case <-processing:
 			// Expected.
-		case <-time.After(5 * time.Millisecond):
+		case <-time.After(20 * time.Millisecond):
 			t.Fatalf("Query within concurrency threshold not being executed")
 		}
 	}
 
-	q := engine.newTestQuery(f1)
+	q := engine.newTestQuery(f)
 	go q.Exec()
 
 	select {
 	case <-processing:
 		t.Fatalf("Query above concurrency threhosld being executed")
-	case <-time.After(5 * time.Millisecond):
+	case <-time.After(20 * time.Millisecond):
 		// Expected.
 	}
 
@@ -51,7 +52,7 @@ func TestQueryConcurreny(t *testing.T) {
 	select {
 	case <-processing:
 		// Expected.
-	case <-time.After(5 * time.Millisecond):
+	case <-time.After(20 * time.Millisecond):
 		t.Fatalf("Query within concurrency threshold not being executed")
 	}
 
@@ -68,14 +69,10 @@ func TestQueryTimeout(t *testing.T) {
 	})
 	defer engine.Stop()
 
-	f1 := testStmt(func(context.Context) error {
-		time.Sleep(10 * time.Millisecond)
-		return nil
+	query := engine.newTestQuery(func(ctx context.Context) error {
+		time.Sleep(50 * time.Millisecond)
+		return contextDone(ctx, "test statement execution")
 	})
-
-	// Timeouts are not exact but checked in designated places. For example between
-	// invoking test statements.
-	query := engine.newTestQuery(f1, f1)
 
 	res := query.Exec()
 	if res.Err == nil {
@@ -90,37 +87,40 @@ func TestQueryCancel(t *testing.T) {
 	engine := NewEngine(nil, nil)
 	defer engine.Stop()
 
-	// As for timeouts, cancellation is only checked at designated points. We ensure
-	// that we reach one of those points using the same method.
-	f1 := testStmt(func(context.Context) error {
-		time.Sleep(2 * time.Millisecond)
-		return nil
+	// Cancel a running query before it completes.
+	block := make(chan struct{})
+	processing := make(chan struct{})
+
+	query1 := engine.newTestQuery(func(ctx context.Context) error {
+		processing <- struct{}{}
+		<-block
+		return contextDone(ctx, "test statement execution")
 	})
 
-	query1 := engine.newTestQuery(f1, f1)
-	query2 := engine.newTestQuery(f1, f1)
-
-	// Cancel query after starting it.
-	var wg sync.WaitGroup
 	var res *Result
 
-	wg.Add(1)
 	go func() {
 		res = query1.Exec()
-		wg.Done()
+		processing <- struct{}{}
 	}()
-	time.Sleep(1 * time.Millisecond)
+
+	<-processing
 	query1.Cancel()
-	wg.Wait()
+	block <- struct{}{}
+	<-processing
 
 	if res.Err == nil {
 		t.Fatalf("expected cancellation error for query1 but got none")
 	}
-	if _, ok := res.Err.(ErrQueryCanceled); res.Err != nil && !ok {
-		t.Fatalf("expected cancellation error for query1 but got: %s", res.Err)
+	if ee := ErrQueryCanceled("test statement execution"); res.Err != ee {
+		t.Fatalf("expected error %q, got %q", ee, res.Err)
 	}
 
-	// Canceling query before starting it must have no effect.
+	// Canceling a query before starting it must have no effect.
+	query2 := engine.newTestQuery(func(ctx context.Context) error {
+		return contextDone(ctx, "test statement execution")
+	})
+
 	query2.Cancel()
 	res = query2.Exec()
 	if res.Err != nil {
@@ -131,36 +131,82 @@ func TestQueryCancel(t *testing.T) {
 func TestEngineShutdown(t *testing.T) {
 	engine := NewEngine(nil, nil)
 
-	handlerExecutions := 0
+	block := make(chan struct{})
+	processing := make(chan struct{})
+
 	// Shutdown engine on first handler execution. Should handler execution ever become
 	// concurrent this test has to be adjusted accordingly.
-	f1 := testStmt(func(context.Context) error {
-		handlerExecutions++
-		engine.Stop()
-		time.Sleep(10 * time.Millisecond)
-		return nil
-	})
-	query1 := engine.newTestQuery(f1, f1)
-	query2 := engine.newTestQuery(f1, f1)
+	f := func(ctx context.Context) error {
+		processing <- struct{}{}
+		<-block
+		return contextDone(ctx, "test statement execution")
+	}
+	query1 := engine.newTestQuery(f)
 
 	// Stopping the engine must cancel the base context. While executing queries is
 	// still possible, their context is canceled from the beginning and execution should
 	// terminate immediately.
 
-	res := query1.Exec()
+	var res *Result
+	go func() {
+		res = query1.Exec()
+		processing <- struct{}{}
+	}()
+
+	<-processing
+	engine.Stop()
+	block <- struct{}{}
+	<-processing
+
 	if res.Err == nil {
 		t.Fatalf("expected error on shutdown during query but got none")
 	}
-	if handlerExecutions != 1 {
-		t.Fatalf("expected only one handler to be executed before query cancellation but got %d executions", handlerExecutions)
+	if ee := ErrQueryCanceled("test statement execution"); res.Err != ee {
+		t.Fatalf("expected error %q, got %q", ee, res.Err)
 	}
 
+	query2 := engine.newTestQuery(func(context.Context) error {
+		t.Fatalf("reached query execution unexpectedly")
+		return nil
+	})
+
+	// The second query is started after the engine shut down. It must
+	// be canceled immediately.
 	res2 := query2.Exec()
 	if res2.Err == nil {
 		t.Fatalf("expected error on querying shutdown engine but got none")
 	}
-	if handlerExecutions != 1 {
-		t.Fatalf("expected no handler execution for query after engine shutdown")
+	if _, ok := res2.Err.(ErrQueryCanceled); !ok {
+		t.Fatalf("expected cancelation error, got %q", res2.Err)
 	}
+}
 
+func TestRecoverEvaluatorRuntime(t *testing.T) {
+	var ev *evaluator
+	var err error
+	defer ev.recover(&err)
+
+	// Cause a runtime panic.
+	var a []int
+	a[123] = 1
+
+	if err.Error() != "unexpected error" {
+		t.Fatalf("wrong error message: %q, expected %q", err, "unexpected error")
+	}
+}
+
+func TestRecoverEvaluatorError(t *testing.T) {
+	var ev *evaluator
+	var err error
+
+	e := fmt.Errorf("custom error")
+
+	defer func() {
+		if err.Error() != e.Error() {
+			t.Fatalf("wrong error message: %q, expected %q", err, e)
+		}
+	}()
+	defer ev.recover(&err)
+
+	panic(e)
 }

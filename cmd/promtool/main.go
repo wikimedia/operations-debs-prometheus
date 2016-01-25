@@ -22,8 +22,6 @@ import (
 	"strings"
 	"text/template"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/util/cli"
@@ -64,6 +62,15 @@ func CheckConfigCmd(t cli.Term, args ...string) int {
 	return 0
 }
 
+func checkFileExists(fn string) error {
+	// Nothing set, nothing to error on.
+	if fn == "" {
+		return nil
+	}
+	_, err := os.Stat(fn)
+	return err
+}
+
 func checkConfig(t cli.Term, filename string) ([]string, error) {
 	t.Infof("Checking %s", filename)
 
@@ -73,33 +80,64 @@ func checkConfig(t cli.Term, filename string) ([]string, error) {
 		return nil, fmt.Errorf("is a directory")
 	}
 
-	content, err := ioutil.ReadFile(filename)
+	cfg, err := config.LoadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg config.Config
-	if err := yaml.Unmarshal(content, &cfg); err != nil {
-		return nil, err
-	}
 	var ruleFiles []string
 	for _, rf := range cfg.RuleFiles {
-		if !filepath.IsAbs(rf) {
-			rf = filepath.Join(filepath.Dir(filename), rf)
-		}
-
 		rfs, err := filepath.Glob(rf)
 		if err != nil {
 			return nil, err
 		}
-		// If an explicit file was given, error if it doesn't exist.
-		if !strings.Contains(rf, "*") && len(rfs) == 0 {
-			return nil, fmt.Errorf("%q does not point to an existing file", rf)
+		// If an explicit file was given, error if it is not accessible.
+		if !strings.Contains(rf, "*") {
+			if len(rfs) == 0 {
+				return nil, fmt.Errorf("%q does not point to an existing file", rf)
+			}
+			if err := checkFileExists(rfs[0]); err != nil {
+				return nil, fmt.Errorf("error checking rule file %q: %s", rfs[0], err)
+			}
 		}
 		ruleFiles = append(ruleFiles, rfs...)
 	}
 
+	for _, scfg := range cfg.ScrapeConfigs {
+		if err := checkFileExists(scfg.BearerTokenFile); err != nil {
+			return nil, fmt.Errorf("error checking bearer token file %q: %s", scfg.BearerTokenFile, err)
+		}
+
+		if err := checkTLSConfig(scfg.TLSConfig); err != nil {
+			return nil, err
+		}
+
+		for _, kd := range scfg.KubernetesSDConfigs {
+			if err := checkTLSConfig(kd.TLSConfig); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return ruleFiles, nil
+}
+
+func checkTLSConfig(tlsConfig config.TLSConfig) error {
+	if err := checkFileExists(tlsConfig.CertFile); err != nil {
+		return fmt.Errorf("error checking client cert file %q: %s", tlsConfig.CertFile, err)
+	}
+	if err := checkFileExists(tlsConfig.KeyFile); err != nil {
+		return fmt.Errorf("error checking client key file %q: %s", tlsConfig.KeyFile, err)
+	}
+
+	if len(tlsConfig.CertFile) > 0 && len(tlsConfig.KeyFile) == 0 {
+		return fmt.Errorf("client cert file %q specified without client key file", tlsConfig.CertFile)
+	}
+	if len(tlsConfig.KeyFile) > 0 && len(tlsConfig.CertFile) == 0 {
+		return fmt.Errorf("client key file %q specified without client cert file", tlsConfig.KeyFile)
+	}
+
+	return nil
 }
 
 // CheckRulesCmd validates rule files.

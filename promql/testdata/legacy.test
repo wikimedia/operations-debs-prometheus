@@ -15,6 +15,14 @@ load 5m
 	testcounter_reset_middle	0+10x4 0+10x5
 	testcounter_reset_end    	0+10x9 0 10
 
+load 4m
+	testcounter_zero_cutoff{start="0m"}	0+240x10
+	testcounter_zero_cutoff{start="1m"}	60+240x10
+	testcounter_zero_cutoff{start="2m"}	120+240x10
+	testcounter_zero_cutoff{start="3m"}	180+240x10
+	testcounter_zero_cutoff{start="4m"}	240+240x10
+	testcounter_zero_cutoff{start="5m"}	300+240x10
+	
 load 5m
 	label_grouping_test{a="aa", b="bb"}	0+10x10
 	label_grouping_test{a="a", b="abb"}	0+20x10
@@ -108,26 +116,6 @@ eval instant at 50m SUM(http_requests) BY (job) / 0
 	{job="app-server"} +Inf 
 
 
-eval instant at 50m SUM(http_requests) BY (job) > 1000
-	{job="app-server"} 2600 
-
-
-eval instant at 50m 1000 < SUM(http_requests) BY (job)
-	{job="app-server"} 1000 
-
-
-eval instant at 50m SUM(http_requests) BY (job) <= 1000
-	{job="api-server"} 1000 
-
-
-eval instant at 50m SUM(http_requests) BY (job) != 1000
-	{job="app-server"} 2600 
-
-
-eval instant at 50m SUM(http_requests) BY (job) == 1000
-	{job="api-server"} 1000 
-
-
 eval instant at 50m SUM(http_requests) BY (job) + SUM(http_requests) BY (job)
 	{job="api-server"} 2000 
 	{job="app-server"} 5200 
@@ -153,65 +141,6 @@ eval instant at 50m rate(http_requests[25m]) * 25 * 60
 	{group="production", instance="1", job="api-server"} 100 
 	{group="production", instance="1", job="app-server"} 300 
 
-eval instant at 50m delta(http_requests[25m], 1)
-	{group="canary", instance="0", job="api-server"} 150 
-	{group="canary", instance="0", job="app-server"} 350 
-	{group="canary", instance="1", job="api-server"} 200 
-	{group="canary", instance="1", job="app-server"} 400 
-	{group="production", instance="0", job="api-server"} 50 
-	{group="production", instance="0", job="app-server"} 250 
-	{group="production", instance="1", job="api-server"} 100 
-	{group="production", instance="1", job="app-server"} 300 
-
-eval_ordered instant at 50m sort(http_requests)
-	http_requests{group="production", instance="0", job="api-server"} 100 
-	http_requests{group="production", instance="1", job="api-server"} 200 
-	http_requests{group="canary", instance="0", job="api-server"} 300 
-	http_requests{group="canary", instance="1", job="api-server"} 400 
-	http_requests{group="production", instance="0", job="app-server"} 500 
-	http_requests{group="production", instance="1", job="app-server"} 600 
-	http_requests{group="canary", instance="0", job="app-server"} 700 
-	http_requests{group="canary", instance="1", job="app-server"} 800 
-
-eval_ordered instant at 50m sort(0 / round(http_requests, 400) + http_requests)
-	{group="production", instance="0", job="api-server"} NaN 
-	{group="production", instance="1", job="api-server"} 200 
-	{group="canary", instance="0", job="api-server"} 300 
-	{group="canary", instance="1", job="api-server"} 400 
-	{group="production", instance="0", job="app-server"} 500 
-	{group="production", instance="1", job="app-server"} 600 
-	{group="canary", instance="0", job="app-server"} 700 
-	{group="canary", instance="1", job="app-server"} 800 
-
-
-eval_ordered instant at 50m sort_desc(http_requests)
-	http_requests{group="canary", instance="1", job="app-server"} 800 
-	http_requests{group="canary", instance="0", job="app-server"} 700 
-	http_requests{group="production", instance="1", job="app-server"} 600 
-	http_requests{group="production", instance="0", job="app-server"} 500 
-	http_requests{group="canary", instance="1", job="api-server"} 400 
-	http_requests{group="canary", instance="0", job="api-server"} 300 
-	http_requests{group="production", instance="1", job="api-server"} 200 
-	http_requests{group="production", instance="0", job="api-server"} 100 
-
-eval_ordered instant at 50m topk(3, http_requests)
-	http_requests{group="canary", instance="1", job="app-server"} 800 
-	http_requests{group="canary", instance="0", job="app-server"} 700 
-	http_requests{group="production", instance="1", job="app-server"} 600 
-
-eval_ordered instant at 50m topk(5, http_requests{group="canary",job="app-server"})
-	http_requests{group="canary", instance="1", job="app-server"} 800 
-	http_requests{group="canary", instance="0", job="app-server"} 700 
-
-eval_ordered instant at 50m bottomk(3, http_requests)
-	http_requests{group="production", instance="0", job="api-server"} 100 
-	http_requests{group="production", instance="1", job="api-server"} 200 
-	http_requests{group="canary", instance="0", job="api-server"} 300 
-
-eval_ordered instant at 50m bottomk(5, http_requests{group="canary",job="app-server"})
-	http_requests{group="canary", instance="0", job="app-server"} 700 
-	http_requests{group="canary", instance="1", job="app-server"} 800 
-
 
 # Single-letter label names and values.
 eval instant at 50m x{y="testvalue"}
@@ -229,21 +158,13 @@ eval instant at 50m delta(http_requests{group="canary", instance="1", job="app-s
 	{group="canary", instance="1", job="app-server"} 288
 
 
-# Deltas should perform the same operation when 2nd argument is 0.
-eval instant at 50m delta(http_requests{group="canary", instance="1", job="app-server"}[18m], 0)
-	{group="canary", instance="1", job="app-server"} 288
-
-
 # Rates should calculate per-second rates.
-eval instant at 50m rate(http_requests{group="canary", instance="1", job="app-server"}[60m])
+eval instant at 50m rate(http_requests{group="canary", instance="1", job="app-server"}[50m])
 	{group="canary", instance="1", job="app-server"} 0.26666666666666666
 
-# Deriv should return the same as rate in simple cases.
-eval instant at 50m deriv(http_requests{group="canary", instance="1", job="app-server"}[60m])
-	{group="canary", instance="1", job="app-server"} 0.26666666666666666
-
+	
 # Counter resets at in the middle of range are handled correctly by rate().
-eval instant at 50m rate(testcounter_reset_middle[60m])
+eval instant at 50m rate(testcounter_reset_middle[50m])
 	{} 0.03
 
 
@@ -251,10 +172,26 @@ eval instant at 50m rate(testcounter_reset_middle[60m])
 eval instant at 50m rate(testcounter_reset_end[5m])
 	{} 0
 
-# Deriv should return correct result.
-eval instant at 50m deriv(testcounter_reset_middle[100m])
-	{} 0.010606060606060607
 
+# Zero cutoff for left-side extrapolation.
+eval instant at 10m rate(testcounter_zero_cutoff[20m])
+	{start="0m"} 0.5
+	{start="1m"} 0.55
+	{start="2m"} 0.6
+	{start="3m"} 0.65
+	{start="4m"} 0.7
+	{start="5m"} 0.6
+
+# Normal half-interval cutoff for left-side extrapolation.
+eval instant at 50m rate(testcounter_zero_cutoff[20m])
+	{start="0m"} 0.6
+	{start="1m"} 0.6
+	{start="2m"} 0.6
+	{start="3m"} 0.6
+	{start="4m"} 0.6
+	{start="5m"} 0.6
+	
+	
 # count_scalar for a non-empty vector should return scalar element count.
 eval instant at 50m count_scalar(http_requests)
 	8

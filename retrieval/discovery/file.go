@@ -21,16 +21,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/model"
 	"gopkg.in/fsnotify.v1"
 	"gopkg.in/yaml.v2"
-
-	clientmodel "github.com/prometheus/client_golang/model"
 
 	"github.com/prometheus/prometheus/config"
 )
 
-const FileSDFilepathLabel = clientmodel.MetaLabelPrefix + "filepath"
+const fileSDFilepathLabel = model.MetaLabelPrefix + "filepath"
 
 // FileDiscovery provides service discovery functionality based
 // on files that contain target groups in JSON or YAML format. Refreshing
@@ -39,7 +38,6 @@ type FileDiscovery struct {
 	paths    []string
 	watcher  *fsnotify.Watcher
 	interval time.Duration
-	done     chan struct{}
 
 	// lastRefresh stores which files were found during the last refresh
 	// and how many target groups they contained.
@@ -52,7 +50,6 @@ func NewFileDiscovery(conf *config.FileSDConfig) *FileDiscovery {
 	return &FileDiscovery{
 		paths:    conf.Names,
 		interval: time.Duration(conf.RefreshInterval),
-		done:     make(chan struct{}),
 	}
 }
 
@@ -64,7 +61,7 @@ func (fd *FileDiscovery) Sources() []string {
 	for _, p := range fd.listFiles() {
 		tgroups, err := readFile(p)
 		if err != nil {
-			log.Errorf("Error reading file %q: ", p, err)
+			log.Errorf("Error reading file %q: %s", p, err)
 		}
 		for _, tg := range tgroups {
 			srcs = append(srcs, tg.Source)
@@ -106,8 +103,9 @@ func (fd *FileDiscovery) watchFiles() {
 }
 
 // Run implements the TargetProvider interface.
-func (fd *FileDiscovery) Run(ch chan<- *config.TargetGroup) {
+func (fd *FileDiscovery) Run(ch chan<- config.TargetGroup, done <-chan struct{}) {
 	defer close(ch)
+	defer fd.stop()
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -125,10 +123,13 @@ func (fd *FileDiscovery) Run(ch chan<- *config.TargetGroup) {
 		// Stopping has priority over refreshing. Thus we wrap the actual select
 		// clause to always catch done signals.
 		select {
-		case <-fd.done:
+		case <-done:
 			return
 		default:
 			select {
+			case <-done:
+				return
+
 			case event := <-fd.watcher.Events:
 				// fsnotify sometimes sends a bunch of events without name or operation.
 				// It's unclear what they are and why they are sent - filter them out.
@@ -154,17 +155,40 @@ func (fd *FileDiscovery) Run(ch chan<- *config.TargetGroup) {
 				if err != nil {
 					log.Errorf("Error on file watch: %s", err)
 				}
-
-			case <-fd.done:
-				return
 			}
 		}
 	}
 }
 
-// refresh reads all files matching the discoveries patterns and sends the respective
+// stop shuts down the file watcher.
+func (fd *FileDiscovery) stop() {
+	log.Debugf("Stopping file discovery for %s...", fd.paths)
+
+	done := make(chan struct{})
+	defer close(done)
+
+	// Closing the watcher will deadlock unless all events and errors are drained.
+	go func() {
+		for {
+			select {
+			case <-fd.watcher.Errors:
+			case <-fd.watcher.Events:
+				// Drain all events and errors.
+			case <-done:
+				return
+			}
+		}
+	}()
+	if err := fd.watcher.Close(); err != nil {
+		log.Errorf("Error closing file watcher for %s: %s", fd.paths, err)
+	}
+
+	log.Debugf("File discovery for %s stopped.", fd.paths)
+}
+
+// refresh reads all files matching the discovery's patterns and sends the respective
 // updated target groups through the channel.
-func (fd *FileDiscovery) refresh(ch chan<- *config.TargetGroup) {
+func (fd *FileDiscovery) refresh(ch chan<- config.TargetGroup) {
 	ref := map[string]int{}
 	for _, p := range fd.listFiles() {
 		tgroups, err := readFile(p)
@@ -175,7 +199,7 @@ func (fd *FileDiscovery) refresh(ch chan<- *config.TargetGroup) {
 			continue
 		}
 		for _, tg := range tgroups {
-			ch <- tg
+			ch <- *tg
 		}
 		ref[p] = len(tgroups)
 	}
@@ -184,7 +208,7 @@ func (fd *FileDiscovery) refresh(ch chan<- *config.TargetGroup) {
 		m, ok := ref[f]
 		if !ok || n > m {
 			for i := m; i < n; i++ {
-				ch <- &config.TargetGroup{Source: fileSource(f, i)}
+				ch <- config.TargetGroup{Source: fileSource(f, i)}
 			}
 		}
 	}
@@ -195,31 +219,7 @@ func (fd *FileDiscovery) refresh(ch chan<- *config.TargetGroup) {
 
 // fileSource returns a source ID for the i-th target group in the file.
 func fileSource(filename string, i int) string {
-	return fmt.Sprintf("file:%s:%d", filename, i)
-}
-
-// Stop implements the TargetProvider interface.
-func (fd *FileDiscovery) Stop() {
-	log.Debugf("Stopping file discovery for %s...", fd.paths)
-
-	fd.done <- struct{}{}
-	// Closing the watcher will deadlock unless all events and errors are drained.
-	go func() {
-		for {
-			select {
-			case <-fd.watcher.Errors:
-			case <-fd.watcher.Events:
-				// Drain all events and errors.
-			case <-fd.done:
-				return
-			}
-		}
-	}()
-	fd.watcher.Close()
-
-	fd.done <- struct{}{}
-
-	log.Debugf("File discovery for %s stopped.", fd.paths)
+	return fmt.Sprintf("%s:%d", filename, i)
 }
 
 // readFile reads a JSON or YAML list of targets groups from the file, depending on its
@@ -248,9 +248,9 @@ func readFile(filename string) ([]*config.TargetGroup, error) {
 	for i, tg := range targetGroups {
 		tg.Source = fileSource(filename, i)
 		if tg.Labels == nil {
-			tg.Labels = clientmodel.LabelSet{}
+			tg.Labels = model.LabelSet{}
 		}
-		tg.Labels[FileSDFilepathLabel] = clientmodel.LabelValue(filename)
+		tg.Labels[fileSDFilepathLabel] = model.LabelValue(filename)
 	}
 	return targetGroups, nil
 }

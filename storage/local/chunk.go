@@ -20,7 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage/metric"
 )
@@ -59,8 +59,8 @@ type chunkDesc struct {
 	sync.Mutex
 	c              chunk // nil if chunk is evicted.
 	rCnt           int
-	chunkFirstTime clientmodel.Timestamp // Used if chunk is evicted.
-	chunkLastTime  clientmodel.Timestamp // Used if chunk is evicted.
+	chunkFirstTime model.Time // Used if chunk is evicted.
+	chunkLastTime  model.Time // Used if chunk is evicted.
 
 	// evictListElement is nil if the chunk is not in the evict list.
 	// evictListElement is _not_ protected by the chunkDesc mutex.
@@ -78,7 +78,7 @@ func newChunkDesc(c chunk) *chunkDesc {
 	return &chunkDesc{c: c, rCnt: 1}
 }
 
-func (cd *chunkDesc) add(s *metric.SamplePair) []chunk {
+func (cd *chunkDesc) add(s *model.SamplePair) []chunk {
 	cd.Lock()
 	defer cd.Unlock()
 
@@ -123,7 +123,7 @@ func (cd *chunkDesc) refCount() int {
 	return cd.rCnt
 }
 
-func (cd *chunkDesc) firstTime() clientmodel.Timestamp {
+func (cd *chunkDesc) firstTime() model.Time {
 	cd.Lock()
 	defer cd.Unlock()
 
@@ -133,7 +133,7 @@ func (cd *chunkDesc) firstTime() clientmodel.Timestamp {
 	return cd.c.firstTime()
 }
 
-func (cd *chunkDesc) lastTime() clientmodel.Timestamp {
+func (cd *chunkDesc) lastTime() model.Time {
 	cd.Lock()
 	defer cd.Unlock()
 
@@ -143,7 +143,7 @@ func (cd *chunkDesc) lastTime() clientmodel.Timestamp {
 	return cd.c.newIterator().lastTimestamp()
 }
 
-func (cd *chunkDesc) lastSamplePair() *metric.SamplePair {
+func (cd *chunkDesc) lastSamplePair() *model.SamplePair {
 	cd.Lock()
 	defer cd.Unlock()
 
@@ -151,7 +151,7 @@ func (cd *chunkDesc) lastSamplePair() *metric.SamplePair {
 		return nil
 	}
 	it := cd.c.newIterator()
-	return &metric.SamplePair{
+	return &model.SamplePair{
 		Timestamp: it.lastTimestamp(),
 		Value:     it.lastSampleValue(),
 	}
@@ -164,7 +164,7 @@ func (cd *chunkDesc) isEvicted() bool {
 	return cd.c == nil
 }
 
-func (cd *chunkDesc) contains(t clientmodel.Timestamp) bool {
+func (cd *chunkDesc) contains(t model.Time) bool {
 	return !t.Before(cd.firstTime()) && !t.After(cd.lastTime())
 }
 
@@ -215,9 +215,9 @@ type chunk interface {
 	// any. The first chunk returned might be the same as the original one
 	// or a newly allocated version. In any case, take the returned chunk as
 	// the relevant one and discard the orginal chunk.
-	add(sample *metric.SamplePair) []chunk
+	add(sample *model.SamplePair) []chunk
 	clone() chunk
-	firstTime() clientmodel.Timestamp
+	firstTime() model.Time
 	newIterator() chunkIterator
 	marshal(io.Writer) error
 	unmarshal(io.Reader) error
@@ -232,32 +232,32 @@ type chunkIterator interface {
 	// length returns the number of samples in the chunk.
 	length() int
 	// Gets the timestamp of the n-th sample in the chunk.
-	timestampAtIndex(int) clientmodel.Timestamp
+	timestampAtIndex(int) model.Time
 	// Gets the last timestamp in the chunk.
-	lastTimestamp() clientmodel.Timestamp
+	lastTimestamp() model.Time
 	// Gets the sample value of the n-th sample in the chunk.
-	sampleValueAtIndex(int) clientmodel.SampleValue
+	sampleValueAtIndex(int) model.SampleValue
 	// Gets the last sample value in the chunk.
-	lastSampleValue() clientmodel.SampleValue
+	lastSampleValue() model.SampleValue
 	// Gets the two values that are immediately adjacent to a given time. In
 	// case a value exist at precisely the given time, only that single
 	// value is returned. Only the first or last value is returned (as a
 	// single value), if the given time is before or after the first or last
 	// value, respectively.
-	valueAtTime(clientmodel.Timestamp) metric.Values
+	valueAtTime(model.Time) []model.SamplePair
 	// Gets all values contained within a given interval.
-	rangeValues(metric.Interval) metric.Values
+	rangeValues(metric.Interval) []model.SamplePair
 	// Whether a given timestamp is contained between first and last value
 	// in the chunk.
-	contains(clientmodel.Timestamp) bool
+	contains(model.Time) bool
 	// values returns a channel, from which all sample values in the chunk
 	// can be received in order. The channel is closed after the last
 	// one. It is generally not safe to mutate the chunk while the channel
 	// is still open.
-	values() <-chan *metric.SamplePair
+	values() <-chan *model.SamplePair
 }
 
-func transcodeAndAdd(dst chunk, src chunk, s *metric.SamplePair) []chunk {
+func transcodeAndAdd(dst chunk, src chunk, s *model.SamplePair) []chunk {
 	chunkOps.WithLabelValues(transcode).Inc()
 
 	head := dst

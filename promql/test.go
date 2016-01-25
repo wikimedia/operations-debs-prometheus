@@ -22,11 +22,10 @@ import (
 	"strings"
 	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/local"
-	"github.com/prometheus/prometheus/storage/metric"
 	"github.com/prometheus/prometheus/util/strutil"
 	"github.com/prometheus/prometheus/util/testutil"
 )
@@ -40,9 +39,8 @@ var (
 )
 
 const (
-	testStartTime = clientmodel.Timestamp(0)
+	testStartTime = model.Time(0)
 	epsilon       = 0.000001 // Relative error allowed for sample values.
-	maxErrorCount = 10
 )
 
 // Test is a sequence of read and write commands that are run
@@ -69,7 +67,7 @@ func NewTest(t testutil.T, input string) (*Test, error) {
 	return test, err
 }
 
-func NewTestFromFile(t testutil.T, filename string) (*Test, error) {
+func newTestFromFile(t testutil.T, filename string) (*Test, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -114,8 +112,9 @@ func (t *Test) parseLoad(lines []string, i int) (int, *loadCmd, error) {
 		}
 		metric, vals, err := parseSeriesDesc(defLine)
 		if err != nil {
-			perr := err.(*ParseErr)
-			perr.Line = i + 1
+			if perr, ok := err.(*ParseErr); ok {
+				perr.Line = i + 1
+			}
 			return i, nil, err
 		}
 		cmd.set(metric, vals...)
@@ -135,10 +134,11 @@ func (t *Test) parseEval(lines []string, i int) (int, *evalCmd, error) {
 	)
 	expr, err := ParseExpr(qry)
 	if err != nil {
-		perr := err.(*ParseErr)
-		perr.Line = i + 1
-		perr.Pos += strings.Index(lines[i], qry)
-		return i, nil, perr
+		if perr, ok := err.(*ParseErr); ok {
+			perr.Line = i + 1
+			perr.Pos += strings.Index(lines[i], qry)
+		}
+		return i, nil, err
 	}
 
 	offset, err := strutil.StringToDuration(at)
@@ -163,13 +163,14 @@ func (t *Test) parseEval(lines []string, i int) (int, *evalCmd, error) {
 			break
 		}
 		if f, err := parseNumber(defLine); err == nil {
-			cmd.expect(0, nil, sequenceValue{value: clientmodel.SampleValue(f)})
+			cmd.expect(0, nil, sequenceValue{value: model.SampleValue(f)})
 			break
 		}
 		metric, vals, err := parseSeriesDesc(defLine)
 		if err != nil {
-			perr := err.(*ParseErr)
-			perr.Line = i + 1
+			if perr, ok := err.(*ParseErr); ok {
+				perr.Line = i + 1
+			}
 			return i, nil, err
 		}
 
@@ -235,15 +236,15 @@ func (*evalCmd) testCmd()  {}
 // metrics into the storage.
 type loadCmd struct {
 	gap     time.Duration
-	metrics map[clientmodel.Fingerprint]clientmodel.Metric
-	defs    map[clientmodel.Fingerprint]metric.Values
+	metrics map[model.Fingerprint]model.Metric
+	defs    map[model.Fingerprint][]model.SamplePair
 }
 
 func newLoadCmd(gap time.Duration) *loadCmd {
 	return &loadCmd{
 		gap:     gap,
-		metrics: map[clientmodel.Fingerprint]clientmodel.Metric{},
-		defs:    map[clientmodel.Fingerprint]metric.Values{},
+		metrics: map[model.Fingerprint]model.Metric{},
+		defs:    map[model.Fingerprint][]model.SamplePair{},
 	}
 }
 
@@ -252,14 +253,14 @@ func (cmd loadCmd) String() string {
 }
 
 // set a sequence of sample values for the given metric.
-func (cmd *loadCmd) set(m clientmodel.Metric, vals ...sequenceValue) {
+func (cmd *loadCmd) set(m model.Metric, vals ...sequenceValue) {
 	fp := m.Fingerprint()
 
-	samples := make(metric.Values, 0, len(vals))
+	samples := make([]model.SamplePair, 0, len(vals))
 	ts := testStartTime
 	for _, v := range vals {
 		if !v.omitted {
-			samples = append(samples, metric.SamplePair{
+			samples = append(samples, model.SamplePair{
 				Timestamp: ts,
 				Value:     v.value,
 			})
@@ -275,7 +276,7 @@ func (cmd *loadCmd) append(a storage.SampleAppender) {
 	for fp, samples := range cmd.defs {
 		met := cmd.metrics[fp]
 		for _, smpl := range samples {
-			s := &clientmodel.Sample{
+			s := &model.Sample{
 				Metric:    met,
 				Value:     smpl.Value,
 				Timestamp: smpl.Timestamp,
@@ -289,14 +290,14 @@ func (cmd *loadCmd) append(a storage.SampleAppender) {
 // and expects a specific result.
 type evalCmd struct {
 	expr       Expr
-	start, end clientmodel.Timestamp
+	start, end model.Time
 	interval   time.Duration
 
 	instant       bool
 	fail, ordered bool
 
-	metrics  map[clientmodel.Fingerprint]clientmodel.Metric
-	expected map[clientmodel.Fingerprint]entry
+	metrics  map[model.Fingerprint]model.Metric
+	expected map[model.Fingerprint]entry
 }
 
 type entry struct {
@@ -308,7 +309,7 @@ func (e entry) String() string {
 	return fmt.Sprintf("%d: %s", e.pos, e.vals)
 }
 
-func newEvalCmd(expr Expr, start, end clientmodel.Timestamp, interval time.Duration) *evalCmd {
+func newEvalCmd(expr Expr, start, end model.Time, interval time.Duration) *evalCmd {
 	return &evalCmd{
 		expr:     expr,
 		start:    start,
@@ -316,8 +317,8 @@ func newEvalCmd(expr Expr, start, end clientmodel.Timestamp, interval time.Durat
 		interval: interval,
 		instant:  start == end && interval == 0,
 
-		metrics:  map[clientmodel.Fingerprint]clientmodel.Metric{},
-		expected: map[clientmodel.Fingerprint]entry{},
+		metrics:  map[model.Fingerprint]model.Metric{},
+		expected: map[model.Fingerprint]entry{},
 	}
 }
 
@@ -327,7 +328,7 @@ func (ev *evalCmd) String() string {
 
 // expect adds a new metric with a sequence of values to the set of expected
 // results for the query.
-func (ev *evalCmd) expect(pos int, m clientmodel.Metric, vals ...sequenceValue) {
+func (ev *evalCmd) expect(pos int, m model.Metric, vals ...sequenceValue) {
 	if m == nil {
 		ev.expected[0] = entry{pos: pos, vals: vals}
 		return
@@ -338,25 +339,25 @@ func (ev *evalCmd) expect(pos int, m clientmodel.Metric, vals ...sequenceValue) 
 }
 
 // compareResult compares the result value with the defined expectation.
-func (ev *evalCmd) compareResult(result Value) error {
+func (ev *evalCmd) compareResult(result model.Value) error {
 	switch val := result.(type) {
-	case Matrix:
+	case model.Matrix:
 		if ev.instant {
 			return fmt.Errorf("received range result on instant evaluation")
 		}
-		seen := map[clientmodel.Fingerprint]bool{}
+		seen := map[model.Fingerprint]bool{}
 		for pos, v := range val {
-			fp := v.Metric.Metric.Fingerprint()
+			fp := v.Metric.Fingerprint()
 			if _, ok := ev.metrics[fp]; !ok {
-				return fmt.Errorf("unexpected metric %s in result", v.Metric.Metric)
+				return fmt.Errorf("unexpected metric %s in result", v.Metric)
 			}
 			exp := ev.expected[fp]
 			if ev.ordered && exp.pos != pos+1 {
-				return fmt.Errorf("expected metric %s with %v at position %d but was at %d", v.Metric.Metric, exp.vals, exp.pos, pos+1)
+				return fmt.Errorf("expected metric %s with %v at position %d but was at %d", v.Metric, exp.vals, exp.pos, pos+1)
 			}
 			for i, expVal := range exp.vals {
 				if !almostEqual(float64(expVal.value), float64(v.Values[i].Value)) {
-					return fmt.Errorf("expected %v for %s but got %v", expVal, v.Metric.Metric, v.Values)
+					return fmt.Errorf("expected %v for %s but got %v", expVal, v.Metric, v.Values)
 				}
 			}
 			seen[fp] = true
@@ -367,22 +368,22 @@ func (ev *evalCmd) compareResult(result Value) error {
 			}
 		}
 
-	case Vector:
+	case model.Vector:
 		if !ev.instant {
-			fmt.Errorf("received instant result on range evaluation")
+			return fmt.Errorf("received instant result on range evaluation")
 		}
-		seen := map[clientmodel.Fingerprint]bool{}
+		seen := map[model.Fingerprint]bool{}
 		for pos, v := range val {
-			fp := v.Metric.Metric.Fingerprint()
+			fp := v.Metric.Fingerprint()
 			if _, ok := ev.metrics[fp]; !ok {
-				return fmt.Errorf("unexpected metric %s in result", v.Metric.Metric)
+				return fmt.Errorf("unexpected metric %s in result", v.Metric)
 			}
 			exp := ev.expected[fp]
 			if ev.ordered && exp.pos != pos+1 {
-				return fmt.Errorf("expected metric %s with %v at position %d but was at %d", v.Metric.Metric, exp.vals, exp.pos, pos+1)
+				return fmt.Errorf("expected metric %s with %v at position %d but was at %d", v.Metric, exp.vals, exp.pos, pos+1)
 			}
 			if !almostEqual(float64(exp.vals[0].value), float64(v.Value)) {
-				return fmt.Errorf("expected %v for %s but got %v", exp.vals[0].value, v.Metric.Metric, v.Value)
+				return fmt.Errorf("expected %v for %s but got %v", exp.vals[0].value, v.Metric, v.Value)
 			}
 
 			seen[fp] = true
@@ -393,7 +394,7 @@ func (ev *evalCmd) compareResult(result Value) error {
 			}
 		}
 
-	case *Scalar:
+	case *model.Scalar:
 		if !almostEqual(float64(ev.expected[0].vals[0].value), float64(val.Value)) {
 			return fmt.Errorf("expected scalar %v but got %v", val.Value, ev.expected[0].vals[0].value)
 		}
@@ -475,6 +476,7 @@ func (t *Test) clear() {
 	t.queryEngine = NewEngine(t.storage, nil)
 }
 
+// Close closes resources associated with the Test.
 func (t *Test) Close() {
 	t.queryEngine.Stop()
 	t.closeStorage()

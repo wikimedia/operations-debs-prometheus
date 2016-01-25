@@ -14,11 +14,10 @@
 package promql
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/metric"
@@ -59,7 +58,7 @@ type AlertStmt struct {
 	Name        string
 	Expr        Expr
 	Duration    time.Duration
-	Labels      clientmodel.LabelSet
+	Labels      model.LabelSet
 	Summary     string
 	Description string
 	Runbook     string
@@ -72,7 +71,7 @@ type EvalStmt struct {
 
 	// The time boundaries for the evaluation. If Start equals End an instant
 	// is evaluated.
-	Start, End clientmodel.Timestamp
+	Start, End model.Time
 	// Time between two evaluated instants for the range [Start:End].
 	Interval time.Duration
 }
@@ -81,44 +80,12 @@ type EvalStmt struct {
 type RecordStmt struct {
 	Name   string
 	Expr   Expr
-	Labels clientmodel.LabelSet
+	Labels model.LabelSet
 }
 
 func (*AlertStmt) stmt()  {}
 func (*EvalStmt) stmt()   {}
 func (*RecordStmt) stmt() {}
-
-// ExprType is the type an evaluated expression returns.
-type ExprType int
-
-const (
-	ExprNone ExprType = iota
-	ExprScalar
-	ExprVector
-	ExprMatrix
-	ExprString
-)
-
-// MarshalJSON implements json.Marshaler.
-func (et ExprType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(et.String())
-}
-
-func (e ExprType) String() string {
-	switch e {
-	case ExprNone:
-		return "<ExprNone>"
-	case ExprScalar:
-		return "scalar"
-	case ExprVector:
-		return "vector"
-	case ExprMatrix:
-		return "matrix"
-	case ExprString:
-		return "string"
-	}
-	panic("promql.ExprType.String: unhandled expression type")
-}
 
 // Expr is a generic interface for all expression types.
 type Expr interface {
@@ -126,7 +93,7 @@ type Expr interface {
 
 	// Type returns the type the expression evaluates to. It does not perform
 	// in-depth checks as this is done at parsing-time.
-	Type() ExprType
+	Type() model.ValueType
 	// expr ensures that no other types accidentally implement the interface.
 	expr()
 }
@@ -136,10 +103,10 @@ type Expressions []Expr
 
 // AggregateExpr represents an aggregation operation on a vector.
 type AggregateExpr struct {
-	Op              itemType               // The used aggregation operation.
-	Expr            Expr                   // The vector expression over which is aggregated.
-	Grouping        clientmodel.LabelNames // The labels by which to group the vector.
-	KeepExtraLabels bool                   // Whether to keep extra labels common among result elements.
+	Op              itemType         // The used aggregation operation.
+	Expr            Expr             // The vector expression over which is aggregated.
+	Grouping        model.LabelNames // The labels by which to group the vector.
+	KeepExtraLabels bool             // Whether to keep extra labels common among result elements.
 }
 
 // BinaryExpr represents a binary expression between two child expressions.
@@ -150,6 +117,9 @@ type BinaryExpr struct {
 	// The matching behavior for the operation if both operands are vectors.
 	// If they are not this field is nil.
 	VectorMatching *VectorMatching
+
+	// If a comparison operator, return 0/1 rather than filtering.
+	ReturnBool bool
 }
 
 // Call represents a function call.
@@ -166,13 +136,13 @@ type MatrixSelector struct {
 	LabelMatchers metric.LabelMatchers
 
 	// The series iterators are populated at query analysis time.
-	iterators map[clientmodel.Fingerprint]local.SeriesIterator
-	metrics   map[clientmodel.Fingerprint]clientmodel.COWMetric
+	iterators map[model.Fingerprint]local.SeriesIterator
+	metrics   map[model.Fingerprint]metric.Metric
 }
 
 // NumberLiteral represents a number.
 type NumberLiteral struct {
-	Val clientmodel.SampleValue
+	Val model.SampleValue
 }
 
 // ParenExpr wraps an expression so it cannot be disassembled as a consequence
@@ -200,24 +170,23 @@ type VectorSelector struct {
 	LabelMatchers metric.LabelMatchers
 
 	// The series iterators are populated at query analysis time.
-	iterators map[clientmodel.Fingerprint]local.SeriesIterator
-	metrics   map[clientmodel.Fingerprint]clientmodel.COWMetric
+	iterators map[model.Fingerprint]local.SeriesIterator
+	metrics   map[model.Fingerprint]metric.Metric
 }
 
-func (e *AggregateExpr) Type() ExprType  { return ExprVector }
-func (e *Call) Type() ExprType           { return e.Func.ReturnType }
-func (e *MatrixSelector) Type() ExprType { return ExprMatrix }
-func (e *NumberLiteral) Type() ExprType  { return ExprScalar }
-func (e *ParenExpr) Type() ExprType      { return e.Expr.Type() }
-func (e *StringLiteral) Type() ExprType  { return ExprString }
-func (e *UnaryExpr) Type() ExprType      { return e.Expr.Type() }
-func (e *VectorSelector) Type() ExprType { return ExprVector }
-
-func (e *BinaryExpr) Type() ExprType {
-	if e.LHS.Type() == ExprScalar && e.RHS.Type() == ExprScalar {
-		return ExprScalar
+func (e *AggregateExpr) Type() model.ValueType  { return model.ValVector }
+func (e *Call) Type() model.ValueType           { return e.Func.ReturnType }
+func (e *MatrixSelector) Type() model.ValueType { return model.ValMatrix }
+func (e *NumberLiteral) Type() model.ValueType  { return model.ValScalar }
+func (e *ParenExpr) Type() model.ValueType      { return e.Expr.Type() }
+func (e *StringLiteral) Type() model.ValueType  { return model.ValString }
+func (e *UnaryExpr) Type() model.ValueType      { return e.Expr.Type() }
+func (e *VectorSelector) Type() model.ValueType { return model.ValVector }
+func (e *BinaryExpr) Type() model.ValueType {
+	if e.LHS.Type() == model.ValScalar && e.RHS.Type() == model.ValScalar {
+		return model.ValScalar
 	}
-	return ExprVector
+	return model.ValVector
 }
 
 func (*AggregateExpr) expr()  {}
@@ -230,7 +199,7 @@ func (*StringLiteral) expr()  {}
 func (*UnaryExpr) expr()      {}
 func (*VectorSelector) expr() {}
 
-// VectorMatchCardinaly describes the cardinality relationship
+// VectorMatchCardinality describes the cardinality relationship
 // of two vectors in a binary operation.
 type VectorMatchCardinality int
 
@@ -262,15 +231,16 @@ type VectorMatching struct {
 	Card VectorMatchCardinality
 	// On contains the labels which define equality of a pair
 	// of elements from the vectors.
-	On clientmodel.LabelNames
+	On model.LabelNames
 	// Include contains additional labels that should be included in
 	// the result from the side with the higher cardinality.
-	Include clientmodel.LabelNames
+	Include model.LabelNames
 }
 
-// A Visitor's Visit method is invoked for each node encountered by Walk.
-// If the result visitor w is not nil, Walk visits each of the children
-// of node with the visitor w, followed by a call of w.Visit(nil).
+// Visitor allows visiting a Node and its child nodes. The Visit method is
+// invoked for each node encountered by Walk. If the result visitor w is not
+// nil, Walk visits each of the children of node with the visitor w, followed
+// by a call of w.Visit(nil).
 type Visitor interface {
 	Visit(node Node) (w Visitor)
 }

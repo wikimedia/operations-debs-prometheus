@@ -24,9 +24,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 
-	clientmodel "github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/util/httputil"
 )
@@ -50,7 +50,7 @@ type Client struct {
 func NewClient(url string, timeout time.Duration) *Client {
 	return &Client{
 		url:        url,
-		httpClient: httputil.NewDeadlineClient(timeout),
+		httpClient: httputil.NewDeadlineClient(timeout, nil),
 	}
 }
 
@@ -64,10 +64,10 @@ type StoreSamplesRequest struct {
 }
 
 // tagsFromMetric translates Prometheus metric into OpenTSDB tags.
-func tagsFromMetric(m clientmodel.Metric) map[string]TagValue {
+func tagsFromMetric(m model.Metric) map[string]TagValue {
 	tags := make(map[string]TagValue, len(m)-1)
 	for l, v := range m {
-		if l == clientmodel.MetricNameLabel {
+		if l == model.MetricNameLabel {
 			continue
 		}
 		tags[string(l)] = TagValue(v)
@@ -76,7 +76,7 @@ func tagsFromMetric(m clientmodel.Metric) map[string]TagValue {
 }
 
 // Store sends a batch of samples to OpenTSDB via its HTTP API.
-func (c *Client) Store(samples clientmodel.Samples) error {
+func (c *Client) Store(samples model.Samples) error {
 	reqs := make([]StoreSamplesRequest, 0, len(samples))
 	for _, s := range samples {
 		v := float64(s.Value)
@@ -84,7 +84,7 @@ func (c *Client) Store(samples clientmodel.Samples) error {
 			log.Warnf("cannot send value %f to OpenTSDB, skipping sample %#v", v, s)
 			continue
 		}
-		metric := TagValue(s.Metric[clientmodel.MetricNameLabel])
+		metric := TagValue(s.Metric[model.MetricNameLabel])
 		reqs = append(reqs, StoreSamplesRequest{
 			Metric:    metric,
 			Timestamp: s.Timestamp.Unix(),

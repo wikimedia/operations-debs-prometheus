@@ -1,3 +1,204 @@
+## 0.16.2 / 2016-01-18
+
+* [FEATURE] Multiple authentication options for EC2 discovery added
+* [FEATURE] Several meta labels for EC2 discovery added
+* [FEATURE] Allow full URLs in static target groups (used e.g. by the `blackbox_exporter`)
+* [FEATURE] Add Graphite remote-storage integration
+* [FEATURE] Create separate Kubernetes targets for services and their endpoints
+* [FEATURE] Add `clamp_{min,max}` functions to PromQL
+* [FEATURE] Omitted time parameter in API query defaults to now
+* [ENHANCEMENT] Less frequent time series file truncation
+* [ENHANCEMENT] Instrument number of  manually deleted time series
+* [ENHANCEMENT] Ignore lost+found directory during storage version detection
+* [CHANGE] Kubernetes `masters` renamed to `api_servers`
+* [CHANGE] "Healthy" and "unhealthy" targets are now called "up" and "down" in the web UI
+* [CHANGE] Remove undocumented 2nd argument of the `delta` function.
+  (This is a BREAKING CHANGE for users of the undocumented 2nd argument.)
+* [BUGFIX] Return proper HTTP status codes on API errors
+* [BUGFIX] Fix Kubernetes authentication configuration
+* [BUGFIX] Fix stripped OFFSET from in rule evaluation and display
+* [BUGFIX] Do not crash on failing Consul SD initialization
+* [BUGFIX] Revert changes to metric auto-completion
+* [BUGFIX] Add config overflow validation for TLS configuration
+* [BUGFIX] Skip already watched Zookeeper nodes in serverset SD
+* [BUGFIX] Don't federate stale samples
+* [BUGFIX] Move NaN to end of result for `topk/bottomk/sort/sort_desc/min/max`
+* [BUGFIX] Limit extrapolation of `delta/rate/increase`
+* [BUGFIX] Fix unhandled error in rule evaluation
+
+Some changes to the Kubernetes service discovery were integration since
+it was released as a beta feature.
+
+## 0.16.1 / 2015-10-16
+
+* [FEATURE] Add `irate()` function.
+* [ENHANCEMENT] Improved auto-completion in expression browser.
+* [CHANGE] Kubernetes SD moves node label to instance label.
+* [BUGFIX] Escape regexes in console templates.
+
+## 0.16.0 / 2015-10-09
+
+BREAKING CHANGES:
+
+* Release tarballs now contain the built binaries in a nested directory.
+* The `hash_mod` relabeling action now uses MD5 hashes instead of FNV hashes to
+  achieve a better distribution.
+* The DNS-SD meta label `__meta_dns_srv_name` was renamed to `__meta_dns_name`
+  to reflect support for DNS record types other than `SRV`.
+* The default full refresh interval for the file-based service discovery has been
+  increased from 30 seconds to 5 minutes.
+* In relabeling, parts of a source label that weren't matched by
+  the specified regular expression are no longer included in the replacement
+  output.
+* Queries no longer interpolate between two data points. Instead, the resulting
+  value will always be the latest value before the evaluation query timestamp.
+* Regular expressions supplied via the configuration are now anchored to match
+  full strings instead of substrings.
+* Global labels are not appended upon storing time series anymore. Instead,
+  they are only appended when communicating with external systems
+  (Alertmanager, remote storages, federation). They have thus also been renamed
+  from `global.labels` to `global.external_labels`.
+* The names and units of metrics related to remote storage sample appends have
+  been changed.
+* The experimental support for writing to InfluxDB has been updated to work
+  with InfluxDB 0.9.x. 0.8.x versions of InfluxDB are not supported anymore.
+* Escape sequences in double- and single-quoted string literals in rules or query
+  expressions are now interpreted like escape sequences in Go string literals
+  (https://golang.org/ref/spec#String_literals).
+
+Future breaking changes / deprecated features:
+
+* The `delta()` function had an undocumented optional second boolean argument
+  to make it behave like `increase()`. This second argument will be removed in
+  the future. Migrate any occurrences of `delta(x, 1)` to use `increase(x)`
+  instead.
+* Support for filter operators between two scalar values (like `2 > 1`) will be
+  removed in the future. These will require a `bool` modifier on the operator,
+  e.g.  `2 > bool 1`.
+
+All changes:
+
+* [CHANGE] Renamed `global.labels` to `global.external_labels`.
+* [CHANGE] Vendoring is now done via govendor instead of godep.
+* [CHANGE] Change web UI root page to show the graphing interface instead of
+  the server status page.
+* [CHANGE] Append global labels only when communicating with external systems
+  instead of storing them locally.
+* [CHANGE] Change all regexes in the configuration to do full-string matches
+  instead of substring matches.
+* [CHANGE] Remove interpolation of vector values in queries.
+* [CHANGE] For alert `SUMMARY`/`DESCRIPTION` template fields, cast the alert
+  value to `float64` to work with common templating functions.
+* [CHANGE] In relabeling, don't include unmatched source label parts in the
+  replacement.
+* [CHANGE] Change default full refresh interval for the file-based service
+  discovery from 30 seconds to 5 minutes.
+* [CHANGE] Rename the DNS-SD meta label `__meta_dns_srv_name` to
+  `__meta_dns_name` to reflect support for other record types than `SRV`.
+* [CHANGE] Release tarballs now contain the binaries in a nested directory.
+* [CHANGE] Update InfluxDB write support to work with InfluxDB 0.9.x.
+* [FEATURE] Support full "Go-style" escape sequences in strings and add raw
+  string literals.
+* [FEATURE] Add EC2 service discovery support.
+* [FEATURE] Allow configuring TLS options in scrape configurations.
+* [FEATURE] Add instrumentation around configuration reloads.
+* [FEATURE] Add `bool` modifier to comparison operators to enable boolean
+  (`0`/`1`) output instead of filtering.
+* [FEATURE] In Zookeeper serverset discovery, provide `__meta_serverset_shard`
+  label with the serverset shard number.
+* [FEATURE] Provide `__meta_consul_service_id` meta label in Consul service
+  discovery.
+* [FEATURE] Allow scalar expressions in recording rules to enable use cases
+  such as building constant metrics.
+* [FEATURE] Add `label_replace()` and `vector()` query language functions.
+* [FEATURE] In Consul service discovery, fill in the `__meta_consul_dc`
+  datacenter label from the Consul agent when it's not set in the Consul SD
+  config.
+* [FEATURE] Scrape all services upon empty services list in Consul service
+  discovery.
+* [FEATURE] Add `labelmap` relabeling action to map a set of input labels to a
+  set of output labels using regular expressions.
+* [FEATURE] Introduce `__tmp` as a relabeling label prefix that is guaranteed
+  to not be used by Prometheus internally.
+* [FEATURE] Kubernetes-based service discovery.
+* [FEATURE] Marathon-based service discovery.
+* [FEATURE] Support multiple series names in console graphs JavaScript library.
+* [FEATURE] Allow reloading configuration via web handler at `/-/reload`.
+* [FEATURE] Updates to promtool to reflect new Prometheus configuration
+  features.
+* [FEATURE] Add `proxy_url` parameter to scrape configurations to enable use of
+  proxy servers.
+* [FEATURE] Add console templates for Prometheus itself.
+* [FEATURE] Allow relabeling the protocol scheme of targets.
+* [FEATURE] Add `predict_linear()` query language function.
+* [FEATURE] Support for authentication using bearer tokens, client certs, and
+  CA certs.
+* [FEATURE] Implement unary expressions for vector types (`-foo`, `+foo`).
+* [FEATURE] Add console templates for the SNMP exporter.
+* [FEATURE] Make it possible to relabel target scrape query parameters.
+* [FEATURE] Add support for `A` and `AAAA` records in DNS service discovery.
+* [ENHANCEMENT] Fix several flaky tests.
+* [ENHANCEMENT] Switch to common routing package.
+* [ENHANCEMENT] Use more resilient metric decoder.
+* [ENHANCEMENT] Update vendored dependencies.
+* [ENHANCEMENT] Add compression to more HTTP handlers.
+* [ENHANCEMENT] Make -web.external-url flag help string more verbose.
+* [ENHANCEMENT] Improve metrics around remote storage queues.
+* [ENHANCEMENT] Use Go 1.5.1 instead of Go 1.4.2 in builds.
+* [ENHANCEMENT] Update the architecture diagram in the `README.md`.
+* [ENHANCEMENT] Time out sample appends in retrieval layer if the storage is
+  backlogging.
+* [ENHANCEMENT] Make `hash_mod` relabeling action use MD5 instead of FNV to
+  enable better hash distribution.
+* [ENHANCEMENT] Better tracking of targets between same service discovery
+  mechanisms in one scrape configuration.
+* [ENHANCEMENT] Handle parser and query evaluation runtime panics more
+  gracefully.
+* [ENHANCEMENT] Add IDs to H2 tags on status page to allow anchored linking.
+* [BUGFIX] Fix watching multiple paths with Zookeeper serverset discovery.
+* [BUGFIX] Fix high CPU usage on configuration reload.
+* [BUGFIX] Fix disappearing `__params` on configuration reload.
+* [BUGFIX] Make `labelmap` action available through configuration.
+* [BUGFIX] Fix direct access of protobuf fields.
+* [BUGFIX] Fix panic on Consul request error.
+* [BUGFIX] Redirect of graph endpoint for prefixed setups.
+* [BUGFIX] Fix series file deletion behavior when purging archived series.
+* [BUGFIX] Fix error checking and logging around checkpointing.
+* [BUGFIX] Fix map initialization in target manager.
+* [BUGFIX] Fix draining of file watcher events in file-based service discovery.
+* [BUGFIX] Add `POST` handler for `/debug` endpoints to fix CPU profiling.
+* [BUGFIX] Fix several flaky tests.
+* [BUGFIX] Fix busylooping in case a scrape configuration has no target
+  providers defined.
+* [BUGFIX] Fix exit behavior of static target provider.
+* [BUGFIX] Fix configuration reloading loop upon shutdown.
+* [BUGFIX] Add missing check for nil expression in expression parser.
+* [BUGFIX] Fix error handling bug in test code.
+* [BUGFIX] Fix Consul port meta label.
+* [BUGFIX] Fix lexer bug that treated non-Latin Unicode digits as digits.
+* [CLEANUP] Remove obsolete federation example from console templates.
+* [CLEANUP] Remove duplicated Bootstrap JS inclusion on graph page.
+* [CLEANUP] Switch to common log package.
+* [CLEANUP] Update build environment scripts and Makefiles to work better with
+  native Go build mechanisms and new Go 1.5 experimental vendoring support.
+* [CLEANUP] Remove logged notice about 0.14.x configuration file format change.
+* [CLEANUP] Move scrape-time metric label modification into SampleAppenders.
+* [CLEANUP] Switch from `github.com/client_golang/model` to
+  `github.com/common/model` and related type cleanups.
+* [CLEANUP] Switch from `github.com/client_golang/extraction` to
+  `github.com/common/expfmt` and related type cleanups.
+* [CLEANUP] Exit Prometheus when the web server encounters a startup error.
+* [CLEANUP] Remove non-functional alert-silencing links on alerting page.
+* [CLEANUP] General cleanups to comments and code, derived from `golint`,
+  `go vet`, or otherwise.
+* [CLEANUP] When entering crash recovery, tell users how to cleanly shut down
+  Prometheus.
+* [CLEANUP] Remove internal support for multi-statement queries in query engine.
+* [CLEANUP] Update AUTHORS.md.
+* [CLEANUP] Don't warn/increment metric upon encountering equal timestamps for
+  the same series upon append.
+* [CLEANUP] Resolve relative paths during configuration loading.
+
 ## 0.15.1 / 2015-07-27
 * [BUGFIX] Fix vector matching behavior when there is a mix of equality and
   non-equality matchers in a vector selector and one matcher matches no series.
@@ -24,7 +225,7 @@ BREAKING CHANGES:
 * The default scrape interval has been changed back from 1 minute to
   10 seconds.
 
-ALL CHANGES:
+All changes:
 
 * [CHANGE] Change default storage directory to `data` in the current
   working directory.
@@ -154,7 +355,7 @@ ALL CHANGES:
 * [ENHANCEMENT] Terminate running queries during shutdown.
 
 ## 0.13.2 / 2015-05-05
-* [MAINTENANCE] Updated vendored dependcies to their newest versions.
+* [MAINTENANCE] Updated vendored dependencies to their newest versions.
 * [MAINTENANCE] Include rule_checker and console templates in release tarball.
 * [BUGFIX] Sort NaN as the lowest value.
 * [ENHANCEMENT] Add square root, stddev and stdvar functions.

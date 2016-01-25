@@ -1,17 +1,29 @@
+// Copyright 2015 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package config
 
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/url"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
-
-	clientmodel "github.com/prometheus/client_golang/model"
 )
 
 var expectedConf = &Config{
@@ -20,16 +32,16 @@ var expectedConf = &Config{
 		ScrapeTimeout:      DefaultGlobalConfig.ScrapeTimeout,
 		EvaluationInterval: Duration(30 * time.Second),
 
-		Labels: clientmodel.LabelSet{
+		ExternalLabels: model.LabelSet{
 			"monitor": "codelab",
 			"foo":     "bar",
 		},
 	},
 
 	RuleFiles: []string{
-		"first.rules",
-		"second.rules",
-		"my/*.rules",
+		"testdata/first.rules",
+		"/absolute/second.rules",
+		"testdata/my/*.rules",
 	},
 
 	ScrapeConfigs: []*ScrapeConfig{
@@ -43,13 +55,15 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
+			BearerTokenFile: "testdata/valid_token_file",
+
 			TargetGroups: []*TargetGroup{
 				{
-					Targets: []clientmodel.LabelSet{
-						{clientmodel.AddressLabel: "localhost:9090"},
-						{clientmodel.AddressLabel: "localhost:9191"},
+					Targets: []model.LabelSet{
+						{model.AddressLabel: "localhost:9090"},
+						{model.AddressLabel: "localhost:9191"},
 					},
-					Labels: clientmodel.LabelSet{
+					Labels: model.LabelSet{
 						"my":   "label",
 						"your": "label",
 					},
@@ -63,16 +77,16 @@ var expectedConf = &Config{
 				},
 				{
 					Names:           []string{"bar/*.yaml"},
-					RefreshInterval: Duration(30 * time.Second),
+					RefreshInterval: Duration(5 * time.Minute),
 				},
 			},
 
 			RelabelConfigs: []*RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"job", "__meta_dns_srv_name"},
+					SourceLabels: model.LabelNames{"job", "__meta_dns_srv_name"},
 					TargetLabel:  "job",
 					Separator:    ";",
-					Regex:        &Regexp{*regexp.MustCompile("(.*)some-[regex]$")},
+					Regex:        MustNewRegexp("(.*)some-[regex]"),
 					Replacement:  "foo-${1}",
 					Action:       RelabelReplace,
 				},
@@ -98,40 +112,47 @@ var expectedConf = &Config{
 						"second.dns.address.domain.com",
 					},
 					RefreshInterval: Duration(15 * time.Second),
+					Type:            "SRV",
 				},
 				{
 					Names: []string{
 						"first.dns.address.domain.com",
 					},
 					RefreshInterval: Duration(30 * time.Second),
+					Type:            "SRV",
 				},
 			},
 
 			RelabelConfigs: []*RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"job"},
-					Regex:        &Regexp{*regexp.MustCompile("(.*)some-[regex]$")},
+					SourceLabels: model.LabelNames{"job"},
+					Regex:        MustNewRegexp("(.*)some-[regex]"),
 					Separator:    ";",
 					Action:       RelabelDrop,
 				},
 				{
-					SourceLabels: clientmodel.LabelNames{"__address__"},
-					TargetLabel:  "__hash",
+					SourceLabels: model.LabelNames{"__address__"},
+					TargetLabel:  "__tmp_hash",
 					Modulus:      8,
 					Separator:    ";",
 					Action:       RelabelHashMod,
 				},
 				{
-					SourceLabels: clientmodel.LabelNames{"__hash"},
-					Regex:        &Regexp{*regexp.MustCompile("^1$")},
+					SourceLabels: model.LabelNames{"__tmp_hash"},
+					Regex:        MustNewRegexp("1"),
 					Separator:    ";",
 					Action:       RelabelKeep,
+				},
+				{
+					Regex:     MustNewRegexp("1"),
+					Separator: ";",
+					Action:    RelabelLabelMap,
 				},
 			},
 			MetricRelabelConfigs: []*RelabelConfig{
 				{
-					SourceLabels: clientmodel.LabelNames{"__name__"},
-					Regex:        &Regexp{*regexp.MustCompile("expensive_metric.*$")},
+					SourceLabels: model.LabelNames{"__name__"},
+					Regex:        MustNewRegexp("expensive_metric.*"),
 					Separator:    ";",
 					Action:       RelabelDrop,
 				},
@@ -155,6 +176,81 @@ var expectedConf = &Config{
 				},
 			},
 		},
+		{
+			JobName: "service-z",
+
+			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeTimeout:  Duration(10 * time.Second),
+
+			MetricsPath: "/metrics",
+			Scheme:      "http",
+
+			TLSConfig: TLSConfig{
+				CertFile: "testdata/valid_cert_file",
+				KeyFile:  "testdata/valid_key_file",
+			},
+
+			BearerToken: "avalidtoken",
+		},
+		{
+			JobName: "service-kubernetes",
+
+			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+
+			MetricsPath: DefaultScrapeConfig.MetricsPath,
+			Scheme:      DefaultScrapeConfig.Scheme,
+
+			KubernetesSDConfigs: []*KubernetesSDConfig{
+				{
+					APIServers: []URL{kubernetesSDHostURL()},
+					BasicAuth: &BasicAuth{
+						Username: "myusername",
+						Password: "mypassword",
+					},
+					KubeletPort:    10255,
+					RequestTimeout: Duration(10 * time.Second),
+					RetryInterval:  Duration(1 * time.Second),
+				},
+			},
+		},
+		{
+			JobName: "service-marathon",
+
+			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+
+			MetricsPath: DefaultScrapeConfig.MetricsPath,
+			Scheme:      DefaultScrapeConfig.Scheme,
+
+			MarathonSDConfigs: []*MarathonSDConfig{
+				{
+					Servers: []string{
+						"http://marathon.example.com:8080",
+					},
+					RefreshInterval: Duration(30 * time.Second),
+				},
+			},
+		},
+		{
+			JobName: "service-ec2",
+
+			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+
+			MetricsPath: DefaultScrapeConfig.MetricsPath,
+			Scheme:      DefaultScrapeConfig.Scheme,
+
+			EC2SDConfigs: []*EC2SDConfig{
+				{
+					Region:          "us-east-1",
+					AccessKey:       "access",
+					SecretKey:       "secret",
+					RefreshInterval: Duration(60 * time.Second),
+					Port:            80,
+				},
+			},
+		},
 	},
 	original: "",
 }
@@ -162,18 +258,20 @@ var expectedConf = &Config{
 func TestLoadConfig(t *testing.T) {
 	// Parse a valid file that sets a global scrape timeout. This tests whether parsing
 	// an overwritten default field in the global config permanently changes the default.
-	if _, err := LoadFromFile("testdata/global_timeout.good.yml"); err != nil {
+	if _, err := LoadFile("testdata/global_timeout.good.yml"); err != nil {
 		t.Errorf("Error parsing %s: %s", "testdata/conf.good.yml", err)
 	}
 
-	c, err := LoadFromFile("testdata/conf.good.yml")
+	c, err := LoadFile("testdata/conf.good.yml")
 	if err != nil {
 		t.Fatalf("Error parsing %s: %s", "testdata/conf.good.yml", err)
 	}
+
 	bgot, err := yaml.Marshal(c)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
+
 	bexp, err := yaml.Marshal(expectedConf)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -186,7 +284,7 @@ func TestLoadConfig(t *testing.T) {
 
 	// String method must not reveal authentication credentials.
 	s := c.String()
-	if strings.Contains(s, "admin_name") || strings.Contains(s, "admin_password") {
+	if strings.Contains(s, "admin_password") {
 		t.Fatalf("config's String method reveals authentication credentials.")
 	}
 }
@@ -222,12 +320,30 @@ var expectedErrors = []struct {
 	}, {
 		filename: "unknown_attr.bad.yml",
 		errMsg:   "unknown fields in scrape_config: consult_sd_configs",
+	}, {
+		filename: "bearertoken.bad.yml",
+		errMsg:   "at most one of bearer_token & bearer_token_file must be configured",
+	}, {
+		filename: "bearertoken_basicauth.bad.yml",
+		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
+	}, {
+		filename: "kubernetes_bearertoken.bad.yml",
+		errMsg:   "at most one of bearer_token & bearer_token_file must be configured",
+	}, {
+		filename: "kubernetes_bearertoken_basicauth.bad.yml",
+		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
+	}, {
+		filename: "marathon_no_servers.bad.yml",
+		errMsg:   "Marathon SD config must contain at least one Marathon server",
+	}, {
+		filename: "url_in_targetgroup.bad.yml",
+		errMsg:   "\"http://bad\" is not a valid hostname",
 	},
 }
 
 func TestBadConfigs(t *testing.T) {
 	for _, ee := range expectedErrors {
-		_, err := LoadFromFile("testdata/" + ee.filename)
+		_, err := LoadFile("testdata/" + ee.filename)
 		if err == nil {
 			t.Errorf("Expected error parsing %s but got none", ee.filename)
 			continue
@@ -273,4 +389,9 @@ func TestEmptyGlobalBlock(t *testing.T) {
 	if !reflect.DeepEqual(*c, exp) {
 		t.Fatalf("want %v, got %v", exp, c)
 	}
+}
+
+func kubernetesSDHostURL() URL {
+	tURL, _ := url.Parse("https://localhost:1234")
+	return URL{URL: tURL}
 }
