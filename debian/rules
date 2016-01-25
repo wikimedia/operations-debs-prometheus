@@ -48,8 +48,8 @@ endif
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
 	# Include test fixtures.
-	for i in retrieval/discovery/fixtures config/testdata promql/testdata \
-                storage/local/fixtures; do \
+	for i in retrieval/discovery/fixtures storage/local/fixtures \
+                config/testdata promql/testdata retrieval/testdata; do \
             cp -av $$i $(BUILDDIR)/src/$(DH_GOPKG)/$$i; \
         done
 	# Include vendored dependencies.
