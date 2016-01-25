@@ -10,7 +10,7 @@
  			func(w http.ResponseWriter, r *http.Request) {
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1163,6 +1163,7 @@
+@@ -1164,6 +1164,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunkEncoding) {
