@@ -1,0 +1,33 @@
+prometheus (0.16.2+ds-1) UNRELEASED; urgency=high
+
+  * Breaking changes in this release:
+   - Remove undocumented 2nd argument of the `delta` function.
+   - Release tarballs now contain the built binaries in a nested directory.
+   - The `hash_mod` relabeling action now uses MD5 hashes instead of FNV hashes
+     to achieve a better distribution.
+   - The DNS-SD meta label `__meta_dns_srv_name` was renamed to
+     `__meta_dns_name` to reflect support for DNS record types other than
+     `SRV`.
+   - The default full refresh interval for the file-based service discovery has
+     been increased from 30 seconds to 5 minutes.
+   - In relabeling, parts of a source label that weren't matched by the
+     specified regular expression are no longer included in the replacement
+     output.
+   - Queries no longer interpolate between two data points. Instead, the
+     resulting value will always be the latest value before the evaluation
+     query timestamp.
+   - Regular expressions supplied via the configuration are now anchored to
+     match full strings instead of substrings.
+   - Global labels are not appended upon storing time series anymore. Instead,
+     they are only appended when communicating with external systems
+     (Alertmanager, remote storages, federation). They have thus also been
+     renamed from `global.labels` to `global.external_labels`.
+   - The names and units of metrics related to remote storage sample appends
+     have been changed.
+   - The experimental support for writing to InfluxDB has been updated to work
+     with InfluxDB 0.9.x. 0.8.x versions of InfluxDB are not supported anymore.
+   - Escape sequences in double- and single-quoted string literals in rules or
+     query expressions are now interpreted like escape sequences in Go string
+     literals (https://golang.org/ref/spec#String_literals).
+
+ -- Martín Ferrari <tincho@debian.org>  Mon, 25 Jan 2016 07:34:22 -0300
