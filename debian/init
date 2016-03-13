@@ -62,7 +62,7 @@ do_stop_cmd()
     $HELPER $HELPER_ARGS --stop || return 2
     # wait for the process to really terminate
     for n in 1 2 3 4 5; do
-        sleep 1
+        sleep $n
         $HELPER $HELPER_ARGS --running || break
     done
     $HELPER $HELPER_ARGS --running || return 0
