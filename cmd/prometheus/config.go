@@ -24,6 +24,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/prometheus/notification"
 	"github.com/prometheus/prometheus/promql"
@@ -42,7 +43,7 @@ var cfg = struct {
 	configFile   string
 
 	storage      local.MemorySeriesStorageOptions
-	notification notification.NotificationHandlerOptions
+	notification notification.HandlerOptions
 	queryEngine  promql.EngineOptions
 	web          web.Options
 	remote       remote.Options
@@ -82,10 +83,6 @@ func init() {
 		&cfg.web.MetricsPath, "web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
-	cfg.fs.BoolVar(
-		&cfg.web.UseLocalAssets, "web.use-local-assets", false,
-		"Read assets/templates from file instead of binary.",
-	)
 	cfg.fs.StringVar(
 		&cfg.web.UserAssetsPath, "web.user-assets", "",
 		"Path to static asset directory, available at /user.",
@@ -110,15 +107,15 @@ func init() {
 	)
 	cfg.fs.IntVar(
 		&cfg.storage.MemoryChunks, "storage.local.memory-chunks", 1024*1024,
-		"How many chunks to keep in memory. While the size of a chunk is 1kiB, the total memory usage will be significantly higher than this value * 1kiB. Furthermore, for various reasons, more chunks might have to be kept in memory temporarily.",
+		"How many chunks to keep in memory. While the size of a chunk is 1kiB, the total memory usage will be significantly higher than this value * 1kiB. Furthermore, for various reasons, more chunks might have to be kept in memory temporarily. Sample ingestion will be throttled if the configured value is exceeded by more than 10%.",
 	)
 	cfg.fs.DurationVar(
 		&cfg.storage.PersistenceRetentionPeriod, "storage.local.retention", 15*24*time.Hour,
 		"How long to retain samples in the local storage.",
 	)
 	cfg.fs.IntVar(
-		&cfg.storage.MaxChunksToPersist, "storage.local.max-chunks-to-persist", 1024*1024,
-		"How many chunks can be waiting for persistence before sample ingestion will stop. Many chunks waiting to be persisted will increase the checkpoint size.",
+		&cfg.storage.MaxChunksToPersist, "storage.local.max-chunks-to-persist", 512*1024,
+		"How many chunks can be waiting for persistence before sample ingestion will be throttled. Many chunks waiting to be persisted will increase the checkpoint size.",
 	)
 	cfg.fs.DurationVar(
 		&cfg.storage.CheckpointInterval, "storage.local.checkpoint-interval", 5*time.Minute,
@@ -210,11 +207,11 @@ func init() {
 		"The URL of the alert manager to send notifications to.",
 	)
 	cfg.fs.IntVar(
-		&cfg.notification.QueueCapacity, "alertmanager.notification-queue-capacity", 100,
+		&cfg.notification.QueueCapacity, "alertmanager.notification-queue-capacity", 10000,
 		"The capacity of the queue for pending alert manager notifications.",
 	)
 	cfg.fs.DurationVar(
-		&cfg.notification.Deadline, "alertmanager.http-deadline", 10*time.Second,
+		&cfg.notification.Timeout, "alertmanager.timeout", 10*time.Second,
 		"Alert manager HTTP API timeout.",
 	)
 
@@ -268,6 +265,10 @@ func parsePrometheusURL() error {
 		cfg.prometheusURL = fmt.Sprintf("http://%s:%s/", hostname, port)
 	}
 
+	if ok := govalidator.IsURL(cfg.prometheusURL); !ok {
+		return fmt.Errorf("Invalid Prometheus URL: %s", cfg.prometheusURL)
+	}
+
 	promURL, err := url.Parse(cfg.prometheusURL)
 	if err != nil {
 		return err
@@ -285,6 +286,10 @@ func parsePrometheusURL() error {
 func parseInfluxdbURL() error {
 	if cfg.influxdbURL == "" {
 		return nil
+	}
+
+	if ok := govalidator.IsURL(cfg.influxdbURL); !ok {
+		return fmt.Errorf("Invalid InfluxDB URL: %s", cfg.influxdbURL)
 	}
 
 	url, err := url.Parse(cfg.influxdbURL)

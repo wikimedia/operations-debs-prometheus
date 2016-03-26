@@ -14,6 +14,11 @@
 GO   := GO15VENDOREXPERIMENT=1 go
 pkgs  = $(shell $(GO) list ./... | grep -v /vendor/)
 
+ifdef DEBUG
+	bindata_flags = -debug
+endif
+
+
 all: format build test
 
 style:
@@ -46,8 +51,7 @@ docker:
 assets:
 	@echo ">> writing assets"
 	@$(GO) get -u github.com/jteeuwen/go-bindata/...
-	@$(GO) generate ./web/blob
-	@$(GO) fmt ./web/blob >/dev/null
+	@go-bindata $(bindata_flags) -pkg ui -o web/ui/bindata.go -ignore '(.*\.map|bootstrap\.js|bootstrap-theme\.css|bootstrap\.css)'  web/ui/templates/... web/ui/static/...
 
 
 .PHONY: all style format build test vet docker assets tarballs

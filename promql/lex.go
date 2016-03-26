@@ -153,17 +153,21 @@ const (
 	itemAlert
 	itemIf
 	itemFor
-	itemWith
-	itemSummary
-	itemRunbook
-	itemDescription
+	itemLabels
+	itemAnnotations
 	itemKeepCommon
 	itemOffset
 	itemBy
+	itemWithout
 	itemOn
 	itemGroupLeft
 	itemGroupRight
 	itemBool
+	// Old alerting syntax
+	itemWith
+	itemSummary
+	itemRunbook
+	itemDescription
 	keywordsEnd
 )
 
@@ -185,18 +189,23 @@ var key = map[string]itemType{
 	"alert":         itemAlert,
 	"if":            itemIf,
 	"for":           itemFor,
-	"with":          itemWith,
-	"summary":       itemSummary,
-	"runbook":       itemRunbook,
-	"description":   itemDescription,
+	"labels":        itemLabels,
+	"annotations":   itemAnnotations,
 	"offset":        itemOffset,
 	"by":            itemBy,
+	"without":       itemWithout,
 	"keeping_extra": itemKeepCommon,
 	"keep_common":   itemKeepCommon,
 	"on":            itemOn,
 	"group_left":    itemGroupLeft,
 	"group_right":   itemGroupRight,
 	"bool":          itemBool,
+
+	// Old alerting syntax.
+	"with":        itemWith,
+	"summary":     itemSummary,
+	"runbook":     itemRunbook,
+	"description": itemDescription,
 }
 
 // These are the default string representations for common items. It does not

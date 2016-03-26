@@ -357,9 +357,9 @@ func (p *parser) stmt() Statement {
 
 // alertStmt parses an alert rule.
 //
-//		ALERT name IF expr [FOR duration] [WITH label_set]
-//			SUMMARY "summary"
-//			DESCRIPTION "description"
+//		ALERT name IF expr [FOR duration]
+//			[LABELS label_set]
+//			[ANNOTATIONS label_set]
 //
 func (p *parser) alertStmt() *AlertStmt {
 	const ctx = "alert statement"
@@ -371,9 +371,10 @@ func (p *parser) alertStmt() *AlertStmt {
 	expr := p.expr()
 
 	// Optional for clause.
-	var duration time.Duration
-	var err error
-
+	var (
+		duration time.Duration
+		err      error
+	)
 	if p.peek().typ == itemFor {
 		p.next()
 		dur := p.expect(itemDuration, ctx)
@@ -383,60 +384,65 @@ func (p *parser) alertStmt() *AlertStmt {
 		}
 	}
 
-	lset := model.LabelSet{}
-	if p.peek().typ == itemWith {
+	// Accepting WITH instead of LABELS is temporary compatibility
+	// with the old alerting syntax.
+	var (
+		hasLabels   bool
+		oldSyntax   bool
+		labels      = model.LabelSet{}
+		annotations = model.LabelSet{}
+	)
+	if t := p.peek().typ; t == itemLabels {
+		p.expect(itemLabels, ctx)
+		labels = p.labelSet()
+		hasLabels = true
+	} else if t == itemWith {
 		p.expect(itemWith, ctx)
-		lset = p.labelSet()
+		labels = p.labelSet()
+		oldSyntax = true
 	}
 
-	var (
-		hasSum, hasDesc, hasRunbook bool
-		sum, desc, runbook          string
-	)
-Loop:
-	for {
-		switch p.next().typ {
-		case itemSummary:
-			if hasSum {
-				p.errorf("summary must not be defined twice")
-			}
-			hasSum = true
-			sum = p.unquoteString(p.expect(itemString, ctx).val)
+	// Only allow old annotation syntax if new label syntax isn't used.
+	if !hasLabels {
+	Loop:
+		for {
+			switch p.next().typ {
+			case itemSummary:
+				annotations["summary"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
 
-		case itemDescription:
-			if hasDesc {
-				p.errorf("description must not be defined twice")
-			}
-			hasDesc = true
-			desc = p.unquoteString(p.expect(itemString, ctx).val)
+			case itemDescription:
+				annotations["description"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
 
-		case itemRunbook:
-			if hasRunbook {
-				p.errorf("runbook must not be defined twice")
-			}
-			hasRunbook = true
-			runbook = p.unquoteString(p.expect(itemString, ctx).val)
+			case itemRunbook:
+				annotations["runbook"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
 
-		default:
-			p.backup()
-			break Loop
+			default:
+				p.backup()
+				break Loop
+			}
+		}
+		if len(annotations) > 0 {
+			oldSyntax = true
 		}
 	}
-	if sum == "" {
-		p.errorf("alert summary missing")
-	}
-	if desc == "" {
-		p.errorf("alert description missing")
+
+	// Only allow new annotation syntax if WITH or old annotation
+	// syntax weren't used.
+	if !oldSyntax {
+		if p.peek().typ == itemAnnotations {
+			p.expect(itemAnnotations, ctx)
+			annotations = p.labelSet()
+		}
+	} else {
+		log.Warnf("Alerting rule with old syntax found. Support for this syntax will be removed with 0.18. Please update to the new syntax.")
 	}
 
 	return &AlertStmt{
 		Name:        name.val,
 		Expr:        expr,
 		Duration:    duration,
-		Labels:      lset,
-		Summary:     sum,
-		Description: desc,
-		Runbook:     runbook,
+		Labels:      labels,
+		Annotations: annotations,
 	}
 }
 
@@ -592,18 +598,34 @@ func (p *parser) unaryExpr() Expr {
 		}
 		e = p.rangeSelector(vs)
 	}
+
+	// Parse optional offset.
+	if p.peek().typ == itemOffset {
+		offset := p.offset()
+
+		switch s := e.(type) {
+		case *VectorSelector:
+			s.Offset = offset
+		case *MatrixSelector:
+			s.Offset = offset
+		default:
+			p.errorf("offset modifier must be preceded by an instant or range selector, but follows a %T instead", e)
+		}
+	}
+
 	return e
 }
 
-// rangeSelector parses a matrix selector based on a given vector selector.
+// rangeSelector parses a matrix (a.k.a. range) selector based on a given
+// vector selector.
 //
 //		<vector_selector> '[' <duration> ']'
 //
 func (p *parser) rangeSelector(vs *VectorSelector) *MatrixSelector {
-	const ctx = "matrix selector"
+	const ctx = "range selector"
 	p.next()
 
-	var erange, offset time.Duration
+	var erange time.Duration
 	var err error
 
 	erangeStr := p.expect(itemDuration, ctx).val
@@ -614,27 +636,15 @@ func (p *parser) rangeSelector(vs *VectorSelector) *MatrixSelector {
 
 	p.expect(itemRightBracket, ctx)
 
-	// Parse optional offset.
-	if p.peek().typ == itemOffset {
-		p.next()
-		offi := p.expect(itemDuration, ctx)
-
-		offset, err = parseDuration(offi.val)
-		if err != nil {
-			p.error(err)
-		}
-	}
-
 	e := &MatrixSelector{
 		Name:          vs.Name,
 		LabelMatchers: vs.LabelMatchers,
 		Range:         erange,
-		Offset:        offset,
 	}
 	return e
 }
 
-// parseNumber parses a number.
+// number parses a number.
 func (p *parser) number(val string) float64 {
 	n, err := strconv.ParseInt(val, 0, 64)
 	f := float64(n)
@@ -722,11 +732,14 @@ func (p *parser) aggrExpr() *AggregateExpr {
 		p.errorf("expected aggregation operator but got %s", agop)
 	}
 	var grouping model.LabelNames
-	var keepExtra bool
+	var keepExtra, without bool
 
 	modifiersFirst := false
 
-	if p.peek().typ == itemBy {
+	if t := p.peek().typ; t == itemBy || t == itemWithout {
+		if t == itemWithout {
+			without = true
+		}
 		p.next()
 		grouping = p.labels()
 		modifiersFirst = true
@@ -742,9 +755,12 @@ func (p *parser) aggrExpr() *AggregateExpr {
 	p.expect(itemRightParen, ctx)
 
 	if !modifiersFirst {
-		if p.peek().typ == itemBy {
+		if t := p.peek().typ; t == itemBy || t == itemWithout {
 			if len(grouping) > 0 {
 				p.errorf("aggregation must only contain one grouping clause")
+			}
+			if t == itemWithout {
+				without = true
 			}
 			p.next()
 			grouping = p.labels()
@@ -755,10 +771,15 @@ func (p *parser) aggrExpr() *AggregateExpr {
 		}
 	}
 
+	if keepExtra && without {
+		p.errorf("cannot use 'keep_common' with 'without'")
+	}
+
 	return &AggregateExpr{
 		Op:              agop.typ,
 		Expr:            e,
 		Grouping:        grouping,
+		Without:         without,
 		KeepExtraLabels: keepExtra,
 	}
 }
@@ -874,11 +895,20 @@ func (p *parser) labelMatchers(operators ...itemType) metric.LabelMatchers {
 
 		matchers = append(matchers, m)
 
+		if p.peek().typ == itemIdentifier {
+			p.errorf("missing comma before next identifier %q", p.peek().val)
+		}
+
 		// Terminate list if last matcher.
 		if p.peek().typ != itemComma {
 			break
 		}
 		p.next()
+
+		// Allow comma after each item in a multi-line listing.
+		if p.peek().typ == itemRightBrace {
+			break
+		}
 	}
 
 	p.expect(itemRightBrace, ctx)
@@ -912,10 +942,28 @@ func (p *parser) metric() model.Metric {
 	return m
 }
 
-// metricSelector parses a new metric selector.
+// offset parses an offset modifier.
 //
-//		<metric_identifier> [<label_matchers>] [ offset <duration> ]
-//		[<metric_identifier>] <label_matchers> [ offset <duration> ]
+//		offset <duration>
+//
+func (p *parser) offset() time.Duration {
+	const ctx = "offset"
+
+	p.next()
+	offi := p.expect(itemDuration, ctx)
+
+	offset, err := parseDuration(offi.val)
+	if err != nil {
+		p.error(err)
+	}
+
+	return offset
+}
+
+// vectorSelector parses a new (instant) vector selector.
+//
+//		<metric_identifier> [<label_matchers>]
+//		[<metric_identifier>] <label_matchers>
 //
 func (p *parser) vectorSelector(name string) *VectorSelector {
 	const ctx = "metric selector"
@@ -963,22 +1011,9 @@ func (p *parser) vectorSelector(name string) *VectorSelector {
 		p.errorf("vector selector must contain at least one non-empty matcher")
 	}
 
-	var err error
-	var offset time.Duration
-	// Parse optional offset.
-	if p.peek().typ == itemOffset {
-		p.next()
-		offi := p.expect(itemDuration, ctx)
-
-		offset, err = parseDuration(offi.val)
-		if err != nil {
-			p.error(err)
-		}
-	}
 	return &VectorSelector{
 		Name:          name,
 		LabelMatchers: matchers,
-		Offset:        offset,
 	}
 }
 
@@ -1116,12 +1151,12 @@ func (p *parser) unquoteString(s string) string {
 }
 
 func parseDuration(ds string) (time.Duration, error) {
-	dur, err := strutil.StringToDuration(ds)
+	dur, err := model.ParseDuration(ds)
 	if err != nil {
 		return 0, err
 	}
 	if dur == 0 {
 		return 0, fmt.Errorf("duration must be greater than 0")
 	}
-	return dur, nil
+	return time.Duration(dur), nil
 }

@@ -165,6 +165,7 @@ func (tm *TargetManager) Run() {
 	})
 
 	tm.running = true
+	log.Info("Target manager started.")
 }
 
 // handleUpdates receives target group updates and handles them in the
@@ -277,7 +278,9 @@ func (tm *TargetManager) updateTargetGroup(tgroup *config.TargetGroup, cfg *conf
 				// to build up.
 				wg.Add(1)
 				go func(t *Target) {
-					match.Update(cfg, t.fullLabels(), t.metaLabels)
+					if err := match.Update(cfg, t.fullLabels(), t.metaLabels); err != nil {
+						log.Errorf("Error updating target %v: %v", t, err)
+					}
 					wg.Done()
 				}(tnew)
 				newTargets[i] = match
@@ -434,6 +437,9 @@ func providersFromConfig(cfg *config.ScrapeConfig) []TargetProvider {
 	for i, c := range cfg.ServersetSDConfigs {
 		app("serverset", i, discovery.NewServersetDiscovery(c))
 	}
+	for i, c := range cfg.NerveSDConfigs {
+		app("nerve", i, discovery.NewNerveDiscovery(c))
+	}
 	for i, c := range cfg.EC2SDConfigs {
 		app("ec2", i, discovery.NewEC2Discovery(c))
 	}
@@ -451,19 +457,6 @@ func (tm *TargetManager) targetsFromGroup(tg *config.TargetGroup, cfg *config.Sc
 
 	targets := make([]*Target, 0, len(tg.Targets))
 	for i, labels := range tg.Targets {
-		addr := string(labels[model.AddressLabel])
-		// If no port was provided, infer it based on the used scheme.
-		if !strings.Contains(addr, ":") {
-			switch cfg.Scheme {
-			case "http":
-				addr = fmt.Sprintf("%s:80", addr)
-			case "https":
-				addr = fmt.Sprintf("%s:443", addr)
-			default:
-				panic(fmt.Errorf("targetsFromGroup: invalid scheme %q", cfg.Scheme))
-			}
-			labels[model.AddressLabel] = model.LabelValue(addr)
-		}
 		for k, v := range cfg.Params {
 			if len(v) > 0 {
 				labels[model.LabelName(model.ParamLabelPrefix+k)] = model.LabelValue(v[0])
@@ -501,6 +494,19 @@ func (tm *TargetManager) targetsFromGroup(tg *config.TargetGroup, cfg *config.Sc
 		if labels == nil {
 			continue
 		}
+		// If no port was provided, infer it based on the used scheme.
+		addr := string(labels[model.AddressLabel])
+		if !strings.Contains(addr, ":") {
+			switch labels[model.SchemeLabel] {
+			case "http", "":
+				addr = fmt.Sprintf("%s:80", addr)
+			case "https":
+				addr = fmt.Sprintf("%s:443", addr)
+			default:
+				panic(fmt.Errorf("targetsFromGroup: invalid scheme %q", cfg.Scheme))
+			}
+			labels[model.AddressLabel] = model.LabelValue(addr)
+		}
 		if err = config.CheckTargetAddress(labels[model.AddressLabel]); err != nil {
 			return nil, err
 		}
@@ -512,7 +518,10 @@ func (tm *TargetManager) targetsFromGroup(tg *config.TargetGroup, cfg *config.Sc
 				delete(labels, ln)
 			}
 		}
-		tr := NewTarget(cfg, labels, preRelabelLabels)
+		tr, err := NewTarget(cfg, labels, preRelabelLabels)
+		if err != nil {
+			return nil, fmt.Errorf("error while creating instance %d in target group %s: %s", i, tg, err)
+		}
 		targets = append(targets, tr)
 	}
 
