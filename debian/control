@@ -26,7 +26,7 @@ Build-Depends: adduser, debhelper (>= 9.0.0),
                libjs-jquery-hotkeys,
                libjs-rickshaw,
                node-less
-Standards-Version: 3.9.6
+Standards-Version: 3.9.7
 Vcs-Git: git://anonscm.debian.org/pkg-go/packages/prometheus.git
 Vcs-Browser: http://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git/
 Homepage: http://prometheus.io/
