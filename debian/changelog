@@ -4,6 +4,8 @@ prometheus (0.17.0+ds-1) UNRELEASED; urgency=medium
   * debian/watch: fix watch file for RC releases.
   * debian/patches/06-Bug#818417-AWS_SDK_changes.patch: Patch by Filippo
     Giunchedi <filippo@debian.org> to fix FTBFS. Closes: #818417.
+  * debian/service: Add systemd unit, thanks to Michael Gebetsroither
+    <michael@mgeb.org> for the patch. Closes: #814802.
 
  -- Martín Ferrari <tincho@debian.org>  Sat, 26 Mar 2016 01:44:36 +0000
 
