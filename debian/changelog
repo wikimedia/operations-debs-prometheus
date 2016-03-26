@@ -9,6 +9,7 @@ prometheus (0.17.0+ds-1) UNRELEASED; urgency=medium
     patch. Closes: #814802.
   * debian/init: Add support for reload, thanks to Filippo Giunchedi for the
     patch. Closes: #817403.
+  * debian/default: Update default values and help text.
 
  -- Martín Ferrari <tincho@debian.org>  Sat, 26 Mar 2016 01:44:36 +0000
 

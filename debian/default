@@ -6,20 +6,27 @@ ARGS=""
 #   -config.file "/etc/prometheus/prometheus.yml"
 #      Prometheus configuration file name.
 #
-#   -log.level "info"
-#      Only log messages with the given severity or above. Valid levels:
-#      [debug, info, warn, error, fatal, panic].
-#
 # == ALERTMANAGER ==
 #
-#   -alertmanager.http-deadline 10s
-#      Alert manager HTTP API timeout.
-#
-#   -alertmanager.notification-queue-capacity 100
+#   -alertmanager.notification-queue-capacity 10000
 #      The capacity of the queue for pending alert manager notifications.
+#
+#   -alertmanager.timeout 10s
+#      Alert manager HTTP API timeout.
 #
 #   -alertmanager.url
 #      The URL of the alert manager to send notifications to.
+#
+# == LOG ==
+#
+#   -log.format
+#      If set use a syslog logger or JSON logging. Example:
+#      logger:syslog?appname=bob&local=7 or logger:stdout?json=true. Defaults to
+#      stderr.
+#
+#   -log.level "info"
+#      Only log messages with the given severity or above. Valid levels:
+#      [debug, info, warn, error, fatal].
 #
 # == QUERY ==
 #
@@ -67,16 +74,17 @@ ARGS=""
 #   -storage.local.index-cache-size.label-pair-to-fingerprints 20971520
 #      The size in bytes for the label pair to fingerprints index cache.
 #
-#   -storage.local.max-chunks-to-persist 1048576
+#   -storage.local.max-chunks-to-persist 524288
 #      How many chunks can be waiting for persistence before sample
-#      ingestion will stop. Many chunks waiting to be persisted will increase
-#      the checkpoint size.
+#      ingestion will be throttled. Many chunks waiting to be persisted will
+#      increase the checkpoint size.
 #
 #   -storage.local.memory-chunks 1048576
 #      How many chunks to keep in memory. While the size of a chunk is
 #      1kiB, the total memory usage will be significantly higher than this value
 #      * 1kiB. Furthermore, for various reasons, more chunks might have to be
-#      kept in memory temporarily.
+#      kept in memory temporarily. Sample ingestion will be throttled if the
+#      configured value is exceeded by more than 10%.
 #
 #   -storage.local.path "/var/lib/prometheus/metrics"
 #      Base path for metrics storage.
@@ -88,12 +96,32 @@ ARGS=""
 #   -storage.local.retention 360h0m0s
 #      How long to retain samples in the local storage.
 #
+#   -storage.local.series-file-shrink-ratio 0.1
+#      A series file is only truncated (to delete samples that have
+#      exceeded the retention period) if it shrinks by at least the provided
+#      ratio. This saves I/O operations while causing only a limited storage
+#      space overhead. If 0 or smaller, truncation will be performed even for a
+#      single dropped chunk, while 1 or larger will effectively prevent any
+#      truncation.
+#
 #   -storage.local.series-sync-strategy "adaptive"
 #      When to sync series files after modification. Possible values:
 #      'never', 'always', 'adaptive'. Sync'ing slows down storage performance
 #      but reduces the risk of data loss in case of an OS crash. With the
 #      'adaptive' strategy, series files are sync'd for as long as the storage
 #      is not too much behind on chunk persistence.
+#
+#   -storage.remote.graphite-address
+#      The host:port of the remote Graphite server to send samples to.
+#      None, if empty.
+#
+#   -storage.remote.graphite-prefix
+#      The prefix to prepend to all metrics exported to Graphite. None, if
+#      empty.
+#
+#   -storage.remote.graphite-transport "tcp"
+#      Transport protocol to use to communicate with Graphite. 'tcp', if
+#      empty.
 #
 #   -storage.remote.influxdb-url
 #      The URL of the remote InfluxDB server to send samples to. None, if
@@ -104,6 +132,11 @@ ARGS=""
 #
 #   -storage.remote.influxdb.retention-policy "default"
 #      The InfluxDB retention policy to use.
+#
+#   -storage.remote.influxdb.username
+#      The username to use when sending samples to InfluxDB. The
+#      corresponding password must be provided via the INFLUXDB_PW environment
+#      variable.
 #
 #   -storage.remote.opentsdb-url
 #      The URL of the remote OpenTSDB server to send samples to. None, if
@@ -126,8 +159,10 @@ ARGS=""
 #   -web.external-url
 #      The URL under which Prometheus is externally reachable (for
 #      example, if Prometheus is served via a reverse proxy). Used for
-#      generating relative and absolute links back to Prometheus itself. If
-#      omitted, relevant URL components will be derived automatically.
+#      generating relative and absolute links back to Prometheus itself. If the
+#      URL has a path portion, it will be used to prefix all HTTP endpoints
+#      served by Prometheus. If omitted, relevant URL components will be derived
+#      automatically.
 #
 #   -web.listen-address ":9090"
 #      Address to listen on for the web interface, API, and telemetry.
