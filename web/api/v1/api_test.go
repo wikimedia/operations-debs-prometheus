@@ -217,7 +217,7 @@ func TestEndpoints(t *testing.T) {
 		{
 			endpoint: api.series,
 			query: url.Values{
-				"match[]": []string{`test_metric1{foo=~"o$"}`},
+				"match[]": []string{`test_metric1{foo=~".+o"}`},
 			},
 			response: []model.Metric{
 				{
@@ -229,7 +229,7 @@ func TestEndpoints(t *testing.T) {
 		{
 			endpoint: api.series,
 			query: url.Values{
-				"match[]": []string{`test_metric1{foo=~"o$"}`, `test_metric1{foo=~"o$"}`},
+				"match[]": []string{`test_metric1{foo=~"o$"}`, `test_metric1{foo=~".+o"}`},
 			},
 			response: []model.Metric{
 				{
@@ -241,7 +241,7 @@ func TestEndpoints(t *testing.T) {
 		{
 			endpoint: api.series,
 			query: url.Values{
-				"match[]": []string{`test_metric1{foo=~"o$"}`, `none`},
+				"match[]": []string{`test_metric1{foo=~".+o"}`, `none`},
 			},
 			response: []model.Metric{
 				{
@@ -264,7 +264,7 @@ func TestEndpoints(t *testing.T) {
 		{
 			endpoint: api.dropSeries,
 			query: url.Values{
-				"match[]": []string{`test_metric1{foo=~"o$"}`},
+				"match[]": []string{`test_metric1{foo=~".+o"}`},
 			},
 			response: struct {
 				NumDeleted int `json:"numDeleted"`
@@ -500,6 +500,35 @@ func TestParseDuration(t *testing.T) {
 		}
 		if !test.fail && d != test.result {
 			t.Errorf("Expected duration %v for input %q but got %v", test.result, test.input, d)
+		}
+	}
+}
+
+func TestOptionsMethod(t *testing.T) {
+	r := route.New()
+	api := &API{}
+	api.Register(r)
+
+	s := httptest.NewServer(r)
+	defer s.Close()
+
+	req, err := http.NewRequest("OPTIONS", s.URL+"/any_path", nil)
+	if err != nil {
+		t.Fatalf("Error creating OPTIONS request: %s", err)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Error executing OPTIONS request: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("Expected status %d, got %d", http.StatusNoContent, resp.StatusCode)
+	}
+
+	for h, v := range corsHeaders {
+		if resp.Header.Get(h) != v {
+			t.Fatalf("Expected %q for header %q, got %q", v, h, resp.Header.Get(h))
 		}
 	}
 }

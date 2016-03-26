@@ -139,12 +139,12 @@ func TestTargetScrapeUpdatesState(t *testing.T) {
 	}
 }
 
-func TestTargetScrapeWithFullChannel(t *testing.T) {
+func TestTargetScrapeWithThrottledStorage(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", `text/plain; version=0.0.4`)
-				for i := 0; i < 2*ingestedSamplesCap; i++ {
+				for i := 0; i < 10; i++ {
 					w.Write([]byte(
 						fmt.Sprintf("test_metric_%d{foo=\"bar\"} 123.456\n", i),
 					))
@@ -155,15 +155,21 @@ func TestTargetScrapeWithFullChannel(t *testing.T) {
 	defer server.Close()
 
 	testTarget := newTestTarget(server.URL, time.Second, model.LabelSet{"dings": "bums"})
-	// Affects full channel but not HTTP fetch
-	testTarget.deadline = 0
 
-	testTarget.scrape(slowAppender{})
+	go testTarget.RunScraper(&collectResultAppender{throttled: true})
+
+	// Enough time for a scrape to happen.
+	time.Sleep(20 * time.Millisecond)
+
+	testTarget.StopScraper()
+	// Wait for it to take effect.
+	time.Sleep(20 * time.Millisecond)
+
 	if testTarget.status.Health() != HealthBad {
 		t.Errorf("Expected target state %v, actual: %v", HealthBad, testTarget.status.Health())
 	}
-	if testTarget.status.LastError() != errIngestChannelFull {
-		t.Errorf("Expected target error %q, actual: %q", errIngestChannelFull, testTarget.status.LastError())
+	if testTarget.status.LastError() != errSkippedScrape {
+		t.Errorf("Expected target error %q, actual: %q", errSkippedScrape, testTarget.status.LastError())
 	}
 }
 
@@ -417,11 +423,11 @@ func TestURLParams(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	target := NewTarget(
+	target, err := NewTarget(
 		&config.ScrapeConfig{
 			JobName:        "test_job1",
-			ScrapeInterval: config.Duration(1 * time.Minute),
-			ScrapeTimeout:  config.Duration(1 * time.Second),
+			ScrapeInterval: model.Duration(1 * time.Minute),
+			ScrapeTimeout:  model.Duration(1 * time.Second),
 			Scheme:         serverURL.Scheme,
 			Params: url.Values{
 				"foo": []string{"bar", "baz"},
@@ -433,6 +439,9 @@ func TestURLParams(t *testing.T) {
 			"__param_foo":      "bar",
 		},
 		nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	app := &collectResultAppender{}
 	if err = target.scrape(app); err != nil {
 		t.Fatal(err)
@@ -441,7 +450,7 @@ func TestURLParams(t *testing.T) {
 
 func newTestTarget(targetURL string, deadline time.Duration, baseLabels model.LabelSet) *Target {
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout: config.Duration(deadline),
+		ScrapeTimeout: model.Duration(deadline),
 	}
 	c, _ := newHTTPClient(cfg)
 	t := &Target{
@@ -450,7 +459,6 @@ func newTestTarget(targetURL string, deadline time.Duration, baseLabels model.La
 			Host:   strings.TrimLeft(targetURL, "http://"),
 			Path:   "/metrics",
 		},
-		deadline:        deadline,
 		status:          &TargetStatus{},
 		scrapeInterval:  1 * time.Millisecond,
 		httpClient:      c,
@@ -481,7 +489,7 @@ func TestNewHTTPBearerToken(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout: config.Duration(1 * time.Second),
+		ScrapeTimeout: model.Duration(1 * time.Second),
 		BearerToken:   "1234",
 	}
 	c, err := newHTTPClient(cfg)
@@ -509,7 +517,7 @@ func TestNewHTTPBearerTokenFile(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout:   config.Duration(1 * time.Second),
+		ScrapeTimeout:   model.Duration(1 * time.Second),
 		BearerTokenFile: "testdata/bearertoken.txt",
 	}
 	c, err := newHTTPClient(cfg)
@@ -536,7 +544,7 @@ func TestNewHTTPBasicAuth(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout: config.Duration(1 * time.Second),
+		ScrapeTimeout: model.Duration(1 * time.Second),
 		BasicAuth: &config.BasicAuth{
 			Username: "user",
 			Password: "password123",
@@ -566,7 +574,7 @@ func TestNewHTTPCACert(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout: config.Duration(1 * time.Second),
+		ScrapeTimeout: model.Duration(1 * time.Second),
 		TLSConfig: config.TLSConfig{
 			CAFile: "testdata/ca.cer",
 		},
@@ -599,7 +607,7 @@ func TestNewHTTPClientCert(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.ScrapeConfig{
-		ScrapeTimeout: config.Duration(1 * time.Second),
+		ScrapeTimeout: model.Duration(1 * time.Second),
 		TLSConfig: config.TLSConfig{
 			CAFile:   "testdata/ca.cer",
 			CertFile: "testdata/client.cer",
@@ -633,4 +641,19 @@ func newTLSConfig(t *testing.T) *tls.Config {
 	tlsConfig.Certificates = []tls.Certificate{cert}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig
+}
+
+func TestNewTargetWithBadTLSConfig(t *testing.T) {
+	cfg := &config.ScrapeConfig{
+		ScrapeTimeout: model.Duration(1 * time.Second),
+		TLSConfig: config.TLSConfig{
+			CAFile:   "testdata/nonexistent_ca.cer",
+			CertFile: "testdata/nonexistent_client.cer",
+			KeyFile:  "testdata/nonexistent_client.key",
+		},
+	}
+	_, err := NewTarget(cfg, nil, nil)
+	if err == nil {
+		t.Fatalf("Expected error, got nil.")
+	}
 }

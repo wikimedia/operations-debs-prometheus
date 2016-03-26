@@ -75,7 +75,7 @@ func TestPrefixedTargetProvider(t *testing.T) {
 func TestTargetManagerChan(t *testing.T) {
 	testJob1 := &config.ScrapeConfig{
 		JobName:        "test_job1",
-		ScrapeInterval: config.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(1 * time.Minute),
 		TargetGroups: []*config.TargetGroup{{
 			Targets: []model.LabelSet{
 				{model.AddressLabel: "example.org:80"},
@@ -204,14 +204,14 @@ func TestTargetManagerChan(t *testing.T) {
 func TestTargetManagerConfigUpdate(t *testing.T) {
 	testJob1 := &config.ScrapeConfig{
 		JobName:        "test_job1",
-		ScrapeInterval: config.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(1 * time.Minute),
 		Params: url.Values{
 			"testParam": []string{"paramValue", "secondValue"},
 		},
 		TargetGroups: []*config.TargetGroup{{
 			Targets: []model.LabelSet{
 				{model.AddressLabel: "example.org:80"},
-				{model.AddressLabel: "example.com:80"},
+				{model.AddressLabel: "example.com"},
 			},
 		}},
 		RelabelConfigs: []*config.RelabelConfig{
@@ -223,11 +223,18 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 				Replacement:  "$1",
 				Action:       config.RelabelReplace,
 			},
+			{
+				// The port number is added after relabeling, so
+				// this relabel rule should have no effect.
+				SourceLabels: model.LabelNames{model.AddressLabel},
+				Regex:        config.MustNewRegexp("example.com:80"),
+				Action:       config.RelabelDrop,
+			},
 		},
 	}
 	testJob2 := &config.ScrapeConfig{
 		JobName:        "test_job2",
-		ScrapeInterval: config.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(1 * time.Minute),
 		TargetGroups: []*config.TargetGroup{
 			{
 				Targets: []model.LabelSet{
@@ -281,7 +288,7 @@ func TestTargetManagerConfigUpdate(t *testing.T) {
 	// Test that targets without host:port addresses are dropped.
 	testJob3 := &config.ScrapeConfig{
 		JobName:        "test_job1",
-		ScrapeInterval: config.Duration(1 * time.Minute),
+		ScrapeInterval: model.Duration(1 * time.Minute),
 		TargetGroups: []*config.TargetGroup{{
 			Targets: []model.LabelSet{
 				{model.AddressLabel: "example.net:80"},
