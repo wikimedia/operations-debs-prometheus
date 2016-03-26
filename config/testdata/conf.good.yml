@@ -44,6 +44,10 @@ scrape_configs:
     target_label:  job
     replacement:   foo-${1}
     # action defaults to 'replace'
+  - source_labels: [abc]
+    target_label:  cde
+  - replacement:   static
+    target_label:  abc
 
   bearer_token_file: valid_token_file
 
@@ -122,3 +126,10 @@ scrape_configs:
     - region: us-east-1
       access_key: access
       secret_key: secret
+
+- job_name: service-nerve
+  nerve_sd_configs:
+    - servers:
+      - localhost
+      paths:
+      - /monitoring

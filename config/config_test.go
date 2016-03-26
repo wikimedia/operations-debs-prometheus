@@ -28,9 +28,9 @@ import (
 
 var expectedConf = &Config{
 	GlobalConfig: GlobalConfig{
-		ScrapeInterval:     Duration(15 * time.Second),
+		ScrapeInterval:     model.Duration(15 * time.Second),
 		ScrapeTimeout:      DefaultGlobalConfig.ScrapeTimeout,
-		EvaluationInterval: Duration(30 * time.Second),
+		EvaluationInterval: model.Duration(30 * time.Second),
 
 		ExternalLabels: model.LabelSet{
 			"monitor": "codelab",
@@ -49,7 +49,7 @@ var expectedConf = &Config{
 			JobName: "prometheus",
 
 			HonorLabels:    true,
-			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
@@ -73,11 +73,11 @@ var expectedConf = &Config{
 			FileSDConfigs: []*FileSDConfig{
 				{
 					Names:           []string{"foo/*.slow.json", "foo/*.slow.yml", "single/file.yml"},
-					RefreshInterval: Duration(10 * time.Minute),
+					RefreshInterval: model.Duration(10 * time.Minute),
 				},
 				{
 					Names:           []string{"bar/*.yaml"},
-					RefreshInterval: Duration(5 * time.Minute),
+					RefreshInterval: model.Duration(5 * time.Minute),
 				},
 			},
 
@@ -89,14 +89,27 @@ var expectedConf = &Config{
 					Regex:        MustNewRegexp("(.*)some-[regex]"),
 					Replacement:  "foo-${1}",
 					Action:       RelabelReplace,
+				}, {
+					SourceLabels: model.LabelNames{"abc"},
+					TargetLabel:  "cde",
+					Separator:    ";",
+					Regex:        DefaultRelabelConfig.Regex,
+					Replacement:  DefaultRelabelConfig.Replacement,
+					Action:       RelabelReplace,
+				}, {
+					TargetLabel: "abc",
+					Separator:   ";",
+					Regex:       DefaultRelabelConfig.Regex,
+					Replacement: "static",
+					Action:      RelabelReplace,
 				},
 			},
 		},
 		{
 			JobName: "service-x",
 
-			ScrapeInterval: Duration(50 * time.Second),
-			ScrapeTimeout:  Duration(5 * time.Second),
+			ScrapeInterval: model.Duration(50 * time.Second),
+			ScrapeTimeout:  model.Duration(5 * time.Second),
 
 			BasicAuth: &BasicAuth{
 				Username: "admin_name",
@@ -111,14 +124,14 @@ var expectedConf = &Config{
 						"first.dns.address.domain.com",
 						"second.dns.address.domain.com",
 					},
-					RefreshInterval: Duration(15 * time.Second),
+					RefreshInterval: model.Duration(15 * time.Second),
 					Type:            "SRV",
 				},
 				{
 					Names: []string{
 						"first.dns.address.domain.com",
 					},
-					RefreshInterval: Duration(30 * time.Second),
+					RefreshInterval: model.Duration(30 * time.Second),
 					Type:            "SRV",
 				},
 			},
@@ -128,11 +141,14 @@ var expectedConf = &Config{
 					SourceLabels: model.LabelNames{"job"},
 					Regex:        MustNewRegexp("(.*)some-[regex]"),
 					Separator:    ";",
+					Replacement:  DefaultRelabelConfig.Replacement,
 					Action:       RelabelDrop,
 				},
 				{
 					SourceLabels: model.LabelNames{"__address__"},
 					TargetLabel:  "__tmp_hash",
+					Regex:        DefaultRelabelConfig.Regex,
+					Replacement:  DefaultRelabelConfig.Replacement,
 					Modulus:      8,
 					Separator:    ";",
 					Action:       RelabelHashMod,
@@ -141,12 +157,14 @@ var expectedConf = &Config{
 					SourceLabels: model.LabelNames{"__tmp_hash"},
 					Regex:        MustNewRegexp("1"),
 					Separator:    ";",
+					Replacement:  DefaultRelabelConfig.Replacement,
 					Action:       RelabelKeep,
 				},
 				{
-					Regex:     MustNewRegexp("1"),
-					Separator: ";",
-					Action:    RelabelLabelMap,
+					Regex:       MustNewRegexp("1"),
+					Separator:   ";",
+					Replacement: DefaultRelabelConfig.Replacement,
+					Action:      RelabelLabelMap,
 				},
 			},
 			MetricRelabelConfigs: []*RelabelConfig{
@@ -154,6 +172,7 @@ var expectedConf = &Config{
 					SourceLabels: model.LabelNames{"__name__"},
 					Regex:        MustNewRegexp("expensive_metric.*"),
 					Separator:    ";",
+					Replacement:  DefaultRelabelConfig.Replacement,
 					Action:       RelabelDrop,
 				},
 			},
@@ -161,7 +180,7 @@ var expectedConf = &Config{
 		{
 			JobName: "service-y",
 
-			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
@@ -179,8 +198,8 @@ var expectedConf = &Config{
 		{
 			JobName: "service-z",
 
-			ScrapeInterval: Duration(15 * time.Second),
-			ScrapeTimeout:  Duration(10 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
+			ScrapeTimeout:  model.Duration(10 * time.Second),
 
 			MetricsPath: "/metrics",
 			Scheme:      "http",
@@ -195,7 +214,7 @@ var expectedConf = &Config{
 		{
 			JobName: "service-kubernetes",
 
-			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
@@ -209,15 +228,15 @@ var expectedConf = &Config{
 						Password: "mypassword",
 					},
 					KubeletPort:    10255,
-					RequestTimeout: Duration(10 * time.Second),
-					RetryInterval:  Duration(1 * time.Second),
+					RequestTimeout: model.Duration(10 * time.Second),
+					RetryInterval:  model.Duration(1 * time.Second),
 				},
 			},
 		},
 		{
 			JobName: "service-marathon",
 
-			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
@@ -228,14 +247,14 @@ var expectedConf = &Config{
 					Servers: []string{
 						"http://marathon.example.com:8080",
 					},
-					RefreshInterval: Duration(30 * time.Second),
+					RefreshInterval: model.Duration(30 * time.Second),
 				},
 			},
 		},
 		{
 			JobName: "service-ec2",
 
-			ScrapeInterval: Duration(15 * time.Second),
+			ScrapeInterval: model.Duration(15 * time.Second),
 			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
 
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
@@ -246,8 +265,25 @@ var expectedConf = &Config{
 					Region:          "us-east-1",
 					AccessKey:       "access",
 					SecretKey:       "secret",
-					RefreshInterval: Duration(60 * time.Second),
+					RefreshInterval: model.Duration(60 * time.Second),
 					Port:            80,
+				},
+			},
+		},
+		{
+			JobName: "service-nerve",
+
+			ScrapeInterval: model.Duration(15 * time.Second),
+			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+
+			MetricsPath: DefaultScrapeConfig.MetricsPath,
+			Scheme:      DefaultScrapeConfig.Scheme,
+
+			NerveSDConfigs: []*NerveSDConfig{
+				{
+					Servers: []string{"localhost"},
+					Paths:   []string{"/monitoring"},
+					Timeout: model.Duration(10 * time.Second),
 				},
 			},
 		},
@@ -308,9 +344,6 @@ var expectedErrors = []struct {
 	}, {
 		filename: "regex.bad.yml",
 		errMsg:   "error parsing regexp",
-	}, {
-		filename: "regex_missing.bad.yml",
-		errMsg:   "relabel configuration requires a regular expression",
 	}, {
 		filename: "modulus_missing.bad.yml",
 		errMsg:   "relabel configuration for hashmod requires non-zero modulus",

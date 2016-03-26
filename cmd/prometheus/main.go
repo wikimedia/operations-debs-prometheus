@@ -62,6 +62,7 @@ var (
 // Main manages the startup and shutdown lifecycle of the entire Prometheus server.
 func Main() int {
 	if err := parse(os.Args[1:]); err != nil {
+		log.Error(err)
 		return 2
 	}
 
@@ -83,7 +84,7 @@ func Main() int {
 	}
 
 	var (
-		notificationHandler = notification.NewNotificationHandler(&cfg.notification)
+		notificationHandler = notification.New(&cfg.notification)
 		targetManager       = retrieval.NewTargetManager(sampleAppender)
 		queryEngine         = promql.NewEngine(memStorage, &cfg.queryEngine)
 	)
@@ -132,7 +133,8 @@ func Main() int {
 		}
 	}()
 
-	// Start all components.
+	// Start all components. The order is NOT arbitrary.
+
 	if err := memStorage.Start(); err != nil {
 		log.Errorln("Error opening memory series storage:", err)
 		return 1
@@ -155,15 +157,19 @@ func Main() int {
 	prometheus.MustRegister(configSuccess)
 	prometheus.MustRegister(configSuccessTime)
 
-	go ruleManager.Run()
-	defer ruleManager.Stop()
-
+	// The notification handler is a dependency of the rule manager. It has to be
+	// started before and torn down afterwards.
 	go notificationHandler.Run()
 	defer notificationHandler.Stop()
+
+	go ruleManager.Run()
+	defer ruleManager.Stop()
 
 	go targetManager.Run()
 	defer targetManager.Stop()
 
+	// Shutting down the query engine before the rule manager will cause pending queries
+	// to be canceled and ensures a quick shutdown of the rule manager.
 	defer queryEngine.Stop()
 
 	go webHandler.Run()

@@ -238,8 +238,11 @@ var tests = []struct {
 		input:    "for",
 		expected: []item{{itemFor, 0, "for"}},
 	}, {
-		input:    "with",
-		expected: []item{{itemWith, 0, "with"}},
+		input:    "labels",
+		expected: []item{{itemLabels, 0, "labels"}},
+	}, {
+		input:    "annotations",
+		expected: []item{{itemAnnotations, 0, "annotations"}},
 	}, {
 		input:    "description",
 		expected: []item{{itemDescription, 0, "description"}},
@@ -250,11 +253,17 @@ var tests = []struct {
 		input:    "runbook",
 		expected: []item{{itemRunbook, 0, "runbook"}},
 	}, {
+		input:    "with",
+		expected: []item{{itemWith, 0, "with"}},
+	}, {
 		input:    "offset",
 		expected: []item{{itemOffset, 0, "offset"}},
 	}, {
 		input:    "by",
 		expected: []item{{itemBy, 0, "by"}},
+	}, {
+		input:    "without",
+		expected: []item{{itemWithout, 0, "without"}},
 	}, {
 		input:    "on",
 		expected: []item{{itemOn, 0, "on"}},

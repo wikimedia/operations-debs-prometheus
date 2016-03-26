@@ -228,6 +228,10 @@ var testExpr = []struct {
 		input:  `*test`,
 		fail:   true,
 		errMsg: "no valid expression found",
+	}, {
+		input:  "1 offset 1d",
+		fail:   true,
+		errMsg: "offset modifier must be preceded by an instant or range selector",
 	},
 	// Vector binary operations.
 	{
@@ -758,7 +762,7 @@ var testExpr = []struct {
 	}, {
 		input:  `some_metric[5m] OFFSET 1`,
 		fail:   true,
-		errMsg: "unexpected number \"1\" in matrix selector, expected duration",
+		errMsg: "unexpected number \"1\" in offset, expected duration",
 	}, {
 		input:  `some_metric[5m] OFFSET 1mm`,
 		fail:   true,
@@ -766,7 +770,11 @@ var testExpr = []struct {
 	}, {
 		input:  `some_metric[5m] OFFSET`,
 		fail:   true,
-		errMsg: "unexpected end of input in matrix selector, expected duration",
+		errMsg: "unexpected end of input in offset, expected duration",
+	}, {
+		input:  `some_metric OFFSET 1m[5m]`,
+		fail:   true,
+		errMsg: "could not parse remaining input \"[5m]\"...",
 	}, {
 		input:  `(foo + bar)[5m]`,
 		fail:   true,
@@ -862,6 +870,32 @@ var testExpr = []struct {
 			Grouping: model.LabelNames{"foo"},
 		},
 	}, {
+		input: "sum without (foo) (some_metric)",
+		expected: &AggregateExpr{
+			Op:      itemSum,
+			Without: true,
+			Expr: &VectorSelector{
+				Name: "some_metric",
+				LabelMatchers: metric.LabelMatchers{
+					{Type: metric.Equal, Name: model.MetricNameLabel, Value: "some_metric"},
+				},
+			},
+			Grouping: model.LabelNames{"foo"},
+		},
+	}, {
+		input: "sum (some_metric) without (foo)",
+		expected: &AggregateExpr{
+			Op:      itemSum,
+			Without: true,
+			Expr: &VectorSelector{
+				Name: "some_metric",
+				LabelMatchers: metric.LabelMatchers{
+					{Type: metric.Equal, Name: model.MetricNameLabel, Value: "some_metric"},
+				},
+			},
+			Grouping: model.LabelNames{"foo"},
+		},
+	}, {
 		input: "stddev(some_metric)",
 		expected: &AggregateExpr{
 			Op: itemStddev,
@@ -901,10 +935,6 @@ var testExpr = []struct {
 		fail:   true,
 		errMsg: "unexpected identifier \"test\" in grouping opts, expected \"(\"",
 	}, {
-		input:  `some_metric[5m] OFFSET`,
-		fail:   true,
-		errMsg: "unexpected end of input in matrix selector, expected duration",
-	}, {
 		input:  `sum () by (test)`,
 		fail:   true,
 		errMsg: "no valid expression found",
@@ -916,6 +946,18 @@ var testExpr = []struct {
 		input:  "MIN by(test) (some_metric) keep_common",
 		fail:   true,
 		errMsg: "could not parse remaining input \"keep_common\"...",
+	}, {
+		input:  `sum (some_metric) without (test) keep_common`,
+		fail:   true,
+		errMsg: "cannot use 'keep_common' with 'without'",
+	}, {
+		input:  `sum (some_metric) without (test) by (test)`,
+		fail:   true,
+		errMsg: "could not parse remaining input \"by (test)\"...",
+	}, {
+		input:  `sum without (test) (some_metric) by (test)`,
+		fail:   true,
+		errMsg: "could not parse remaining input \"by (test)\"...",
 	},
 	// Test function calls.
 	{
@@ -1147,21 +1189,26 @@ var testStatement = []struct {
 		input: `
 			# A simple test recording rule.
 			dc:http_request:rate5m = sum(rate(http_request_count[5m])) by (dc)
-	
+
 			# A simple test alerting rule.
-			ALERT GlobalRequestRateLow IF(dc:http_request:rate5m < 10000) FOR 5m WITH {
+			ALERT GlobalRequestRateLow IF(dc:http_request:rate5m < 10000) FOR 5m
+			  LABELS {
 			    service = "testservice"
 			    # ... more fields here ...
 			  }
-			  SUMMARY "Global request rate low"
-			  DESCRIPTION "The global request rate is low"
+			  ANNOTATIONS {
+			    summary     = "Global request rate low",
+			    description = "The global request rate is low"
+			  }
 
 			foo = bar{label1="value1"}
 
 			ALERT BazAlert IF foo > 10
-			  DESCRIPTION "BazAlert"
-			  RUNBOOK     "http://my.url"
-			  SUMMARY     "Baz"
+			  ANNOTATIONS {
+			    description = "BazAlert",
+			    runbook     = "http://my.url",
+			    summary     = "Baz",
+			  }
 		`,
 		expected: Statements{
 			&RecordStmt{
@@ -1196,10 +1243,12 @@ var testStatement = []struct {
 					},
 					RHS: &NumberLiteral{10000},
 				}},
-				Labels:      model.LabelSet{"service": "testservice"},
-				Duration:    5 * time.Minute,
-				Summary:     "Global request rate low",
-				Description: "The global request rate is low",
+				Labels:   model.LabelSet{"service": "testservice"},
+				Duration: 5 * time.Minute,
+				Annotations: model.LabelSet{
+					"summary":     "Global request rate low",
+					"description": "The global request rate is low",
+				},
 			},
 			&RecordStmt{
 				Name: "foo",
@@ -1224,10 +1273,12 @@ var testStatement = []struct {
 					},
 					RHS: &NumberLiteral{10},
 				},
-				Labels:      model.LabelSet{},
-				Summary:     "Baz",
-				Description: "BazAlert",
-				Runbook:     "http://my.url",
+				Labels: model.LabelSet{},
+				Annotations: model.LabelSet{
+					"summary":     "Baz",
+					"description": "BazAlert",
+					"runbook":     "http://my.url",
+				},
 			},
 		},
 	}, {
@@ -1247,7 +1298,8 @@ var testStatement = []struct {
 			},
 		},
 	}, {
-		input: `ALERT SomeName IF some_metric > 1 
+		input: `ALERT SomeName IF some_metric > 1
+			WITH {}
 			SUMMARY "Global request rate low"
 			DESCRIPTION "The global request rate is low"
 		`,
@@ -1264,20 +1316,53 @@ var testStatement = []struct {
 					},
 					RHS: &NumberLiteral{1},
 				},
-				Labels:      model.LabelSet{},
-				Summary:     "Global request rate low",
-				Description: "The global request rate is low",
+				Labels: model.LabelSet{},
+				Annotations: model.LabelSet{
+					"summary":     "Global request rate low",
+					"description": "The global request rate is low",
+				},
+			},
+		},
+	}, {
+		input: `ALERT SomeName IF some_metric > 1
+			LABELS {}
+			ANNOTATIONS {
+				summary = "Global request rate low",
+				description = "The global request rate is low",
+			}
+		`,
+		expected: Statements{
+			&AlertStmt{
+				Name: "SomeName",
+				Expr: &BinaryExpr{
+					Op: itemGTR,
+					LHS: &VectorSelector{
+						Name: "some_metric",
+						LabelMatchers: metric.LabelMatchers{
+							{Type: metric.Equal, Name: model.MetricNameLabel, Value: "some_metric"},
+						},
+					},
+					RHS: &NumberLiteral{1},
+				},
+				Labels: model.LabelSet{},
+				Annotations: model.LabelSet{
+					"summary":     "Global request rate low",
+					"description": "The global request rate is low",
+				},
 			},
 		},
 	}, {
 		input: `
 			# A simple test alerting rule.
-			ALERT GlobalRequestRateLow IF(dc:http_request:rate5m < 10000) FOR 5 WITH {
+			ALERT GlobalRequestRateLow IF(dc:http_request:rate5m < 10000) FOR 5
+			  LABELS {
 			    service = "testservice"
-			    # ... more fields here ... 
+			    # ... more fields here ...
 			  }
-			  SUMMARY "Global request rate low"
-			  DESCRIPTION "The global request rate is low"
+			  ANNOTATIONS {
+			    summary = "Global request rate low"
+			    description = "The global request rate is low"
+			  }
 	  	`,
 		fail: true,
 	}, {
@@ -1317,22 +1402,6 @@ var testStatement = []struct {
 	}, {
 		input: `foo{a!~"b"} = bar`,
 		fail:  true,
-	}, {
-		input: `ALERT SomeName IF time() WITH {} 
-			SUMMARY "Global request rate low"
-			DESCRIPTION "The global request rate is low"
-		`,
-		fail: true,
-	}, {
-		input: `ALERT SomeName IF some_metric > 1 WITH {} 
-			SUMMARY "Global request rate low"
-		`,
-		fail: true,
-	}, {
-		input: `ALERT SomeName IF some_metric > 1 
-			DESCRIPTION "The global request rate is low"
-		`,
-		fail: true,
 	},
 	// Fuzzing regression tests.
 	{
