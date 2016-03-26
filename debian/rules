@@ -8,7 +8,7 @@ export DH_VERBOSE=1
 # Using it allows us to build applications without patching locations.
 export DH_GOPKG := github.com/prometheus/prometheus
 
-#export DH_GOLANG_EXCLUDES := web/blob
+#export DH_GOLANG_EXCLUDES := web/ui
 
 BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
     'print Debian::Debhelper::Buildsystem::golang->new()->get_builddir()')
@@ -76,9 +76,9 @@ override_dh_auto_install:
 	rm -r debian/prometheus/usr/share/gocode
 	# Build and install datetimepicker.
 	mkdir -vp $(WEB_VENDORED_DIR)/bootstrap-datetimepicker
-	lessc web/blob/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
+	lessc web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
             $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
-	cp -v web/blob/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
+	cp -v web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
             $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/
 
 gen-orig-tgz:

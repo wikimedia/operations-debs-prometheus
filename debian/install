@@ -1,11 +1,11 @@
 debian/prometheus.yml   etc/prometheus/
 debian/README.consoles  etc/prometheus/console_libraries
 debian/README.consoles  etc/prometheus/consoles
-web/blob/templates/     usr/share/prometheus/web/
-web/blob/static/css/    usr/share/prometheus/web/static
-web/blob/static/img/    usr/share/prometheus/web/static
-web/blob/static/js/     usr/share/prometheus/web/static
+web/ui/templates/       usr/share/prometheus/web/
+web/ui/static/css/      usr/share/prometheus/web/static
+web/ui/static/img/      usr/share/prometheus/web/static
+web/ui/static/js/       usr/share/prometheus/web/static
 #
-web/blob/static/vendor/bootstrap3-typeahead  usr/share/prometheus/web/static/vendor
-web/blob/static/vendor/jquery                usr/share/prometheus/web/static/vendor
-web/blob/static/vendor/js                    usr/share/prometheus/web/static/vendor
+web/ui/static/vendor/bootstrap3-typeahead  usr/share/prometheus/web/static/vendor
+web/ui/static/vendor/jquery                usr/share/prometheus/web/static/vendor
+web/ui/static/vendor/js                    usr/share/prometheus/web/static/vendor

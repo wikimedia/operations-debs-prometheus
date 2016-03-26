@@ -1,16 +1,6 @@
---- a/retrieval/target_test.go
-+++ b/retrieval/target_test.go
-@@ -140,6 +140,7 @@
- }
- 
- func TestTargetScrapeWithFullChannel(t *testing.T) {
-+	t.Skip("Skipping time-dependant test.")
- 	server := httptest.NewServer(
- 		http.HandlerFunc(
- 			func(w http.ResponseWriter, r *http.Request) {
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1164,6 +1164,7 @@
+@@ -1167,6 +1167,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunkEncoding) {
