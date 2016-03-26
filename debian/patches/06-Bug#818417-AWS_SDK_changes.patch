@@ -1,0 +1,32 @@
+# Changes related to golang-github-aws-aws-sdk-go latest upload
+# Patch by Filippo Giunchedi <filippo@debian.org>
+
+--- a/retrieval/discovery/ec2.go
++++ b/retrieval/discovery/ec2.go
+@@ -20,7 +20,7 @@
+ 
+ 	"github.com/aws/aws-sdk-go/aws"
+ 	"github.com/aws/aws-sdk-go/aws/credentials"
+-	"github.com/aws/aws-sdk-go/aws/defaults"
++	"github.com/aws/aws-sdk-go/aws/session"
+ 	"github.com/prometheus/common/log"
+ 	"github.com/prometheus/common/model"
+ 
+@@ -55,7 +55,7 @@
+ func NewEC2Discovery(conf *config.EC2SDConfig) *EC2Discovery {
+ 	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
+ 	if conf.AccessKey == "" && conf.SecretKey == "" {
+-		creds = defaults.DefaultChainCredentials
++		creds = credentials.NewEnvCredentials()
+ 	}
+ 	return &EC2Discovery{
+ 		aws: &aws.Config{
+@@ -104,7 +104,7 @@
+ }
+ 
+ func (ed *EC2Discovery) refresh() (*config.TargetGroup, error) {
+-	ec2s := ec2.New(ed.aws)
++	ec2s := ec2.New(session.New(), ed.aws)
+ 	tg := &config.TargetGroup{
+ 		Source: *ed.aws.Region,
+ 	}
