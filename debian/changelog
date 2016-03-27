@@ -1,4 +1,4 @@
-prometheus (0.17.0+ds-1) UNRELEASED; urgency=medium
+prometheus (0.17.0+ds-1) unstable; urgency=medium
 
   * New upstream release.
   * debian/init: sleep longer when stopping the daemon.
@@ -11,7 +11,7 @@ prometheus (0.17.0+ds-1) UNRELEASED; urgency=medium
     patch. Closes: #817403.
   * debian/default: Update default values and help text.
 
- -- Martín Ferrari <tincho@debian.org>  Sat, 26 Mar 2016 01:44:36 +0000
+ -- Martín Ferrari <tincho@debian.org>  Sat, 26 Mar 2016 05:50:45 +0000
 
 prometheus (0.16.2+ds-1) unstable; urgency=high
 
