@@ -6,7 +6,7 @@ Uploaders: Martín Ferrari <tincho@debian.org>
 Build-Depends: adduser, debhelper (>= 9.0.0),
                dh-golang,
                golang-dns-dev,
-               golang-fsnotify-dev,
+               golang-fsnotify-dev [!arm64 !ppc64el !ppc64],
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev,
                golang-github-julienschmidt-httprouter-dev,
