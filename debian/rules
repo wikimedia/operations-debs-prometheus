@@ -35,7 +35,7 @@ BUILDFLAGS := -ldflags \
 
 # Avoid some tests that fail on slow architectures.
 ifeq ($(DEB_HOST_ARCH_CPU),arm)
-SKIP_TESTS :=
+SKIP_TESTS := github.com/prometheus/prometheus/retrieval
 SHORT_TESTS := -short
 else
 SKIP_TESTS :=
