@@ -1,9 +1,9 @@
-prometheus (0.17.0+ds-3) UNRELEASED; urgency=medium
+prometheus (0.17.0+ds-3) unstable; urgency=medium
 
   * Completely disable fsnofity in arm64, ppc64, and ppc64el, as it is broken
     in these architectures.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 28 Mar 2016 21:49:09 +0100
+ -- Martín Ferrari <tincho@debian.org>  Mon, 28 Mar 2016 21:50:05 +0100
 
 prometheus (0.17.0+ds-2) unstable; urgency=medium
 
