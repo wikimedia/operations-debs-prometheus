@@ -38,7 +38,7 @@
             <tr>
               <th>Endpoint</th>
               <th>State</th>
-              <th>Base Labels</th>
+              <th>Labels</th>
               <th>Last Scrape</th>
               <th>Error</th>
             </tr>
@@ -55,28 +55,26 @@
                 {{end}}
               </td>
               <td>
-                <span class="alert alert-{{ .Status.Health | healthToClass }} state_indicator text-uppercase">
-                  {{.Status.Health}}
+                <span class="alert alert-{{ .Health | healthToClass }} state_indicator text-uppercase">
+                  {{.Health}}
                 </span>
               </td>
               <td>
                 <span class="cursor-pointer" data-toggle="tooltip" title="" data-original-title="Before relabeling: {{.MetaLabels}}">
-                  {{$baseLabels := stripLabels .BaseLabels "job" "instance"}}
-                  {{if $baseLabels}}
-                    {{range $label, $value := $baseLabels}}
-                      <span class="label label-primary">{{$label}}="{{$value}}"</span>
-                    {{end}}
+                  {{$labels := stripLabels .Labels "job" "instance"}}
+                  {{range $label, $value := $labels}}
+                    <span class="label label-primary">{{$label}}="{{$value}}"</span>
                   {{else}}
                     <span class="label label-default">none</span>
                   {{end}}
                 </span>
               </td>
               <td>
-                {{if .Status.LastScrape.IsZero}}Never{{else}}{{since .Status.LastScrape}} ago{{end}}
+                {{if .LastScrape.IsZero}}Never{{else}}{{since .LastScrape}} ago{{end}}
               </td>
               <td>
-                {{if .Status.LastError}}
-                <span class="alert alert-danger state_indicator">{{.Status.LastError}}</span>
+                {{if .LastError}}
+                <span class="alert alert-danger state_indicator">{{.LastError}}</span>
                 {{end}}
               </td>
             </tr>
