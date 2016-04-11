@@ -48,7 +48,7 @@ func (e *ParseErr) Error() string {
 	return fmt.Sprintf("parse error at line %d, char %d: %s", e.Line, e.Pos, e.Err)
 }
 
-// ParseStmts parses the input and returns the resulting statements or any ocurring error.
+// ParseStmts parses the input and returns the resulting statements or any occuring error.
 func ParseStmts(input string) (Statements, error) {
 	p := newParser(input)
 
@@ -384,57 +384,17 @@ func (p *parser) alertStmt() *AlertStmt {
 		}
 	}
 
-	// Accepting WITH instead of LABELS is temporary compatibility
-	// with the old alerting syntax.
 	var (
-		hasLabels   bool
-		oldSyntax   bool
 		labels      = model.LabelSet{}
 		annotations = model.LabelSet{}
 	)
-	if t := p.peek().typ; t == itemLabels {
+	if p.peek().typ == itemLabels {
 		p.expect(itemLabels, ctx)
 		labels = p.labelSet()
-		hasLabels = true
-	} else if t == itemWith {
-		p.expect(itemWith, ctx)
-		labels = p.labelSet()
-		oldSyntax = true
 	}
-
-	// Only allow old annotation syntax if new label syntax isn't used.
-	if !hasLabels {
-	Loop:
-		for {
-			switch p.next().typ {
-			case itemSummary:
-				annotations["summary"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
-
-			case itemDescription:
-				annotations["description"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
-
-			case itemRunbook:
-				annotations["runbook"] = model.LabelValue(p.unquoteString(p.expect(itemString, ctx).val))
-
-			default:
-				p.backup()
-				break Loop
-			}
-		}
-		if len(annotations) > 0 {
-			oldSyntax = true
-		}
-	}
-
-	// Only allow new annotation syntax if WITH or old annotation
-	// syntax weren't used.
-	if !oldSyntax {
-		if p.peek().typ == itemAnnotations {
-			p.expect(itemAnnotations, ctx)
-			annotations = p.labelSet()
-		}
-	} else {
-		log.Warnf("Alerting rule with old syntax found. Support for this syntax will be removed with 0.18. Please update to the new syntax.")
+	if p.peek().typ == itemAnnotations {
+		p.expect(itemAnnotations, ctx)
+		annotations = p.labelSet()
 	}
 
 	return &AlertStmt{
@@ -487,7 +447,7 @@ func (p *parser) expr() Expr {
 		vecMatching := &VectorMatching{
 			Card: CardOneToOne,
 		}
-		if op == itemLAND || op == itemLOR {
+		if op.isSetOperator() {
 			vecMatching.Card = CardManyToMany
 		}
 
@@ -529,36 +489,35 @@ func (p *parser) expr() Expr {
 		// Parse the next operand.
 		rhs := p.unaryExpr()
 
-		// Assign the new root based on the precendence of the LHS and RHS operators.
-		if lhs, ok := expr.(*BinaryExpr); ok && lhs.Op.precedence() < op.precedence() {
-			expr = &BinaryExpr{
-				Op:  lhs.Op,
-				LHS: lhs.LHS,
-				RHS: &BinaryExpr{
-					Op:             op,
-					LHS:            lhs.RHS,
-					RHS:            rhs,
-					VectorMatching: vecMatching,
-					ReturnBool:     returnBool,
-				},
-				VectorMatching: lhs.VectorMatching,
-			}
-			if op.isComparisonOperator() && !returnBool && rhs.Type() == model.ValScalar && lhs.RHS.Type() == model.ValScalar {
-				p.errorf("comparisons between scalars must use BOOL modifier")
-			}
-		} else {
-			expr = &BinaryExpr{
-				Op:             op,
-				LHS:            expr,
-				RHS:            rhs,
-				VectorMatching: vecMatching,
-				ReturnBool:     returnBool,
-			}
-			if op.isComparisonOperator() && !returnBool && rhs.Type() == model.ValScalar && expr.Type() == model.ValScalar {
-				p.errorf("comparisons between scalars must use BOOL modifier")
-			}
-		}
+		// Assign the new root based on the precedence of the LHS and RHS operators.
+		expr = p.balance(expr, op, rhs, vecMatching, returnBool)
+	}
+}
 
+func (p *parser) balance(lhs Expr, op itemType, rhs Expr, vecMatching *VectorMatching, returnBool bool) *BinaryExpr {
+	if lhsBE, ok := lhs.(*BinaryExpr); ok && lhsBE.Op.precedence() < op.precedence() {
+		balanced := p.balance(lhsBE.RHS, op, rhs, vecMatching, returnBool)
+		if lhsBE.Op.isComparisonOperator() && !lhsBE.ReturnBool && balanced.Type() == model.ValScalar && lhsBE.LHS.Type() == model.ValScalar {
+			p.errorf("comparisons between scalars must use BOOL modifier")
+		}
+		return &BinaryExpr{
+			Op:             lhsBE.Op,
+			LHS:            lhsBE.LHS,
+			RHS:            balanced,
+			VectorMatching: lhsBE.VectorMatching,
+			ReturnBool:     lhsBE.ReturnBool,
+		}
+	} else {
+		if op.isComparisonOperator() && !returnBool && rhs.Type() == model.ValScalar && lhs.Type() == model.ValScalar {
+			p.errorf("comparisons between scalars must use BOOL modifier")
+		}
+		return &BinaryExpr{
+			Op:             op,
+			LHS:            lhs,
+			RHS:            rhs,
+			VectorMatching: vecMatching,
+			ReturnBool:     returnBool,
+		}
 	}
 }
 
@@ -966,8 +925,6 @@ func (p *parser) offset() time.Duration {
 //		[<metric_identifier>] <label_matchers>
 //
 func (p *parser) vectorSelector(name string) *VectorSelector {
-	const ctx = "metric selector"
-
 	var matchers metric.LabelMatchers
 	// Parse label matching if any.
 	if t := p.peek(); t.typ == itemLeftBrace {
@@ -1083,7 +1040,7 @@ func (p *parser) checkType(node Node) (typ model.ValueType) {
 		rt := p.checkType(n.RHS)
 
 		if !n.Op.isOperator() {
-			p.errorf("only logical and arithmetic operators allowed in binary expression, got %q", n.Op)
+			p.errorf("binary expression does not support operator %q", n.Op)
 		}
 		if (lt != model.ValScalar && lt != model.ValVector) || (rt != model.ValScalar && rt != model.ValVector) {
 			p.errorf("binary expression must contain only scalar and vector types")
@@ -1096,18 +1053,18 @@ func (p *parser) checkType(node Node) (typ model.ValueType) {
 			n.VectorMatching = nil
 		} else {
 			// Both operands are vectors.
-			if n.Op == itemLAND || n.Op == itemLOR {
+			if n.Op.isSetOperator() {
 				if n.VectorMatching.Card == CardOneToMany || n.VectorMatching.Card == CardManyToOne {
-					p.errorf("no grouping allowed for AND and OR operations")
+					p.errorf("no grouping allowed for %q operation", n.Op)
 				}
 				if n.VectorMatching.Card != CardManyToMany {
-					p.errorf("AND and OR operations must always be many-to-many")
+					p.errorf("set operations must always be many-to-many")
 				}
 			}
 		}
 
-		if (lt == model.ValScalar || rt == model.ValScalar) && (n.Op == itemLAND || n.Op == itemLOR) {
-			p.errorf("AND and OR not allowed in binary scalar expression")
+		if (lt == model.ValScalar || rt == model.ValScalar) && n.Op.isSetOperator() {
+			p.errorf("set operator %q not allowed in binary scalar expression", n.Op)
 		}
 
 	case *Call:

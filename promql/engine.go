@@ -575,15 +575,6 @@ func (ev *evaluator) evalMatrix(e Expr) matrix {
 	return mat
 }
 
-// evalMatrixBounds attempts to evaluate e to matrix boundaries and errors otherwise.
-func (ev *evaluator) evalMatrixBounds(e Expr) matrix {
-	ms, ok := e.(*MatrixSelector)
-	if !ok {
-		ev.errorf("matrix bounds can only be evaluated for matrix selectors, got %T", e)
-	}
-	return ev.matrixSelectorBounds(ms)
-}
-
 // evalString attempts to evaluate e to a string value and errors otherwise.
 func (ev *evaluator) evalString(e Expr) *model.String {
 	val := ev.eval(e)
@@ -638,6 +629,8 @@ func (ev *evaluator) eval(expr Expr) model.Value {
 				return ev.vectorAnd(lhs.(vector), rhs.(vector), e.VectorMatching)
 			case itemLOR:
 				return ev.vectorOr(lhs.(vector), rhs.(vector), e.VectorMatching)
+			case itemLUnless:
+				return ev.vectorUnless(lhs.(vector), rhs.(vector), e.VectorMatching)
 			default:
 				return ev.vectorBinop(e.Op, lhs.(vector), rhs.(vector), e.VectorMatching, e.ReturnBool)
 			}
@@ -688,15 +681,16 @@ func (ev *evaluator) eval(expr Expr) model.Value {
 func (ev *evaluator) vectorSelector(node *VectorSelector) vector {
 	vec := vector{}
 	for fp, it := range node.iterators {
-		sampleCandidates := it.ValueAtTime(ev.Timestamp.Add(-node.Offset))
-		samplePair := chooseClosestBefore(sampleCandidates, ev.Timestamp.Add(-node.Offset))
-		if samplePair != nil {
-			vec = append(vec, &sample{
-				Metric:    node.metrics[fp],
-				Value:     samplePair.Value,
-				Timestamp: ev.Timestamp,
-			})
+		refTime := ev.Timestamp.Add(-node.Offset)
+		samplePair := it.ValueAtOrBeforeTime(refTime)
+		if samplePair.Timestamp.Before(refTime.Add(-StalenessDelta)) {
+			continue // Sample outside of staleness policy window.
 		}
+		vec = append(vec, &sample{
+			Metric:    node.metrics[fp],
+			Value:     samplePair.Value,
+			Timestamp: ev.Timestamp,
+		})
 	}
 	return vec
 }
@@ -730,34 +724,10 @@ func (ev *evaluator) matrixSelector(node *MatrixSelector) matrix {
 	return matrix(sampleStreams)
 }
 
-// matrixSelectorBounds evaluates the boundaries of a *MatrixSelector.
-func (ev *evaluator) matrixSelectorBounds(node *MatrixSelector) matrix {
-	interval := metric.Interval{
-		OldestInclusive: ev.Timestamp.Add(-node.Range - node.Offset),
-		NewestInclusive: ev.Timestamp.Add(-node.Offset),
-	}
-
-	sampleStreams := make([]*sampleStream, 0, len(node.iterators))
-	for fp, it := range node.iterators {
-		samplePairs := it.BoundaryValues(interval)
-		if len(samplePairs) == 0 {
-			continue
-		}
-
-		ss := &sampleStream{
-			Metric: node.metrics[fp],
-			Values: samplePairs,
-		}
-		sampleStreams = append(sampleStreams, ss)
-	}
-	return matrix(sampleStreams)
-}
-
 func (ev *evaluator) vectorAnd(lhs, rhs vector, matching *VectorMatching) vector {
 	if matching.Card != CardManyToMany {
-		panic("logical operations must always be many-to-many matching")
+		panic("set operations must only use many-to-many matching")
 	}
-	// If no matching labels are specified, match by all labels.
 	sigf := signatureFunc(matching.On...)
 
 	var result vector
@@ -779,7 +749,7 @@ func (ev *evaluator) vectorAnd(lhs, rhs vector, matching *VectorMatching) vector
 
 func (ev *evaluator) vectorOr(lhs, rhs vector, matching *VectorMatching) vector {
 	if matching.Card != CardManyToMany {
-		panic("logical operations must always be many-to-many matching")
+		panic("set operations must only use many-to-many matching")
 	}
 	sigf := signatureFunc(matching.On...)
 
@@ -799,10 +769,30 @@ func (ev *evaluator) vectorOr(lhs, rhs vector, matching *VectorMatching) vector 
 	return result
 }
 
-// vectorBinop evaluates a binary operation between two vector, excluding AND and OR.
+func (ev *evaluator) vectorUnless(lhs, rhs vector, matching *VectorMatching) vector {
+	if matching.Card != CardManyToMany {
+		panic("set operations must only use many-to-many matching")
+	}
+	sigf := signatureFunc(matching.On...)
+
+	rightSigs := map[uint64]struct{}{}
+	for _, rs := range rhs {
+		rightSigs[sigf(rs.Metric)] = struct{}{}
+	}
+
+	var result vector
+	for _, ls := range lhs {
+		if _, ok := rightSigs[sigf(ls.Metric)]; !ok {
+			result = append(result, ls)
+		}
+	}
+	return result
+}
+
+// vectorBinop evaluates a binary operation between two vectors, excluding set operators.
 func (ev *evaluator) vectorBinop(op itemType, lhs, rhs vector, matching *VectorMatching, returnBool bool) vector {
 	if matching.Card == CardManyToMany {
-		panic("many-to-many only allowed for AND and OR")
+		panic("many-to-many only allowed for set operators")
 	}
 	var (
 		result       = vector{}
@@ -868,7 +858,7 @@ func (ev *evaluator) vectorBinop(op itemType, lhs, rhs vector, matching *VectorM
 			if exists {
 				ev.errorf("multiple matches for labels: many-to-one matching must be explicit (group_left/group_right)")
 			}
-			matchedSigs[sig] = nil // Set existance to true.
+			matchedSigs[sig] = nil // Set existence to true.
 		} else {
 			// In many-to-one matching the grouping labels have to ensure a unique metric
 			// for the result vector. Check whether those labels have already been added for
@@ -915,7 +905,7 @@ func resultMetric(met metric.Metric, op itemType, labels ...model.LabelName) met
 		}
 		return met
 	}
-	// As we definitly write, creating a new metric is the easiest solution.
+	// As we definitely write, creating a new metric is the easiest solution.
 	m := model.Metric{}
 	for _, ln := range labels {
 		// Included labels from the `group_x` modifier are taken from the "many"-side.
@@ -1167,23 +1157,6 @@ func shouldDropMetricName(op itemType) bool {
 // StalenessDelta determines the time since the last sample after which a time
 // series is considered stale.
 var StalenessDelta = 5 * time.Minute
-
-// chooseClosestBefore chooses the closest sample of a list of samples
-// before or at a given target time.
-func chooseClosestBefore(samples []model.SamplePair, timestamp model.Time) *model.SamplePair {
-	for _, candidate := range samples {
-		delta := candidate.Timestamp.Sub(timestamp)
-		// Samples before or at target time.
-		if delta <= 0 {
-			// Ignore samples outside of staleness policy window.
-			if -delta > StalenessDelta {
-				continue
-			}
-			return &candidate
-		}
-	}
-	return nil
-}
 
 // A queryGate controls the maximum number of concurrently running and waiting queries.
 type queryGate struct {
