@@ -11,7 +11,7 @@
 +	"github.com/aws/aws-sdk-go/aws/session"
  	"github.com/prometheus/common/log"
  	"github.com/prometheus/common/model"
- 
+ 	"golang.org/x/net/context"
 @@ -55,7 +55,7 @@
  func NewEC2Discovery(conf *config.EC2SDConfig) *EC2Discovery {
  	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
@@ -21,7 +21,7 @@
  	}
  	return &EC2Discovery{
  		aws: &aws.Config{
-@@ -104,7 +104,7 @@
+@@ -98,7 +98,7 @@
  }
  
  func (ed *EC2Discovery) refresh() (*config.TargetGroup, error) {

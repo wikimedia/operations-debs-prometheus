@@ -1,6 +1,6 @@
 --- a/web/federate.go
 +++ b/web/federate.go
-@@ -24,7 +24,7 @@
+@@ -23,7 +23,7 @@
  	"github.com/prometheus/common/expfmt"
  	"github.com/prometheus/common/model"
  
