@@ -83,7 +83,7 @@ var expectedConf = &Config{
 
 			RelabelConfigs: []*RelabelConfig{
 				{
-					SourceLabels: model.LabelNames{"job", "__meta_dns_srv_name"},
+					SourceLabels: model.LabelNames{"job", "__meta_dns_name"},
 					TargetLabel:  "job",
 					Separator:    ";",
 					Regex:        MustNewRegexp("(.*)some-[regex]"),
@@ -335,6 +335,9 @@ var expectedErrors = []struct {
 	}, {
 		filename: "jobname_dup.bad.yml",
 		errMsg:   `found multiple scrape configs with job name "prometheus"`,
+	}, {
+		filename: "scrape_interval.bad.yml",
+		errMsg:   `scrape timeout greater than scrape interval`,
 	}, {
 		filename: "labelname.bad.yml",
 		errMsg:   `"not$allowed" is not a valid label name`,

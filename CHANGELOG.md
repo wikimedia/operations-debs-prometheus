@@ -1,3 +1,20 @@
+## 0.18.0rc1 / 2016-04-07
+
+* [BUGFIX] Fix operator precedence in PromQL
+* [CHANGE/BUGFIX] Target identity considers path and parameters additionally to host and port
+* [CHANGE] Rename metric `prometheus_local_storage_invalid_preload_requests_total` to `prometheus_local_storage_non_existent_series_matches_total`
+* [FEATURE] Deduplicate targets within the same scrape job
+* [FEATURE] Add varbit chunk encoding (higher compression, more CPU usage – disabled by default)
+* [FEATURE] Add `holt_winters` query function
+* [FEATURE] Add relative complement `unless` operator to PromQL
+* [ENHANCEMENT] Quarantine series file if data corruption is encountered (instead of crashing)
+* [ENHANCEMENT] Validate Alertmanager URL
+* [ENHANCEMENT] Use UTC for build timestamp
+* [ENHANCEMENT] Improve index query performance (especially for active time series)
+* [ENHANCEMENT] Instrument configuration reload duration
+* [ENHANCEMENT] Instrument retrieval layer
+* [ENHANCEMENT] Add Go version to `prometheus_build_info` metric
+
 ## 0.17.0 / 2016-03-02
 
 This version no longer works with Alertmanager 0.0.4 and earlier!
@@ -5,10 +22,7 @@ The alerting rule syntax has changed as well but the old syntax is supported
 up until version 0.18.
 
 All regular expressions in PromQL are anchored now, matching the behavior of
-regular expressions in config files. Expressions in rules, alerts or dashboards
-need to be changed if they don't match the full value so far (for example
-`http_requests_total{status=~"^5"}` won't match anything anymore and needs to
-be changed to `http_requests_total{status=~"5.."}`).
+regular expressions in config files.
 
 * [CHANGE] Integrate with Alertmanager 0.1.0 and higher
 * [CHANGE] Degraded storage mode renamed to rushed mode

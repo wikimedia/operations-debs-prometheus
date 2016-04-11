@@ -16,6 +16,7 @@ package local
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -30,8 +31,9 @@ import (
 )
 
 const (
-	evictRequestsCap = 1024
-	chunkLen         = 1024
+	evictRequestsCap      = 1024
+	quarantineRequestsCap = 1024
+	chunkLen              = 1024
 
 	// See waitForNextFP.
 	fpMaxSweepTime    = 6 * time.Hour
@@ -75,6 +77,12 @@ var (
 type evictRequest struct {
 	cd    *chunkDesc
 	evict bool
+}
+
+type quarantineRequest struct {
+	fp     model.Fingerprint
+	metric model.Metric
+	reason error
 }
 
 // SyncStrategy is an enum to select a sync strategy for series files.
@@ -121,12 +129,13 @@ const (
 type syncStrategy func() bool
 
 type memorySeriesStorage struct {
-	// numChunksToPersist has to be aligned for atomic operations.
-	numChunksToPersist int64         // The number of chunks waiting for persistence.
-	maxChunksToPersist int           // If numChunksToPersist reaches this threshold, ingestion will be throttled.
-	rushed             bool          // Whether the storage is in rushed mode.
-	rushedMtx          sync.Mutex    // Protects entering and exiting rushed mode.
-	throttled          chan struct{} // This chan is sent to whenever NeedsThrottling() returns true (for logging).
+	// archiveHighWatermark and numChunksToPersist have to be aligned for atomic operations.
+	archiveHighWatermark model.Time    // No archived series has samples after this time.
+	numChunksToPersist   int64         // The number of chunks waiting for persistence.
+	maxChunksToPersist   int           // If numChunksToPersist reaches this threshold, ingestion will be throttled.
+	rushed               bool          // Whether the storage is in rushed mode.
+	rushedMtx            sync.Mutex    // Protects entering and exiting rushed mode.
+	throttled            chan struct{} // This chan is sent to whenever NeedsThrottling() returns true (for logging).
 
 	fpLocker   *fingerprintLocker
 	fpToSeries *seriesMap
@@ -134,6 +143,7 @@ type memorySeriesStorage struct {
 	options *MemorySeriesStorageOptions
 
 	loopStopping, loopStopped  chan struct{}
+	logThrottlingStopped       chan struct{}
 	maxMemoryChunks            int
 	dropAfter                  time.Duration
 	checkpointInterval         time.Duration
@@ -146,15 +156,18 @@ type memorySeriesStorage struct {
 	evictRequests               chan evictRequest
 	evictStopping, evictStopped chan struct{}
 
-	persistErrors               prometheus.Counter
-	numSeries                   prometheus.Gauge
-	seriesOps                   *prometheus.CounterVec
-	ingestedSamplesCount        prometheus.Counter
-	outOfOrderSamplesCount      prometheus.Counter
-	invalidPreloadRequestsCount prometheus.Counter
-	maintainSeriesDuration      *prometheus.SummaryVec
-	persistenceUrgencyScore     prometheus.Gauge
-	rushedMode                  prometheus.Gauge
+	quarantineRequests                    chan quarantineRequest
+	quarantineStopping, quarantineStopped chan struct{}
+
+	persistErrors                 prometheus.Counter
+	numSeries                     prometheus.Gauge
+	seriesOps                     *prometheus.CounterVec
+	ingestedSamplesCount          prometheus.Counter
+	outOfOrderSamplesCount        prometheus.Counter
+	nonExistentSeriesMatchesCount prometheus.Counter
+	maintainSeriesDuration        *prometheus.SummaryVec
+	persistenceUrgencyScore       prometheus.Gauge
+	rushedMode                    prometheus.Gauge
 }
 
 // MemorySeriesStorageOptions contains options needed by
@@ -183,11 +196,13 @@ func NewMemorySeriesStorage(o *MemorySeriesStorageOptions) Storage {
 
 		loopStopping:               make(chan struct{}),
 		loopStopped:                make(chan struct{}),
+		logThrottlingStopped:       make(chan struct{}),
 		throttled:                  make(chan struct{}, 1),
 		maxMemoryChunks:            o.MemoryChunks,
 		dropAfter:                  o.PersistenceRetentionPeriod,
 		checkpointInterval:         o.CheckpointInterval,
 		checkpointDirtySeriesLimit: o.CheckpointDirtySeriesLimit,
+		archiveHighWatermark:       model.Now().Add(-headChunkTimeout),
 
 		maxChunksToPersist: o.MaxChunksToPersist,
 
@@ -195,6 +210,10 @@ func NewMemorySeriesStorage(o *MemorySeriesStorageOptions) Storage {
 		evictRequests: make(chan evictRequest, evictRequestsCap),
 		evictStopping: make(chan struct{}),
 		evictStopped:  make(chan struct{}),
+
+		quarantineRequests: make(chan quarantineRequest, quarantineRequestsCap),
+		quarantineStopping: make(chan struct{}),
+		quarantineStopped:  make(chan struct{}),
 
 		persistErrors: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -229,11 +248,11 @@ func NewMemorySeriesStorage(o *MemorySeriesStorageOptions) Storage {
 			Name:      "out_of_order_samples_total",
 			Help:      "The total number of samples that were discarded because their timestamps were at or before the last received sample for a series.",
 		}),
-		invalidPreloadRequestsCount: prometheus.NewCounter(prometheus.CounterOpts{
+		nonExistentSeriesMatchesCount: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
-			Name:      "invalid_preload_requests_total",
-			Help:      "The total number of preload requests referring to a non-existent series. This is an indication of outdated label indexes.",
+			Name:      "non_existent_series_matches_total",
+			Help:      "How often a non-existent series was referred to during label matching or chunk preloading. This is an indication of outdated label indexes.",
 		}),
 		maintainSeriesDuration: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
@@ -310,6 +329,7 @@ func (s *memorySeriesStorage) Start() (err error) {
 	}
 
 	go s.handleEvictList()
+	go s.handleQuarantine()
 	go s.logThrottling()
 	go s.loop()
 
@@ -323,6 +343,10 @@ func (s *memorySeriesStorage) Stop() error {
 	log.Info("Stopping maintenance loop...")
 	close(s.loopStopping)
 	<-s.loopStopped
+
+	log.Info("Stopping series quarantining...")
+	close(s.quarantineStopping)
+	<-s.quarantineStopped
 
 	log.Info("Stopping chunk eviction...")
 	close(s.evictStopping)
@@ -345,36 +369,21 @@ func (s *memorySeriesStorage) WaitForIndexing() {
 	s.persistence.waitForIndexing()
 }
 
-// NewIterator implements Storage.
-func (s *memorySeriesStorage) NewIterator(fp model.Fingerprint) SeriesIterator {
-	s.fpLocker.Lock(fp)
-	defer s.fpLocker.Unlock(fp)
-
-	series, ok := s.fpToSeries.get(fp)
-	if !ok {
-		// Oops, no series for fp found. That happens if, after
-		// preloading is done, the whole series is identified as old
-		// enough for purging and hence purged for good. As there is no
-		// data left to iterate over, return an iterator that will never
-		// return any values.
-		return nopSeriesIterator{}
-	}
-	return &boundedIterator{
-		it:    series.newIterator(),
-		start: model.Now().Add(-s.dropAfter),
-	}
-}
-
 // LastSampleForFingerprint implements Storage.
-func (s *memorySeriesStorage) LastSamplePairForFingerprint(fp model.Fingerprint) *model.SamplePair {
+func (s *memorySeriesStorage) LastSampleForFingerprint(fp model.Fingerprint) model.Sample {
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
 	series, ok := s.fpToSeries.get(fp)
 	if !ok {
-		return nil
+		return ZeroSample
 	}
-	return series.head().lastSamplePair()
+	sp := series.lastSamplePair()
+	return model.Sample{
+		Metric:    series.metric,
+		Value:     sp.Value,
+		Timestamp: sp.Timestamp,
+	}
 }
 
 // boundedIterator wraps a SeriesIterator and does not allow fetching
@@ -384,23 +393,12 @@ type boundedIterator struct {
 	start model.Time
 }
 
-// ValueAtTime implements the SeriesIterator interface.
-func (bit *boundedIterator) ValueAtTime(ts model.Time) []model.SamplePair {
+// ValueAtOrBeforeTime implements the SeriesIterator interface.
+func (bit *boundedIterator) ValueAtOrBeforeTime(ts model.Time) model.SamplePair {
 	if ts < bit.start {
-		return []model.SamplePair{}
+		return ZeroSamplePair
 	}
-	return bit.it.ValueAtTime(ts)
-}
-
-// BoundaryValues implements the SeriesIterator interface.
-func (bit *boundedIterator) BoundaryValues(interval metric.Interval) []model.SamplePair {
-	if interval.NewestInclusive < bit.start {
-		return []model.SamplePair{}
-	}
-	if interval.OldestInclusive < bit.start {
-		interval.OldestInclusive = bit.start
-	}
-	return bit.it.BoundaryValues(interval)
+	return bit.it.ValueAtOrBeforeTime(ts)
 }
 
 // RangeValues implements the SeriesIterator interface.
@@ -427,10 +425,7 @@ func (s *memorySeriesStorage) fingerprintsForLabelPairs(pairs ...model.LabelPair
 	var result map[model.Fingerprint]struct{}
 	for _, pair := range pairs {
 		intersection := map[model.Fingerprint]struct{}{}
-		fps, err := s.persistence.fingerprintsForLabelPair(pair)
-		if err != nil {
-			log.Error("Error getting fingerprints for label pair: ", err)
-		}
+		fps := s.persistence.fingerprintsForLabelPair(pair)
 		if len(fps) == 0 {
 			return nil
 		}
@@ -448,7 +443,10 @@ func (s *memorySeriesStorage) fingerprintsForLabelPairs(pairs ...model.LabelPair
 }
 
 // MetricsForLabelMatchers implements Storage.
-func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelMatcher) map[model.Fingerprint]metric.Metric {
+func (s *memorySeriesStorage) MetricsForLabelMatchers(
+	from, through model.Time,
+	matchers ...*metric.LabelMatcher,
+) map[model.Fingerprint]metric.Metric {
 	var (
 		equals  []model.LabelPair
 		filters []*metric.LabelMatcher
@@ -500,9 +498,13 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 		filters = remaining
 	}
 
-	result := make(map[model.Fingerprint]metric.Metric, len(resFPs))
+	result := map[model.Fingerprint]metric.Metric{}
 	for fp := range resFPs {
-		result[fp] = s.MetricForFingerprint(fp)
+		s.fpLocker.Lock(fp)
+		if met, _, ok := s.metricForRange(fp, from, through); ok {
+			result[fp] = metric.Metric{Metric: met}
+		}
+		s.fpLocker.Unlock(fp)
 	}
 	for _, matcher := range filters {
 		for fp, met := range result {
@@ -514,61 +516,66 @@ func (s *memorySeriesStorage) MetricsForLabelMatchers(matchers ...*metric.LabelM
 	return result
 }
 
-// LabelValuesForLabelName implements Storage.
-func (s *memorySeriesStorage) LabelValuesForLabelName(labelName model.LabelName) model.LabelValues {
-	lvs, err := s.persistence.labelValuesForLabelName(labelName)
-	if err != nil {
-		log.Errorf("Error getting label values for label name %q: %v", labelName, err)
-	}
-	return lvs
-}
-
-// MetricForFingerprint implements Storage.
-func (s *memorySeriesStorage) MetricForFingerprint(fp model.Fingerprint) metric.Metric {
-	s.fpLocker.Lock(fp)
-	defer s.fpLocker.Unlock(fp)
-
+// metricForRange returns the metric for the given fingerprint if the
+// corresponding time series has samples between 'from' and 'through', together
+// with a pointer to the series if it is in memory already. For a series that
+// does not have samples between 'from' and 'through', the returned bool is
+// false. For an archived series that does contain samples between 'from' and
+// 'through', it returns (metric, nil, true).
+//
+// The caller must have locked the fp.
+func (s *memorySeriesStorage) metricForRange(
+	fp model.Fingerprint,
+	from, through model.Time,
+) (model.Metric, *memorySeries, bool) {
 	series, ok := s.fpToSeries.get(fp)
 	if ok {
-		// Wrap the returned metric in a copy-on-write (COW) metric here because
-		// the caller might mutate it.
-		return metric.Metric{
-			Metric: series.metric,
+		if series.lastTime.Before(from) || series.firstTime().After(through) {
+			return nil, nil, false
+		}
+		return series.metric, series, true
+	}
+	// From here on, we are only concerned with archived metrics.
+	// If the high watermark of archived series is before 'from', we are done.
+	watermark := model.Time(atomic.LoadInt64((*int64)(&s.archiveHighWatermark)))
+	if watermark < from {
+		return nil, nil, false
+	}
+	if from.After(model.Earliest) || through.Before(model.Latest) {
+		// The range lookup is relatively cheap, so let's do it first if
+		// we have a chance the archived metric is not in the range.
+		has, first, last := s.persistence.hasArchivedMetric(fp)
+		if !has {
+			s.nonExistentSeriesMatchesCount.Inc()
+			return nil, nil, false
+		}
+		if first.After(through) || last.Before(from) {
+			return nil, nil, false
 		}
 	}
-	met, err := s.persistence.archivedMetric(fp)
-	if err != nil {
-		log.Errorf("Error retrieving archived metric for fingerprint %v: %v", fp, err)
-	}
 
-	return metric.Metric{
-		Metric: met,
-		Copied: false,
+	metric, err := s.persistence.archivedMetric(fp)
+	if err != nil {
+		// archivedMetric has already flagged the storage as dirty in this case.
+		return nil, nil, false
 	}
+	return metric, nil, true
+}
+
+// LabelValuesForLabelName implements Storage.
+func (s *memorySeriesStorage) LabelValuesForLabelName(labelName model.LabelName) model.LabelValues {
+	return s.persistence.labelValuesForLabelName(labelName)
 }
 
 // DropMetric implements Storage.
 func (s *memorySeriesStorage) DropMetricsForFingerprints(fps ...model.Fingerprint) {
 	for _, fp := range fps {
-		s.fpLocker.Lock(fp)
-
-		if series, ok := s.fpToSeries.get(fp); ok {
-			s.fpToSeries.del(fp)
-			s.numSeries.Dec()
-			s.persistence.unindexMetric(fp, series.metric)
-		} else if err := s.persistence.purgeArchivedMetric(fp); err != nil {
-			log.Errorf("Error purging metric with fingerprint %v: %v", fp, err)
-		}
-		// Attempt to delete series file in any case.
-		if _, err := s.persistence.deleteSeriesFile(fp); err != nil {
-			log.Errorf("Error deleting series file for %v: %v", fp, err)
-		}
-
-		s.fpLocker.Unlock(fp)
-		s.seriesOps.WithLabelValues(requestedPurge).Inc()
+		s.purgeSeries(fp, nil, nil)
 	}
 }
 
+// ErrOutOfOrderSample is returned if a sample has a timestamp before the latest
+// timestamp in the series it is appended to.
 var ErrOutOfOrderSample = fmt.Errorf("sample timestamp out of order")
 
 // Append implements Storage.
@@ -581,34 +588,44 @@ func (s *memorySeriesStorage) Append(sample *model.Sample) error {
 	rawFP := sample.Metric.FastFingerprint()
 	s.fpLocker.Lock(rawFP)
 	fp, err := s.mapper.mapFP(rawFP, sample.Metric)
+	defer func() {
+		s.fpLocker.Unlock(fp)
+	}() // Func wrapper because fp might change below.
 	if err != nil {
-		log.Errorf("Error while mapping fingerprint %v: %v", rawFP, err)
-		s.persistence.setDirty(true)
+		s.persistence.setDirty(fmt.Errorf("error while mapping fingerprint %v: %s", rawFP, err))
+		return err
 	}
 	if fp != rawFP {
 		// Switch locks.
 		s.fpLocker.Unlock(rawFP)
 		s.fpLocker.Lock(fp)
 	}
-	series := s.getOrCreateSeries(fp, sample.Metric)
+	series, err := s.getOrCreateSeries(fp, sample.Metric)
+	if err != nil {
+		return err // getOrCreateSeries took care of quarantining already.
+	}
 
 	if sample.Timestamp <= series.lastTime {
-		s.fpLocker.Unlock(fp)
-		// Don't log and track equal timestamps, as they are a common occurrence
-		// when using client-side timestamps (e.g. Pushgateway or federation).
-		// It would be even better to also compare the sample values here, but
-		// we don't have efficient access to a series's last value.
-		if sample.Timestamp != series.lastTime {
-			s.outOfOrderSamplesCount.Inc()
-			return ErrOutOfOrderSample
+		// Don't report "no-op appends", i.e. where timestamp and sample
+		// value are the same as for the last append, as they are a
+		// common occurrence when using client-side timestamps
+		// (e.g. Pushgateway or federation).
+		if sample.Timestamp == series.lastTime &&
+			series.lastSampleValueSet &&
+			sample.Value == series.lastSampleValue {
+			return nil
 		}
-		return nil
+		s.outOfOrderSamplesCount.Inc()
+		return ErrOutOfOrderSample // Caused by the caller.
 	}
-	completedChunksCount := series.add(&model.SamplePair{
+	completedChunksCount, err := series.add(model.SamplePair{
 		Value:     sample.Value,
 		Timestamp: sample.Timestamp,
 	})
-	s.fpLocker.Unlock(fp)
+	if err != nil {
+		s.quarantineSeries(fp, sample.Metric, err)
+		return err
+	}
 	s.ingestedSamplesCount.Inc()
 	s.incNumChunksToPersist(completedChunksCount)
 
@@ -621,7 +638,7 @@ func (s *memorySeriesStorage) NeedsThrottling() bool {
 		float64(atomic.LoadInt64(&numMemChunks)) > float64(s.maxMemoryChunks)*toleranceFactorMemChunks {
 		select {
 		case s.throttled <- struct{}{}:
-		default: // Do nothing, signal aready pending.
+		default: // Do nothing, signal already pending.
 		}
 		return true
 	}
@@ -641,6 +658,9 @@ func (s *memorySeriesStorage) NeedsThrottling() bool {
 func (s *memorySeriesStorage) logThrottling() {
 	timer := time.NewTimer(time.Minute)
 	timer.Stop()
+
+	// Signal exit of the goroutine. Currently only needed by test code.
+	defer close(s.logThrottlingStopped)
 
 	for {
 		select {
@@ -666,7 +686,7 @@ func (s *memorySeriesStorage) logThrottling() {
 	}
 }
 
-func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Metric) *memorySeries {
+func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Metric) (*memorySeries, error) {
 	series, ok := s.fpToSeries.get(fp)
 	if !ok {
 		var cds []*chunkDesc
@@ -674,6 +694,7 @@ func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Me
 		unarchived, err := s.persistence.unarchiveMetric(fp)
 		if err != nil {
 			log.Errorf("Error unarchiving fingerprint %v (metric %v): %v", fp, m, err)
+			return nil, err
 		}
 		if unarchived {
 			s.seriesOps.WithLabelValues(unarchive).Inc()
@@ -684,7 +705,8 @@ func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Me
 			// appear as archived or purged).
 			cds, err = s.loadChunkDescs(fp, 0)
 			if err != nil {
-				log.Errorf("Error loading chunk descs for fingerprint %v (metric %v): %v", fp, m, err)
+				s.quarantineSeries(fp, m, err)
+				return nil, err
 			}
 			modTime = s.persistence.seriesFileModTime(fp)
 		} else {
@@ -692,9 +714,31 @@ func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Me
 			s.persistence.indexMetric(fp, m)
 			s.seriesOps.WithLabelValues(create).Inc()
 		}
-		series = newMemorySeries(m, cds, modTime)
+		series, err = newMemorySeries(m, cds, modTime)
+		if err != nil {
+			s.quarantineSeries(fp, m, err)
+			return nil, err
+		}
 		s.fpToSeries.put(fp, series)
 		s.numSeries.Inc()
+	}
+	return series, nil
+}
+
+// seriesForRange is a helper method for preloadChunksForRange and preloadChunksForInstant.
+//
+// The caller must have locked the fp.
+func (s *memorySeriesStorage) seriesForRange(
+	fp model.Fingerprint,
+	from model.Time, through model.Time,
+) *memorySeries {
+	metric, series, ok := s.metricForRange(fp, from, through)
+	if !ok {
+		return nil
+	}
+	if series == nil {
+		series, _ = s.getOrCreateSeries(fp, metric)
+		// getOrCreateSeries took care of quarantining already, so ignore the error.
 	}
 	return series
 }
@@ -702,32 +746,39 @@ func (s *memorySeriesStorage) getOrCreateSeries(fp model.Fingerprint, m model.Me
 func (s *memorySeriesStorage) preloadChunksForRange(
 	fp model.Fingerprint,
 	from model.Time, through model.Time,
-	stalenessDelta time.Duration,
-) ([]*chunkDesc, error) {
+) ([]*chunkDesc, SeriesIterator) {
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
-	series, ok := s.fpToSeries.get(fp)
-	if !ok {
-		has, first, last, err := s.persistence.hasArchivedMetric(fp)
-		if err != nil {
-			return nil, err
-		}
-		if !has {
-			s.invalidPreloadRequestsCount.Inc()
-			return nil, nil
-		}
-		if from.Add(-stalenessDelta).Before(last) && through.Add(stalenessDelta).After(first) {
-			metric, err := s.persistence.archivedMetric(fp)
-			if err != nil {
-				return nil, err
-			}
-			series = s.getOrCreateSeries(fp, metric)
-		} else {
-			return nil, nil
-		}
+	series := s.seriesForRange(fp, from, through)
+	if series == nil {
+		return nil, nopIter
 	}
-	return series.preloadChunksForRange(from, through, fp, s)
+	cds, iter, err := series.preloadChunksForRange(fp, from, through, s)
+	if err != nil {
+		s.quarantineSeries(fp, series.metric, err)
+		return nil, nopIter
+	}
+	return cds, iter
+}
+
+func (s *memorySeriesStorage) preloadChunksForInstant(
+	fp model.Fingerprint,
+	from model.Time, through model.Time,
+) ([]*chunkDesc, SeriesIterator) {
+	s.fpLocker.Lock(fp)
+	defer s.fpLocker.Unlock(fp)
+
+	series := s.seriesForRange(fp, from, through)
+	if series == nil {
+		return nil, nopIter
+	}
+	cds, iter, err := series.preloadChunksForInstant(fp, from, through, s)
+	if err != nil {
+		s.quarantineSeries(fp, series.metric, err)
+		return nil, nopIter
+	}
+	return cds, iter
 }
 
 func (s *memorySeriesStorage) handleEvictList() {
@@ -1069,17 +1120,22 @@ func (s *memorySeriesStorage) maintainMemorySeries(
 		}
 	}
 
-	// Archive if all chunks are evicted.
-	if iOldestNotEvicted == -1 {
+	// Archive if all chunks are evicted. Also make sure the last sample has
+	// an age of at least headChunkTimeout (which is very likely anyway).
+	if iOldestNotEvicted == -1 && model.Now().Sub(series.lastTime) > headChunkTimeout {
 		s.fpToSeries.del(fp)
 		s.numSeries.Dec()
-		if err := s.persistence.archiveMetric(
-			fp, series.metric, series.firstTime(), series.lastTime,
-		); err != nil {
-			log.Errorf("Error archiving metric %v: %v", series.metric, err)
-			return
-		}
+		s.persistence.archiveMetric(fp, series.metric, series.firstTime(), series.lastTime)
 		s.seriesOps.WithLabelValues(archive).Inc()
+		oldWatermark := atomic.LoadInt64((*int64)(&s.archiveHighWatermark))
+		if oldWatermark < int64(series.lastTime) {
+			if !atomic.CompareAndSwapInt64(
+				(*int64)(&s.archiveHighWatermark),
+				oldWatermark, int64(series.lastTime),
+			) {
+				panic("s.archiveHighWatermark modified outside of maintainMemorySeries")
+			}
+		}
 		return
 	}
 	// If we are here, the series is not archived, so check for chunkDesc
@@ -1101,8 +1157,20 @@ func (s *memorySeriesStorage) maintainMemorySeries(
 func (s *memorySeriesStorage) writeMemorySeries(
 	fp model.Fingerprint, series *memorySeries, beforeTime model.Time,
 ) bool {
-	cds := series.chunksToPersist()
+	var (
+		persistErr error
+		cds        = series.chunksToPersist()
+	)
+
 	defer func() {
+		if persistErr != nil {
+			s.quarantineSeries(fp, series.metric, persistErr)
+			s.persistErrors.Inc()
+		}
+		// The following is done even in case of an error to ensure
+		// correct counter bookkeeping and to not pin chunks in memory
+		// that belong to a series that is scheduled for quarantine
+		// anyway.
 		for _, cd := range cds {
 			cd.unpin(s.evictRequests)
 		}
@@ -1123,9 +1191,9 @@ func (s *memorySeriesStorage) writeMemorySeries(
 		if len(cds) == 0 {
 			return false
 		}
-		offset, err := s.persistence.persistChunks(fp, chunks)
-		if err != nil {
-			s.persistErrors.Inc()
+		var offset int
+		offset, persistErr = s.persistence.persistChunks(fp, chunks)
+		if persistErr != nil {
 			return false
 		}
 		if series.chunkDescsOffset == -1 {
@@ -1137,13 +1205,14 @@ func (s *memorySeriesStorage) writeMemorySeries(
 		return false
 	}
 
-	newFirstTime, offset, numDroppedFromPersistence, allDroppedFromPersistence, err :=
+	newFirstTime, offset, numDroppedFromPersistence, allDroppedFromPersistence, persistErr :=
 		s.persistence.dropAndPersistChunks(fp, beforeTime, chunks)
-	if err != nil {
-		s.persistErrors.Inc()
+	if persistErr != nil {
 		return false
 	}
-	series.dropChunks(beforeTime)
+	if persistErr = series.dropChunks(beforeTime); persistErr != nil {
+		return false
+	}
 	if len(series.chunkDescs) == 0 && allDroppedFromPersistence {
 		// All chunks dropped from both memory and persistence. Delete the series for good.
 		s.fpToSeries.del(fp)
@@ -1158,9 +1227,8 @@ func (s *memorySeriesStorage) writeMemorySeries(
 	} else {
 		series.chunkDescsOffset -= numDroppedFromPersistence
 		if series.chunkDescsOffset < 0 {
-			log.Errorf("Dropped more chunks from persistence than from memory for fingerprint %v, series %v.", fp, series)
-			s.persistence.setDirty(true)
-			series.chunkDescsOffset = -1 // Makes sure it will be looked at during crash recovery.
+			persistErr = errors.New("dropped more chunks from persistence than from memory")
+			series.chunkDescsOffset = -1
 		}
 	}
 	return false
@@ -1178,11 +1246,7 @@ func (s *memorySeriesStorage) maintainArchivedSeries(fp model.Fingerprint, befor
 	s.fpLocker.Lock(fp)
 	defer s.fpLocker.Unlock(fp)
 
-	has, firstTime, lastTime, err := s.persistence.hasArchivedMetric(fp)
-	if err != nil {
-		log.Error("Error looking up archived time range: ", err)
-		return
-	}
+	has, firstTime, lastTime := s.persistence.hasArchivedMetric(fp)
 	if !has || !firstTime.Before(beforeTime) {
 		// Oldest sample not old enough, or metric purged or unarchived in the meantime.
 		return
@@ -1195,10 +1259,7 @@ func (s *memorySeriesStorage) maintainArchivedSeries(fp model.Fingerprint, befor
 		log.Error("Error dropping persisted chunks: ", err)
 	}
 	if allDropped {
-		if err := s.persistence.purgeArchivedMetric(fp); err != nil {
-			log.Errorf("Error purging archived metric for fingerprint %v: %v", fp, err)
-			return
-		}
+		s.persistence.purgeArchivedMetric(fp) // Ignoring error. Nothing we can do.
 		s.seriesOps.WithLabelValues(archivePurge).Inc()
 		return
 	}
@@ -1252,7 +1313,7 @@ func (s *memorySeriesStorage) incNumChunksToPersist(by int) {
 //
 // This method is not goroutine-safe, but it is only ever called by the single
 // goroutine that is in charge of series maintenance. According to the returned
-// score, series maintenence should be sped up. If a score of 1 is returned,
+// score, series maintenance should be sped up. If a score of 1 is returned,
 // checkpointing based on dirty-series count should be disabled, and series
 // files should not by synced anymore provided the user has specified the
 // adaptive sync strategy.
@@ -1313,6 +1374,116 @@ func (s *memorySeriesStorage) calculatePersistenceUrgencyScore() float64 {
 	return score
 }
 
+// quarantineSeries registers the provided fingerprint for quarantining. It
+// always returns immediately. Quarantine requests are processed
+// asynchronously. If there are too many requests queued, they are simply
+// dropped.
+//
+// Quarantining means that the series file is moved to the orphaned directory,
+// and all its traces are removed from indices. Call this method if an
+// unrecoverable error is detected while dealing with a series, and pass in the
+// encountered error. It will be saved as a hint in the orphaned directory.
+func (s *memorySeriesStorage) quarantineSeries(fp model.Fingerprint, metric model.Metric, err error) {
+	req := quarantineRequest{fp: fp, metric: metric, reason: err}
+	select {
+	case s.quarantineRequests <- req:
+		// Request submitted.
+	default:
+		log.
+			With("fingerprint", fp).
+			With("metric", metric).
+			With("reason", err).
+			Warn("Quarantine queue full. Dropped quarantine request.")
+		s.seriesOps.WithLabelValues(droppedQuarantine).Inc()
+	}
+}
+
+func (s *memorySeriesStorage) handleQuarantine() {
+	for {
+		select {
+		case req := <-s.quarantineRequests:
+			s.purgeSeries(req.fp, req.metric, req.reason)
+			log.
+				With("fingerprint", req.fp).
+				With("metric", req.metric).
+				With("reason", req.reason).
+				Warn("Series quarantined.")
+		case <-s.quarantineStopping:
+			log.Info("Series quarantining stopped.")
+			close(s.quarantineStopped)
+			return
+		}
+	}
+
+}
+
+// purgeSeries removes all traces of a series. If a non-nil quarantine reason is
+// provided, the series file will not be deleted completely, but moved to the
+// orphaned directory with the reason and the metric in a hint file. The
+// provided metric might be nil if unknown.
+func (s *memorySeriesStorage) purgeSeries(fp model.Fingerprint, m model.Metric, quarantineReason error) {
+	s.fpLocker.Lock(fp)
+
+	var (
+		series *memorySeries
+		ok     bool
+	)
+
+	if series, ok = s.fpToSeries.get(fp); ok {
+		s.fpToSeries.del(fp)
+		s.numSeries.Dec()
+		m = series.metric
+
+		// Adjust s.numChunksToPersist and numMemChunks down by
+		// the number of chunks in this series that are not
+		// persisted yet. Persisted chunks will be deducted from
+		// numMemChunks upon eviction.
+		numChunksNotYetPersisted := len(series.chunkDescs) - series.persistWatermark
+		atomic.AddInt64(&numMemChunks, int64(-numChunksNotYetPersisted))
+		if !series.headChunkClosed {
+			// Head chunk wasn't counted as waiting for persistence yet.
+			// (But it was counted as a chunk in memory.)
+			numChunksNotYetPersisted--
+		}
+		s.incNumChunksToPersist(-numChunksNotYetPersisted)
+
+	} else {
+		s.persistence.purgeArchivedMetric(fp) // Ignoring error. There is nothing we can do.
+	}
+	if m != nil {
+		// If we know a metric now, unindex it in any case.
+		// purgeArchivedMetric might have done so already, but we cannot
+		// be sure. Unindexing in idempotent, though.
+		s.persistence.unindexMetric(fp, m)
+	}
+	// Attempt to delete/quarantine the series file in any case.
+	if quarantineReason == nil {
+		// No reason stated, simply delete the file.
+		if _, err := s.persistence.deleteSeriesFile(fp); err != nil {
+			log.
+				With("fingerprint", fp).
+				With("metric", m).
+				With("error", err).
+				Error("Error deleting series file.")
+		}
+		s.seriesOps.WithLabelValues(requestedPurge).Inc()
+	} else {
+		if err := s.persistence.quarantineSeriesFile(fp, quarantineReason, m); err == nil {
+			s.seriesOps.WithLabelValues(completedQurantine).Inc()
+		} else {
+			s.seriesOps.WithLabelValues(failedQuarantine).Inc()
+			log.
+				With("fingerprint", fp).
+				With("metric", m).
+				With("reason", quarantineReason).
+				With("error", err).
+				Error("Error quarantining series file.")
+		}
+	}
+
+	s.fpLocker.Unlock(fp)
+}
+
 // Describe implements prometheus.Collector.
 func (s *memorySeriesStorage) Describe(ch chan<- *prometheus.Desc) {
 	s.persistence.Describe(ch)
@@ -1325,7 +1496,7 @@ func (s *memorySeriesStorage) Describe(ch chan<- *prometheus.Desc) {
 	s.seriesOps.Describe(ch)
 	ch <- s.ingestedSamplesCount.Desc()
 	ch <- s.outOfOrderSamplesCount.Desc()
-	ch <- s.invalidPreloadRequestsCount.Desc()
+	ch <- s.nonExistentSeriesMatchesCount.Desc()
 	ch <- numMemChunksDesc
 	s.maintainSeriesDuration.Describe(ch)
 	ch <- s.persistenceUrgencyScore.Desc()
@@ -1352,7 +1523,7 @@ func (s *memorySeriesStorage) Collect(ch chan<- prometheus.Metric) {
 	s.seriesOps.Collect(ch)
 	ch <- s.ingestedSamplesCount
 	ch <- s.outOfOrderSamplesCount
-	ch <- s.invalidPreloadRequestsCount
+	ch <- s.nonExistentSeriesMatchesCount
 	ch <- prometheus.MustNewConstMetric(
 		numMemChunksDesc,
 		prometheus.GaugeValue,

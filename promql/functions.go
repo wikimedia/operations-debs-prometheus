@@ -184,6 +184,102 @@ func funcIrate(ev *evaluator, args Expressions) model.Value {
 	return resultVector
 }
 
+// Calculate the trend value at the given index i in raw data d.
+// This is somewhat analogous to the slope of the trend at the given index.
+// The argument "s" is the set of computed smoothed values.
+// The argument "b" is the set of computed trend factors.
+// The argument "d" is the set of raw input values.
+func calcTrendValue(i int, sf, tf float64, s, b, d []float64) float64 {
+	if i == 0 {
+		return b[0]
+	}
+
+	x := tf * (s[i] - s[i-1])
+	y := (1 - tf) * b[i-1]
+
+	// Cache the computed value.
+	b[i] = x + y
+
+	return b[i]
+}
+
+// Holt-Winters is similar to a weighted moving average, where historical data has exponentially less influence on the current data.
+// Holt-Winter also accounts for trends in data. The smoothing factor (0 < sf < 1) effects how historical data will effect the current
+// data. A lower smoothing factor increases the influence of historical data. The trend factor (0 < tf < 1) effects
+// how trends in historical data will effect the current data. A higher trend factor increases the influence.
+// of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
+func funcHoltWinters(ev *evaluator, args Expressions) model.Value {
+	mat := ev.evalMatrix(args[0])
+
+	// The smoothing factor argument.
+	sf := ev.evalFloat(args[1])
+
+	// The trend factor argument.
+	tf := ev.evalFloat(args[2])
+
+	// Sanity check the input.
+	if sf <= 0 || sf >= 1 {
+		ev.errorf("invalid smoothing factor. Expected: 0 < sf < 1 got: %f", sf)
+	}
+	if tf <= 0 || tf >= 1 {
+		ev.errorf("invalid trend factor. Expected: 0 < tf < 1 got: %f", sf)
+	}
+
+	// Make an output vector large enough to hold the entire result.
+	resultVector := make(vector, 0, len(mat))
+
+	// Create scratch values.
+	var s, b, d []float64
+
+	var l int
+	for _, samples := range mat {
+		l = len(samples.Values)
+
+		// Can't do the smoothing operation with less than two points.
+		if l < 2 {
+			continue
+		}
+
+		// Resize scratch values.
+		if l != len(s) {
+			s = make([]float64, l)
+			b = make([]float64, l)
+			d = make([]float64, l)
+		}
+
+		// Fill in the d values with the raw values from the input.
+		for i, v := range samples.Values {
+			d[i] = float64(v.Value)
+		}
+
+		// Set initial values.
+		s[0] = d[0]
+		b[0] = d[1] - d[0]
+
+		// Run the smoothing operation.
+		var x, y float64
+		for i := 1; i < len(d); i++ {
+
+			// Scale the raw value against the smoothing factor.
+			x = sf * d[i]
+
+			// Scale the last smoothed value with the trend at this point.
+			y = (1 - sf) * (s[i-1] + calcTrendValue(i-1, sf, tf, s, b, d))
+
+			s[i] = x + y
+		}
+
+		samples.Metric.Del(model.MetricNameLabel)
+		resultVector = append(resultVector, &sample{
+			Metric:    samples.Metric,
+			Value:     model.SampleValue(s[len(s)-1]), // The last value in the vector is the smoothed result.
+			Timestamp: ev.Timestamp,
+		})
+	}
+
+	return resultVector
+}
+
 // === sort(node model.ValVector) Vector ===
 func funcSort(ev *evaluator, args Expressions) model.Value {
 	// NaN should sort to the bottom, so take descending sort with NaN first and
@@ -524,10 +620,37 @@ func funcLog10(ev *evaluator, args Expressions) model.Value {
 	return vector
 }
 
+// linearRegression performs a least-square linear regression analysis on the
+// provided SamplePairs. It returns the slope, and the intercept value at the
+// provided time.
+func linearRegression(samples []model.SamplePair, interceptTime model.Time) (slope, intercept model.SampleValue) {
+	var (
+		n            model.SampleValue
+		sumX, sumY   model.SampleValue
+		sumXY, sumX2 model.SampleValue
+	)
+	for _, sample := range samples {
+		x := model.SampleValue(
+			model.Time(sample.Timestamp-interceptTime).UnixNano(),
+		) / 1e9
+		n += 1.0
+		sumY += sample.Value
+		sumX += x
+		sumXY += x * sample.Value
+		sumX2 += x * x
+	}
+	covXY := sumXY - sumX*sumY/n
+	varX := sumX2 - sumX*sumX/n
+
+	slope = covXY / varX
+	intercept = sumY/n - slope*sumX/n
+	return slope, intercept
+}
+
 // === deriv(node model.ValMatrix) Vector ===
 func funcDeriv(ev *evaluator, args Expressions) model.Value {
-	resultVector := vector{}
 	mat := ev.evalMatrix(args[0])
+	resultVector := make(vector, 0, len(mat))
 
 	for _, samples := range mat {
 		// No sense in trying to compute a derivative without at least two points.
@@ -535,29 +658,10 @@ func funcDeriv(ev *evaluator, args Expressions) model.Value {
 		if len(samples.Values) < 2 {
 			continue
 		}
-
-		// Least squares.
-		var (
-			n            model.SampleValue
-			sumX, sumY   model.SampleValue
-			sumXY, sumX2 model.SampleValue
-		)
-		for _, sample := range samples.Values {
-			x := model.SampleValue(sample.Timestamp.UnixNano() / 1e9)
-			n += 1.0
-			sumY += sample.Value
-			sumX += x
-			sumXY += x * sample.Value
-			sumX2 += x * x
-		}
-		numerator := sumXY - sumX*sumY/n
-		denominator := sumX2 - (sumX*sumX)/n
-
-		resultValue := numerator / denominator
-
+		slope, _ := linearRegression(samples.Values, 0)
 		resultSample := &sample{
 			Metric:    samples.Metric,
-			Value:     resultValue,
+			Value:     slope,
 			Timestamp: ev.Timestamp,
 		}
 		resultSample.Metric.Del(model.MetricNameLabel)
@@ -568,39 +672,26 @@ func funcDeriv(ev *evaluator, args Expressions) model.Value {
 
 // === predict_linear(node model.ValMatrix, k model.ValScalar) Vector ===
 func funcPredictLinear(ev *evaluator, args Expressions) model.Value {
-	vec := funcDeriv(ev, args[0:1]).(vector)
-	duration := model.SampleValue(model.SampleValue(ev.evalFloat(args[1])))
+	mat := ev.evalMatrix(args[0])
+	resultVector := make(vector, 0, len(mat))
+	duration := model.SampleValue(ev.evalFloat(args[1]))
 
-	excludedLabels := map[model.LabelName]struct{}{
-		model.MetricNameLabel: {},
-	}
-
-	// Calculate predicted delta over the duration.
-	signatureToDelta := map[uint64]model.SampleValue{}
-	for _, el := range vec {
-		signature := model.SignatureWithoutLabels(el.Metric.Metric, excludedLabels)
-		signatureToDelta[signature] = el.Value * duration
-	}
-
-	// add predicted delta to last value.
-	matrixBounds := ev.evalMatrixBounds(args[0])
-	outVec := make(vector, 0, len(signatureToDelta))
-	for _, samples := range matrixBounds {
+	for _, samples := range mat {
+		// No sense in trying to predict anything without at least two points.
+		// Drop this vector element.
 		if len(samples.Values) < 2 {
 			continue
 		}
-		signature := model.SignatureWithoutLabels(samples.Metric.Metric, excludedLabels)
-		delta, ok := signatureToDelta[signature]
-		if ok {
-			samples.Metric.Del(model.MetricNameLabel)
-			outVec = append(outVec, &sample{
-				Metric:    samples.Metric,
-				Value:     delta + samples.Values[1].Value,
-				Timestamp: ev.Timestamp,
-			})
+		slope, intercept := linearRegression(samples.Values, ev.Timestamp)
+		resultSample := &sample{
+			Metric:    samples.Metric,
+			Value:     slope*duration + intercept,
+			Timestamp: ev.Timestamp,
 		}
+		resultSample.Metric.Del(model.MetricNameLabel)
+		resultVector = append(resultVector, resultSample)
 	}
-	return outVec
+	return resultVector
 }
 
 // === histogram_quantile(k model.ValScalar, vector model.ValVector) Vector ===
@@ -852,6 +943,12 @@ var functions = map[string]*Function{
 		ArgTypes:   []model.ValueType{model.ValScalar, model.ValVector},
 		ReturnType: model.ValVector,
 		Call:       funcHistogramQuantile,
+	},
+	"holt_winters": {
+		Name:       "holt_winters",
+		ArgTypes:   []model.ValueType{model.ValMatrix, model.ValScalar, model.ValScalar},
+		ReturnType: model.ValVector,
+		Call:       funcHoltWinters,
 	},
 	"irate": {
 		Name:       "irate",

@@ -26,7 +26,7 @@ import (
 
 	"github.com/asaskevich/govalidator"
 	"github.com/prometheus/common/log"
-	"github.com/prometheus/prometheus/notification"
+	"github.com/prometheus/prometheus/notifier"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/local/index"
@@ -42,11 +42,11 @@ var cfg = struct {
 	printVersion bool
 	configFile   string
 
-	storage      local.MemorySeriesStorageOptions
-	notification notification.HandlerOptions
-	queryEngine  promql.EngineOptions
-	web          web.Options
-	remote       remote.Options
+	storage     local.MemorySeriesStorageOptions
+	notifier    notifier.Options
+	queryEngine promql.EngineOptions
+	web         web.Options
+	remote      remote.Options
 
 	prometheusURL string
 	influxdbURL   string
@@ -143,7 +143,7 @@ func init() {
 	)
 	cfg.fs.Var(
 		&local.DefaultChunkEncoding, "storage.local.chunk-encoding-version",
-		"Which chunk encoding version to use for newly created chunks. Currently supported is 0 (delta encoding) and 1 (double-delta encoding).",
+		"Which chunk encoding version to use for newly created chunks. Currently supported is 0 (delta encoding), 1 (double-delta encoding), and 2 (double-delta encoding with variable bit-width).",
 	)
 	// Index cache sizes.
 	cfg.fs.IntVar(
@@ -203,15 +203,15 @@ func init() {
 
 	// Alertmanager.
 	cfg.fs.StringVar(
-		&cfg.notification.AlertmanagerURL, "alertmanager.url", "",
+		&cfg.notifier.AlertmanagerURL, "alertmanager.url", "",
 		"The URL of the alert manager to send notifications to.",
 	)
 	cfg.fs.IntVar(
-		&cfg.notification.QueueCapacity, "alertmanager.notification-queue-capacity", 10000,
+		&cfg.notifier.QueueCapacity, "alertmanager.notification-queue-capacity", 10000,
 		"The capacity of the queue for pending alert manager notifications.",
 	)
 	cfg.fs.DurationVar(
-		&cfg.notification.Timeout, "alertmanager.timeout", 10*time.Second,
+		&cfg.notifier.Timeout, "alertmanager.timeout", 10*time.Second,
 		"Alert manager HTTP API timeout.",
 	)
 
@@ -242,8 +242,10 @@ func parse(args []string) error {
 	if err := parsePrometheusURL(); err != nil {
 		return err
 	}
-
 	if err := parseInfluxdbURL(); err != nil {
+		return err
+	}
+	if err := validateAlertmanagerURL(); err != nil {
 		return err
 	}
 
@@ -266,7 +268,7 @@ func parsePrometheusURL() error {
 	}
 
 	if ok := govalidator.IsURL(cfg.prometheusURL); !ok {
-		return fmt.Errorf("Invalid Prometheus URL: %s", cfg.prometheusURL)
+		return fmt.Errorf("invalid Prometheus URL: %s", cfg.prometheusURL)
 	}
 
 	promURL, err := url.Parse(cfg.prometheusURL)
@@ -289,7 +291,7 @@ func parseInfluxdbURL() error {
 	}
 
 	if ok := govalidator.IsURL(cfg.influxdbURL); !ok {
-		return fmt.Errorf("Invalid InfluxDB URL: %s", cfg.influxdbURL)
+		return fmt.Errorf("invalid InfluxDB URL: %s", cfg.influxdbURL)
 	}
 
 	url, err := url.Parse(cfg.influxdbURL)
@@ -298,6 +300,23 @@ func parseInfluxdbURL() error {
 	}
 
 	cfg.remote.InfluxdbURL = url
+	return nil
+}
+
+func validateAlertmanagerURL() error {
+	if cfg.notifier.AlertmanagerURL == "" {
+		return nil
+	}
+	if ok := govalidator.IsURL(cfg.notifier.AlertmanagerURL); !ok {
+		return fmt.Errorf("invalid Alertmanager URL: %s", cfg.notifier.AlertmanagerURL)
+	}
+	url, err := url.Parse(cfg.notifier.AlertmanagerURL)
+	if err != nil {
+		return err
+	}
+	if url.Scheme == "" {
+		return fmt.Errorf("missing scheme in Alertmanager URL: %s", cfg.notifier.AlertmanagerURL)
+	}
 	return nil
 }
 

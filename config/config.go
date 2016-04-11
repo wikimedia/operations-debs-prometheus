@@ -260,11 +260,20 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Do global overrides and validate unique names.
 	jobNames := map[string]struct{}{}
 	for _, scfg := range c.ScrapeConfigs {
+		// First set the correct scrape interval, then check that the timeout
+		// (inferred or explicit) is not greater than that.
 		if scfg.ScrapeInterval == 0 {
 			scfg.ScrapeInterval = c.GlobalConfig.ScrapeInterval
 		}
+		if scfg.ScrapeTimeout > scfg.ScrapeInterval {
+			return fmt.Errorf("scrape timeout greater than scrape interval for scrape config with job name %q", scfg.JobName)
+		}
 		if scfg.ScrapeTimeout == 0 {
-			scfg.ScrapeTimeout = c.GlobalConfig.ScrapeTimeout
+			if c.GlobalConfig.ScrapeTimeout > scfg.ScrapeInterval {
+				scfg.ScrapeTimeout = scfg.ScrapeInterval
+			} else {
+				scfg.ScrapeTimeout = c.GlobalConfig.ScrapeTimeout
+			}
 		}
 
 		if _, ok := jobNames[scfg.JobName]; ok {
@@ -293,11 +302,33 @@ type GlobalConfig struct {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *GlobalConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultGlobalConfig
+	// Create a clean global config as the previous one was already populated
+	// by the default due to the YAML parser behavior for empty blocks.
+	gc := &GlobalConfig{}
 	type plain GlobalConfig
-	if err := unmarshal((*plain)(c)); err != nil {
+	if err := unmarshal((*plain)(gc)); err != nil {
 		return err
 	}
+	// First set the correct scrape interval, then check that the timeout
+	// (inferred or explicit) is not greater than that.
+	if gc.ScrapeInterval == 0 {
+		gc.ScrapeInterval = DefaultGlobalConfig.ScrapeInterval
+	}
+	if gc.ScrapeTimeout > gc.ScrapeInterval {
+		return fmt.Errorf("global scrape timeout greater than scrape interval")
+	}
+	if gc.ScrapeTimeout == 0 {
+		if DefaultGlobalConfig.ScrapeTimeout > gc.ScrapeInterval {
+			gc.ScrapeTimeout = gc.ScrapeInterval
+		} else {
+			gc.ScrapeTimeout = DefaultGlobalConfig.ScrapeTimeout
+		}
+	}
+	if gc.EvaluationInterval == 0 {
+		gc.EvaluationInterval = DefaultGlobalConfig.EvaluationInterval
+	}
+	*c = *gc
+
 	return checkOverflow(c.XXX, "global config")
 }
 

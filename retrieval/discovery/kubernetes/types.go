@@ -78,7 +78,7 @@ type ObjectMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty" description:"map of string keys and values that can be used by external tooling to store and retrieve arbitrary metadata about objects; see http://releases.k8s.io/HEAD/docs/user-guide/annotations.md"`
 }
 
-// Protocol defines network protocols supported for things like conatiner ports.
+// Protocol defines network protocols supported for things like container ports.
 type Protocol string
 
 const (
@@ -120,7 +120,7 @@ type ServiceSpec struct {
 	Ports []ServicePort `json:"ports"`
 }
 
-// ServicePort conatins information on service's port.
+// ServicePort contains information on service's port.
 type ServicePort struct {
 	// The IP protocol for this port. Supports "TCP" and "UDP".
 	// Default is TCP.
@@ -202,11 +202,13 @@ type NodeStatus struct {
 
 type NodeAddressType string
 
-// These are valid address type of node.
+// These are valid address types of node. NodeLegacyHostIP is used to transit
+// from out-dated HostIP field to NodeAddress.
 const (
-	NodeHostName   NodeAddressType = "Hostname"
-	NodeExternalIP NodeAddressType = "ExternalIP"
-	NodeInternalIP NodeAddressType = "InternalIP"
+	NodeLegacyHostIP NodeAddressType = "LegacyHostIP"
+	NodeHostName     NodeAddressType = "Hostname"
+	NodeExternalIP   NodeAddressType = "ExternalIP"
+	NodeInternalIP   NodeAddressType = "InternalIP"
 )
 
 type NodeAddress struct {
