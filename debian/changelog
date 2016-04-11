@@ -1,3 +1,9 @@
+prometheus (0.18.0~rc1+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Martín Ferrari <tincho@debian.org>  Mon, 11 Apr 2016 14:00:21 +0100
+
 prometheus (0.17.0+ds-3) unstable; urgency=medium
 
   * Completely disable fsnofity in arm64, ppc64, and ppc64el, as it is broken
