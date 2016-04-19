@@ -1,8 +1,11 @@
-## 0.18.0rc1 / 2016-04-07
+## 0.18.0 / 2016-04-18
 
 * [BUGFIX] Fix operator precedence in PromQL
+* [BUGFIX] Never drop still open head chunk
+* [BUGFIX] Fix missing 'keep_common' when printing AST node
 * [CHANGE/BUGFIX] Target identity considers path and parameters additionally to host and port
 * [CHANGE] Rename metric `prometheus_local_storage_invalid_preload_requests_total` to `prometheus_local_storage_non_existent_series_matches_total`
+* [CHANGE] Support for old alerting rule syntax dropped
 * [FEATURE] Deduplicate targets within the same scrape job
 * [FEATURE] Add varbit chunk encoding (higher compression, more CPU usage – disabled by default)
 * [FEATURE] Add `holt_winters` query function
