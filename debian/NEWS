@@ -1,3 +1,29 @@
+prometheus (0.18.0+ds-1) unstable; urgency=medium
+
+  * Support for the old alerting rule syntax was dropped for this version as
+    announced with the 0.17.0 release.  The new alerting rule syntax is
+    documented [1] and a script to convert existing rules exists [2]
+
+    [1] http://prometheus.io/docs/alerting/rules/
+    [2] https://gist.github.com/xbglowx/d798da98ff9937e33862b285d0121bde#gistcomment-1752515
+
+  * This release introduces a new chunk encoding with variable bit width, in
+    parts inspired by Facebook's "Gorilla" paper.  At the price of increased
+    CPU cost and run-time of queries, the chunk space requirement drops by ~60%
+    for typical data sets.  The varbit encoding has to be enabled with the
+    command line flag -storage.local.chunk-encoding-version=2, all newly
+    created chunks will have the new chunk encoding. It is safe to use a mix of
+    different chunk encodings.
+
+  * Several storage improvements dramatically increase the performance of
+    instant queries for the most recent value of time series, as it typically
+    happens in rule evaluations and for federation. On servers with a lot of
+    series churn (i.e. many older series that don't receive samples anymore),
+    we have seen a 12x speedup of rule evaluations with CPU usage reduced by
+    75%.
+
+ -- Martín Ferrari <tincho@debian.org>  Tue, 19 Apr 2016 14:02:19 +0100
+
 prometheus (0.16.2+ds-1) unstable; urgency=high
 
   * Breaking changes in this release:
