@@ -16,7 +16,7 @@
 +
 +// These arches do not have working implementations of fsnotify.
 +// +build linux
-+// +build arm64 ppc64le ppc64
++// +build ppc64le ppc64
 +
 +package discovery
 +
@@ -191,7 +191,7 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
  
-+// +build !linux !arm64,!ppc64le,!ppc64
++// +build !linux !ppc64le,!ppc64
 +
  package discovery
  
@@ -202,7 +202,7 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
  
-+// +build !linux !arm64,!ppc64le,!ppc64
++// +build !linux !ppc64le,!ppc64
 +
  package discovery
  
@@ -212,7 +212,7 @@
 @@ -0,0 +1,99 @@
 +// These arches do not have working implementations of fsnotify.
 +// +build linux
-+// +build arm64 ppc64le ppc64
++// +build ppc64le ppc64
 +
 +package discovery
 +

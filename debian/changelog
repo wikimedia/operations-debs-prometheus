@@ -1,3 +1,9 @@
+prometheus (0.18.0+ds-2) UNRELEASED; urgency=medium
+
+  * Depend on fsnotify 1.3.0, which fixes build issues in arm64.
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 20 Apr 2016 12:50:52 +0100
+
 prometheus (0.18.0+ds-1) unstable; urgency=medium
 
   * New upstream release.
