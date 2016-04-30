@@ -1,7 +1,7 @@
 prometheus (0.18.0+ds-2) UNRELEASED; urgency=medium
 
   * Depend on fsnotify 1.3.0-3, which fixes build issues in arm64, ppc64, and
-    ppc64el.
+    ppc64el. Remove workaround patch.
   * Fix default configuration file. Closes: #822471.
   * debian/control: Update Standards-Version without changes.
   * debian/control: Make all URLs use https.
