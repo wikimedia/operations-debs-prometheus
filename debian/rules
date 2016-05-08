@@ -10,8 +10,7 @@ export DH_GOPKG := github.com/prometheus/prometheus
 
 #export DH_GOLANG_EXCLUDES := web/ui
 
-BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
-    'print Debian::Debhelper::Buildsystem::golang->new()->get_builddir()')
+BUILDDIR := build
 
 # Taken and modified from the project's Makefile.
 
@@ -43,7 +42,7 @@ SHORT_TESTS :=
 endif
 
 %:
-	dh $@ --buildsystem=golang --with=golang
+	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)
 
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
@@ -63,23 +62,22 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	dh_auto_build -O--buildsystem=golang -- $(BUILDFLAGS)
+	# Build and install datetimepicker.
+	mkdir -vp $(BUILDDIR)/bootstrap-datetimepicker
+	lessc web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
+            $(BUILDDIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
+	cp web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
+            $(BUILDDIR)/bootstrap-datetimepicker/
 
 override_dh_auto_test:
 	# Avoid some tests that fail on slow architectures.
 	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" \
 		dh_auto_test -O--buildsystem=golang -- $(SHORT_TESTS)
 
-WEB_VENDORED_DIR := debian/prometheus/usr/share/prometheus/web/static/vendor
 override_dh_auto_install:
 	dh_auto_install -O--buildsystem=golang
 	# we don't want the golang source (yet?)
 	rm -r debian/prometheus/usr/share/gocode
-	# Build and install datetimepicker.
-	mkdir -vp $(WEB_VENDORED_DIR)/bootstrap-datetimepicker
-	lessc web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
-            $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
-	cp -v web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
-            $(WEB_VENDORED_DIR)/bootstrap-datetimepicker/
 
 gen-orig-tgz:
 	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ] ; then \

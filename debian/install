@@ -9,3 +9,5 @@ web/ui/static/js/       usr/share/prometheus/web/static
 web/ui/static/vendor/bootstrap3-typeahead  usr/share/prometheus/web/static/vendor
 web/ui/static/vendor/jquery                usr/share/prometheus/web/static/vendor
 web/ui/static/vendor/js                    usr/share/prometheus/web/static/vendor
+#
+build/bootstrap-datetimepicker             usr/share/prometheus/web/static/vendor
