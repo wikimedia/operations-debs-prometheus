@@ -1,7 +1,12 @@
 prometheus (0.18.0+ds-3) UNRELEASED; urgency=medium
 
+  [ Martín Ferrari ]
   * Switch to use the golang-github-prometheus-client-model-dev package.
   * Improve the way datetimepicker is built.
+
+  [ Filippo Giunchedi ]
+  * debian/service: match sysvinit behaviour (send SIGTERM with 20s timeout,
+    never send SIGKILL) Closes: #824842
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 08 May 2016 04:33:32 +0000
 
