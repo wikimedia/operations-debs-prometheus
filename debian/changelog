@@ -1,13 +1,14 @@
 prometheus (0.19.1+ds-1) UNRELEASED; urgency=medium
 
+  [ Filippo Giunchedi ]
+  * debian/service: match sysvinit behaviour (send SIGTERM with 20s timeout,
+    never send SIGKILL) Closes: #824842
+
   [ Martín Ferrari ]
   * New upstream release. Update dependencies.
   * Switch to use the golang-github-prometheus-client-model-dev package.
   * Improve the way datetimepicker is built.
-
-  [ Filippo Giunchedi ]
-  * debian/service: match sysvinit behaviour (send SIGTERM with 20s timeout,
-    never send SIGKILL) Closes: #824842
+  * Refresh patches.
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 29 May 2016 12:58:16 +0000
 

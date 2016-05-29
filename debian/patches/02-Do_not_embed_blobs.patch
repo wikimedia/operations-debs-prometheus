@@ -9,15 +9,15 @@
  	"encoding/json"
  	"fmt"
  	"io"
-@@ -47,7 +46,6 @@
- 	"github.com/prometheus/prometheus/version"
+@@ -46,7 +45,6 @@
+ 	"github.com/prometheus/prometheus/util/httputil"
  	"github.com/prometheus/prometheus/web/api/legacy"
  	"github.com/prometheus/prometheus/web/api/v1"
 -	"github.com/prometheus/prometheus/web/ui"
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -115,7 +113,7 @@
+@@ -102,7 +100,7 @@
  	ListenAddress        string
  	ExternalURL          *url.URL
  	MetricsPath          string
@@ -26,7 +26,7 @@
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -179,7 +177,7 @@
+@@ -181,7 +179,7 @@
  
  	router.Get("/consoles/*filepath", instrf("consoles", h.consoles))
  
@@ -35,7 +35,7 @@
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
-@@ -197,28 +195,6 @@
+@@ -199,28 +197,6 @@
  	return h
  }
  
@@ -64,7 +64,7 @@
  // ListenError returns the receive-only channel that signals errors while starting the web server.
  func (h *Handler) ListenError() <-chan error {
  	return h.listenErrCh
-@@ -427,11 +403,11 @@
+@@ -445,11 +421,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
