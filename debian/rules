@@ -1,14 +1,12 @@
 #!/usr/bin/make -f
 # -*- Mode: makefile -*-
 
-# Uncomment this to turn on verbose mode.
 export DH_VERBOSE=1
-
-# DH_GOPKG is the upstream path which you would normally “go get”.
-# Using it allows us to build applications without patching locations.
 export DH_GOPKG := github.com/prometheus/prometheus
-
-#export DH_GOLANG_EXCLUDES := web/ui
+# Include test fixtures.
+export DH_GOLANG_INSTALL_EXTRA := retrieval/discovery/fixtures \
+    storage/local/fixtures config/testdata promql/testdata retrieval/testdata \
+    promql/fuzz-data
 
 BUILDDIR := build
 
@@ -46,11 +44,6 @@ endif
 
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
-	# Include test fixtures.
-	for i in retrieval/discovery/fixtures storage/local/fixtures \
-                config/testdata promql/testdata retrieval/testdata; do \
-            cp -av $$i $(BUILDDIR)/src/$(DH_GOPKG)/$$i; \
-        done
 	# Include vendored dependencies.
 	for i in github.com/hashicorp/consul \
                 github.com/influxdb/influxdb; \
@@ -61,7 +54,7 @@ override_dh_auto_configure:
         done
 
 override_dh_auto_build:
-	dh_auto_build -O--buildsystem=golang -- $(BUILDFLAGS)
+	dh_auto_build -- $(BUILDFLAGS)
 	# Build and install datetimepicker.
 	mkdir -vp $(BUILDDIR)/bootstrap-datetimepicker
 	lessc web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
@@ -71,13 +64,10 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	# Avoid some tests that fail on slow architectures.
-	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" \
-		dh_auto_test -O--buildsystem=golang -- $(SHORT_TESTS)
+	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" dh_auto_test -- $(SHORT_TESTS)
 
 override_dh_auto_install:
-	dh_auto_install -O--buildsystem=golang
-	# we don't want the golang source (yet?)
-	rm -r debian/prometheus/usr/share/gocode
+	dh_auto_install -- --no-source
 
 gen-orig-tgz:
 	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ] ; then \

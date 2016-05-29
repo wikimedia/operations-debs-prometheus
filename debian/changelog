@@ -9,6 +9,7 @@ prometheus (0.19.1+ds-1) UNRELEASED; urgency=medium
   * Switch to use the golang-github-prometheus-client-model-dev package.
   * Improve the way datetimepicker is built.
   * Refresh patches.
+  * Tidy up debian/rules.
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 29 May 2016 12:58:16 +0000
 
