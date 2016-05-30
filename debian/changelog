@@ -1,4 +1,4 @@
-prometheus (0.19.1+ds-1) UNRELEASED; urgency=medium
+prometheus (0.19.2+ds-1) unstable; urgency=medium
 
   [ Filippo Giunchedi ]
   * debian/service: match sysvinit behaviour (send SIGTERM with 20s timeout,
@@ -12,7 +12,7 @@ prometheus (0.19.1+ds-1) UNRELEASED; urgency=medium
   * Tidy up debian/rules.
   * debian/control: add versions to depends that solve bugs.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 29 May 2016 12:58:16 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 30 May 2016 09:54:35 +0000
 
 prometheus (0.18.0+ds-2) unstable; urgency=medium
 
