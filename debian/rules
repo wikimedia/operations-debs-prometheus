@@ -9,6 +9,7 @@ export DH_GOLANG_INSTALL_EXTRA := retrieval/discovery/fixtures \
     promql/fuzz-data
 
 BUILDDIR := build
+METAPKG := github.com/prometheus/common
 
 # Taken and modified from the project's Makefile.
 
@@ -23,12 +24,12 @@ HOSTNAME   := debian
 BUILD_DATE := $(shell date --utc --date='$(DEBDATE)' +%Y%m%d-%H:%M:%S)
 GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
 BUILDFLAGS := -ldflags \
-  " -X $(DH_GOPKG)/version.Version=$(VERSION)\
-    -X $(DH_GOPKG)/version.Revision=$(REV)\
-    -X $(DH_GOPKG)/version.Branch=$(BRANCH)\
-    -X $(DH_GOPKG)/version.BuildUser=$(USER)\
-    -X $(DH_GOPKG)/version.BuildDate=$(BUILD_DATE)\
-    -X $(DH_GOPKG)/version.GoVersion=$(GO_VERSION)"
+  " -X $(METAPKG)/version.Version=$(VERSION)\
+    -X $(METAPKG)/version.Revision=$(REV)\
+    -X $(METAPKG)/version.Branch=$(BRANCH)\
+    -X $(METAPKG)/version.BuildUser=$(USER)\
+    -X $(METAPKG)/version.BuildDate=$(BUILD_DATE)\
+    -X $(METAPKG)/version.GoVersion=$(GO_VERSION)"
 
 # Avoid some tests that fail on slow architectures.
 ifeq ($(DEB_HOST_ARCH_CPU),arm)
