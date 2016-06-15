@@ -1,4 +1,4 @@
-prometheus (0.19.3+ds-1) UNRELEASED; urgency=medium
+prometheus (0.19.3+ds-1) unstable; urgency=medium
 
   * New upstream release.
   * debian/control: Remove obsolete golang-github-prometheus-log-dev
@@ -8,7 +8,7 @@ prometheus (0.19.3+ds-1) UNRELEASED; urgency=medium
     - Switch to depend on golang-any instead of golang-go.
     - Change dh-golang dependency to work in backports.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 15 Jun 2016 12:40:08 +0100
+ -- Martín Ferrari <tincho@debian.org>  Wed, 15 Jun 2016 11:49:27 +0000
 
 prometheus (0.19.2+ds-2) unstable; urgency=medium
 
