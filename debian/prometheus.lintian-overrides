@@ -7,3 +7,4 @@ prometheus: embedded-javascript-library usr/share/prometheus/web/static/vendor/j
 # The Go compiler is currently unable to produce read-only relocations
 prometheus: hardening-no-relro usr/bin/prometheus
 prometheus: hardening-no-relro usr/bin/promtool
+prometheus: hardening-no-relro usr/bin/storagetool
