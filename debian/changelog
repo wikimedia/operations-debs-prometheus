@@ -3,6 +3,10 @@ prometheus (0.19.3+ds-1) UNRELEASED; urgency=medium
   * New upstream release.
   * debian/control: Remove obsolete golang-github-prometheus-log-dev
     dependency.
+  * debian/control:
+    - Update Vcs-Git to use HTTPS.
+    - Switch to depend on golang-any instead of golang-go.
+    - Change dh-golang dependency to work in backports.
 
  -- Martín Ferrari <tincho@debian.org>  Wed, 15 Jun 2016 12:40:08 +0100
 
