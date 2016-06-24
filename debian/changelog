@@ -1,8 +1,10 @@
-prometheus (0.19.3+ds-2) UNRELEASED; urgency=medium
+prometheus (0.20.0+ds-1) UNRELEASED; urgency=medium
 
+  * New upstream release.
   * Update lintian overrides for new binary.
+  * Update dependencies.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 15 Jun 2016 12:33:25 +0000
+ -- Martín Ferrari <tincho@debian.org>  Fri, 24 Jun 2016 15:54:44 +0000
 
 prometheus (0.19.3+ds-1) unstable; urgency=medium
 

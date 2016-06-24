@@ -1,16 +1,26 @@
+prometheus (0.20.0+ds-1) unstable; urgency=medium
+
+  This release contains multiple breaking changes to the configuration schema.
+
+  * [CHANGE] Rename `target_groups` to `static_configs` in config files
+  * [CHANGE] Rename `names` to `files` in file SD configuration
+  * [CHANGE] Remove kubelet port config option in Kubernetes SD configuration
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 24 Jun 2016 16:04:05 +0000
+
 prometheus (0.19.2+ds-1) unstable; urgency=medium
 
   This version contains a breaking change to the query language.
   Please read the documentation on the changed grouping behavior of vector
   matching: https://prometheus.io/docs/querying/operators/#vector-matching
 
-    * [FEATURE] Add experimental Microsoft Azure service discovery
-    * [FEATURE] Add `ignoring` modifier for binary operations
-    * [FEATURE] Add pod discovery to Kubernetes service discovery
-    * [CHANGE] Vector matching takes grouping labels from one-side
-    * [ENHANCEMENT] Support time range on /api/v1/series endpoint
-    * [ENHANCEMENT] Partition status page into indivdual pages
-    * [BUGFIX] Fix issue of hanging target scrapes
+  * [FEATURE] Add experimental Microsoft Azure service discovery
+  * [FEATURE] Add `ignoring` modifier for binary operations
+  * [FEATURE] Add pod discovery to Kubernetes service discovery
+  * [CHANGE] Vector matching takes grouping labels from one-side
+  * [ENHANCEMENT] Support time range on /api/v1/series endpoint
+  * [ENHANCEMENT] Partition status page into indivdual pages
+  * [BUGFIX] Fix issue of hanging target scrapes
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 30 May 2016 09:52:19 +0000
 
@@ -42,33 +52,34 @@ prometheus (0.18.0+ds-1) unstable; urgency=medium
 
 prometheus (0.16.2+ds-1) unstable; urgency=high
 
-  * Breaking changes in this release:
-   - Remove undocumented 2nd argument of the `delta` function.
-   - Release tarballs now contain the built binaries in a nested directory.
-   - The `hash_mod` relabeling action now uses MD5 hashes instead of FNV hashes
+  Breaking changes in this release:
+
+  * Remove undocumented 2nd argument of the `delta` function.
+  * Release tarballs now contain the built binaries in a nested directory.
+  * The `hash_mod` relabeling action now uses MD5 hashes instead of FNV hashes
      to achieve a better distribution.
-   - The DNS-SD meta label `__meta_dns_srv_name` was renamed to
+  * The DNS-SD meta label `__meta_dns_srv_name` was renamed to
      `__meta_dns_name` to reflect support for DNS record types other than
      `SRV`.
-   - The default full refresh interval for the file-based service discovery has
+  * The default full refresh interval for the file-based service discovery has
      been increased from 30 seconds to 5 minutes.
-   - In relabeling, parts of a source label that weren't matched by the
+  * In relabeling, parts of a source label that weren't matched by the
      specified regular expression are no longer included in the replacement
      output.
-   - Queries no longer interpolate between two data points. Instead, the
+  * Queries no longer interpolate between two data points. Instead, the
      resulting value will always be the latest value before the evaluation
      query timestamp.
-   - Regular expressions supplied via the configuration are now anchored to
+  * Regular expressions supplied via the configuration are now anchored to
      match full strings instead of substrings.
-   - Global labels are not appended upon storing time series anymore. Instead,
+  * Global labels are not appended upon storing time series anymore. Instead,
      they are only appended when communicating with external systems
      (Alertmanager, remote storages, federation). They have thus also been
      renamed from `global.labels` to `global.external_labels`.
-   - The names and units of metrics related to remote storage sample appends
+  * The names and units of metrics related to remote storage sample appends
      have been changed.
-   - The experimental support for writing to InfluxDB has been updated to work
+  * The experimental support for writing to InfluxDB has been updated to work
      with InfluxDB 0.9.x. 0.8.x versions of InfluxDB are not supported anymore.
-   - Escape sequences in double- and single-quoted string literals in rules or
+  * Escape sequences in double- and single-quoted string literals in rules or
      query expressions are now interpreted like escape sequences in Go string
      literals (https://golang.org/ref/spec#String_literals).
 
