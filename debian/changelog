@@ -2,6 +2,9 @@ prometheus (1.0.0+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release. 1.0!
   * Update debian/copyright.
+  * debian/patches:
+    - Refresh patches.
+    - Remove old patch for go 1.3 compatibility.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 19 Jul 2016 04:11:36 +0100
 

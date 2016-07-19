@@ -9,24 +9,24 @@
  	"encoding/json"
  	"fmt"
  	"io"
-@@ -46,7 +45,6 @@
+@@ -45,7 +44,6 @@
+ 	"github.com/prometheus/prometheus/template"
  	"github.com/prometheus/prometheus/util/httputil"
- 	"github.com/prometheus/prometheus/web/api/legacy"
- 	"github.com/prometheus/prometheus/web/api/v1"
+ 	api_v1 "github.com/prometheus/prometheus/web/api/v1"
 -	"github.com/prometheus/prometheus/web/ui"
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -102,7 +100,7 @@
- 	ListenAddress        string
+@@ -101,7 +99,7 @@
  	ExternalURL          *url.URL
+ 	RoutePrefix          string
  	MetricsPath          string
 -	UseLocalAssets       bool
 +	LocalAssets          string
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -181,7 +179,7 @@
+@@ -174,7 +172,7 @@
  
  	router.Get("/consoles/*filepath", instrf("consoles", h.consoles))
  
@@ -35,7 +35,7 @@
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
-@@ -199,28 +197,6 @@
+@@ -192,28 +190,6 @@
  	return h
  }
  
@@ -147,7 +147,7 @@
      <script>
 --- a/cmd/prometheus/config.go
 +++ b/cmd/prometheus/config.go
-@@ -84,6 +84,11 @@
+@@ -90,6 +90,11 @@
  		"Path under which to expose metrics.",
  	)
  	cfg.fs.StringVar(
