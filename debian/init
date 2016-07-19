@@ -25,12 +25,25 @@ NAME=prometheus
 USER=prometheus
 PIDFILE=/var/run/prometheus/prometheus.pid
 LOGFILE=/var/log/prometheus/prometheus.log
+CFGFILE=/etc/prometheus/prometheus.yml
 
 HELPER=/usr/bin/daemon
 HELPER_ARGS="--name=$NAME --output=$LOGFILE --pidfile=$PIDFILE --user=$USER"
 
 ARGS=""
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+config_check()
+{
+    retcode=0
+    errors="$(/usr/bin/promtool check-config $CFGFILE 2>&1)" || retcode=$?
+    if [ $retcode -ne 0 ]; then
+        log_failure_msg
+        echo "Configuration test failed. Output of config test was:" >&2
+        echo "$errors" >&2
+        return $retcode
+    fi
+}
 
 do_start_prepare()
 {
@@ -47,6 +60,7 @@ do_start_cmd()
     #   1 if daemon was already running
     #   2 if daemon could not be started
     $HELPER $HELPER_ARGS --running && return 1
+    config_check || return 2
     $HELPER $HELPER_ARGS -- $DAEMON $ARGS || return 2
     return 0
 }
@@ -73,6 +87,7 @@ do_reload()
 {
     log_daemon_msg "Reloading $DESC configuration files" "$NAME"
     $HELPER $HELPER_ARGS --running || return 1
+    config_check || return 2
     helper_pid=$(cat $PIDFILE)
     if [ -z "$helper_pid" ]; then
         log_failure_msg "Unable to find PID"
