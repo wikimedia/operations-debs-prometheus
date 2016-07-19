@@ -1,4 +1,4 @@
-prometheus (1.0.0+ds-1) UNRELEASED; urgency=medium
+prometheus (1.0.0+ds-1) unstable; urgency=medium
 
   * New upstream release. 1.0!
   * Update debian/copyright.
@@ -9,7 +9,7 @@ prometheus (1.0.0+ds-1) UNRELEASED; urgency=medium
   * Update default configuration (breaking changes).
   * debian/init: Check config during init.
 
- -- Martín Ferrari <tincho@debian.org>  Tue, 19 Jul 2016 04:11:36 +0100
+ -- Martín Ferrari <tincho@debian.org>  Tue, 19 Jul 2016 04:48:06 +0000
 
 prometheus (0.20.0+ds-1) unstable; urgency=medium
 
