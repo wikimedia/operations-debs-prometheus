@@ -1,9 +1,9 @@
-prometheus (1.0.1+ds-1) UNRELEASED; urgency=medium
+prometheus (1.0.1+ds-1) unstable; urgency=medium
 
   * New upstream release.
   * debian/control: Update dependency version for prometheus/common.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 15 Aug 2016 12:49:59 +0100
+ -- Martín Ferrari <tincho@debian.org>  Mon, 15 Aug 2016 13:08:24 +0100
 
 prometheus (1.0.0+ds-1) unstable; urgency=medium
 
