@@ -1,3 +1,9 @@
+prometheus (1.0.1+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Martín Ferrari <tincho@debian.org>  Mon, 15 Aug 2016 12:49:59 +0100
+
 prometheus (1.0.0+ds-1) unstable; urgency=medium
 
   * New upstream release. 1.0!
