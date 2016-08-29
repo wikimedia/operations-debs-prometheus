@@ -1,6 +1,7 @@
 prometheus (1.0.1+ds-2) UNRELEASED; urgency=medium
 
   * debian/control: Update dependency name for client_golang.
+  * Backport fixes from master. Closes: #835741.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 18 Aug 2016 12:08:41 +0000
 
