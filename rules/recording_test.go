@@ -68,3 +68,21 @@ func TestRuleEval(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordingRuleHTMLSnippet(t *testing.T) {
+	expr, err := promql.ParseExpr(`foo{html="<b>BOLD<b>"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := NewRecordingRule("testrule", expr, model.LabelSet{"html": "<b>BOLD</b>"})
+
+	// This is valid once the /graph changes have been reintroduced:
+	// const want = `<a href="/test/prefix/graph?g0.expr=testrule&g0.tab=0">testrule</a>{html=&#34;&lt;b&gt;BOLD&lt;/b&gt;&#34;} = <a href="/test/prefix/graph?g0.expr=foo%7Bhtml%3D%22%3Cb%3EBOLD%3Cb%3E%22%7D&g0.tab=0">foo{html=&#34;&lt;b&gt;BOLD&lt;b&gt;&#34;}</a>`
+	// This is what we need for now:
+	const want = `<a href="/test/prefix/graph#%5B%7B%22expr%22%3A%22testrule%22%2C%22tab%22%3A0%7D%5D">testrule</a>{html=&#34;&lt;b&gt;BOLD&lt;/b&gt;&#34;} = <a href="/test/prefix/graph#%5B%7B%22expr%22%3A%22foo%7Bhtml%3D%5C%22%3Cb%3EBOLD%3Cb%3E%5C%22%7D%22%2C%22tab%22%3A0%7D%5D">foo{html=&#34;&lt;b&gt;BOLD&lt;b&gt;&#34;}</a>`
+
+	got := rule.HTMLSnippet("/test/prefix")
+	if got != want {
+		t.Fatalf("incorrect HTML snippet; want:\n\n%s\n\ngot:\n\n%s", want, got)
+	}
+}

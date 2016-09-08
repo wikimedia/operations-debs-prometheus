@@ -115,6 +115,7 @@ type persistence struct {
 	indexingBatchDuration prometheus.Summary
 	checkpointDuration    prometheus.Gauge
 	dirtyCounter          prometheus.Counter
+	startedDirty          prometheus.Gauge
 
 	dirtyMtx       sync.Mutex     // Protects dirty and becameDirty.
 	dirty          bool           // true if persistence was started in dirty state.
@@ -245,6 +246,12 @@ func newPersistence(
 			Name:      "inconsistencies_total",
 			Help:      "A counter incremented each time an inconsistency in the local storage is detected. If this is greater zero, restart the server as soon as possible.",
 		}),
+		startedDirty: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "started_dirty",
+			Help:      "Whether the local storage was found to be dirty (and crash recovery occurred) during Prometheus startup.",
+		}),
 		dirty:          dirty,
 		pedanticChecks: pedanticChecks,
 		dirtyFileName:  dirtyPath,
@@ -291,6 +298,7 @@ func (p *persistence) Describe(ch chan<- *prometheus.Desc) {
 	p.indexingBatchDuration.Describe(ch)
 	ch <- p.checkpointDuration.Desc()
 	ch <- p.dirtyCounter.Desc()
+	ch <- p.startedDirty.Desc()
 }
 
 // Collect implements prometheus.Collector.
@@ -303,6 +311,7 @@ func (p *persistence) Collect(ch chan<- prometheus.Metric) {
 	p.indexingBatchDuration.Collect(ch)
 	ch <- p.checkpointDuration
 	ch <- p.dirtyCounter
+	ch <- p.startedDirty
 }
 
 // isDirty returns the dirty flag in a goroutine-safe way.
@@ -343,13 +352,13 @@ func (p *persistence) fingerprintsForLabelPair(lp model.LabelPair) model.Fingerp
 // name. This method is goroutine-safe but take into account that metrics queued
 // for indexing with IndexMetric might not have made it into the index
 // yet. (Same applies correspondingly to UnindexMetric.)
-func (p *persistence) labelValuesForLabelName(ln model.LabelName) model.LabelValues {
+func (p *persistence) labelValuesForLabelName(ln model.LabelName) (model.LabelValues, error) {
 	lvs, _, err := p.labelNameToLabelValues.Lookup(ln)
 	if err != nil {
 		p.setDirty(fmt.Errorf("error in method labelValuesForLabelName(%v): %s", ln, err))
-		return nil
+		return nil, err
 	}
-	return lvs
+	return lvs, nil
 }
 
 // persistChunks persists a number of consecutive chunks of a series. It is the
@@ -700,10 +709,13 @@ func (p *persistence) loadSeriesMapAndHeads() (sm *seriesMap, chunksToPersist in
 	defer func() {
 		if p.dirty {
 			log.Warn("Persistence layer appears dirty.")
+			p.startedDirty.Set(1)
 			err = p.recoverFromCrash(fingerprintToSeries)
 			if err != nil {
 				sm = nil
 			}
+		} else {
+			p.startedDirty.Set(0)
 		}
 	}()
 
