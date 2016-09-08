@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/relabel"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/util/httputil"
 )
@@ -65,7 +66,8 @@ func NewTarget(labels, metaLabels model.LabelSet, params url.Values) *Target {
 	}
 }
 
-func newHTTPClient(cfg *config.ScrapeConfig) (*http.Client, error) {
+// NewHTTPClient returns a new HTTP client configured for the given scrape configuration.
+func NewHTTPClient(cfg *config.ScrapeConfig) (*http.Client, error) {
 	tlsOpts := httputil.TLSOptions{
 		InsecureSkipVerify: cfg.TLSConfig.InsecureSkipVerify,
 		CAFile:             cfg.TLSConfig.CAFile,
@@ -97,7 +99,7 @@ func newHTTPClient(cfg *config.ScrapeConfig) (*http.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to read bearer token file %s: %s", cfg.BearerTokenFile, err)
 		}
-		bearerToken = string(b)
+		bearerToken = strings.TrimSpace(string(b))
 	}
 
 	if len(bearerToken) > 0 {
@@ -275,10 +277,8 @@ type relabelAppender struct {
 }
 
 func (app relabelAppender) Append(s *model.Sample) error {
-	labels, err := Relabel(model.LabelSet(s.Metric), app.relabelings...)
-	if err != nil {
-		return fmt.Errorf("metric relabeling error %s: %s", s.Metric, err)
-	}
+	labels := relabel.Process(model.LabelSet(s.Metric), app.relabelings...)
+
 	// Check if the timeseries was dropped.
 	if labels == nil {
 		return nil
