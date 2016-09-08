@@ -1,6 +1,6 @@
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1309,6 +1309,7 @@
+@@ -1357,6 +1357,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunkEncoding) {
