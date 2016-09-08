@@ -4,6 +4,9 @@ prometheus (1.1.1+ds-1) UNRELEASED; urgency=medium
   * debian/control: Update dependency name for client_golang.
   * debian/control: Add new dependency for gRPC.
   * debian/control: Add explicit dependency for snappy.
+  * Install examples, but do not build them.
+  * debian/patches/07-Disable_dns_test.patch: Disable test that accesses the
+    network.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 08 Sep 2016 10:58:38 +0300
 
