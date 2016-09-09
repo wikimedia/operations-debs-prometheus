@@ -1,3 +1,9 @@
+prometheus (1.1.2+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release, fixing some bugs.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 09 Sep 2016 17:24:34 +0300
+
 prometheus (1.1.1+ds-1) unstable; urgency=medium
 
   * New upstream release. Closes: #835741.
