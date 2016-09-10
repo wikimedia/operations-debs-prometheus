@@ -1,3 +1,9 @@
+prometheus (1.1.2+ds-2) UNRELEASED; urgency=medium
+
+  * Add a patch that fixes build issues in i386 and armhf.
+
+ -- Martín Ferrari <tincho@debian.org>  Sat, 10 Sep 2016 20:04:47 +0000
+
 prometheus (1.1.2+ds-1) unstable; urgency=medium
 
   * New upstream release, fixing some bugs.

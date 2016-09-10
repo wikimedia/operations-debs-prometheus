@@ -1,0 +1,15 @@
+Builds were failing in i386 and armhf, apparently due to alignment errors. This
+patch was suggested by Fabian Reinartz.
+
+--- a/storage/remote/queue_manager_test.go
++++ b/storage/remote/queue_manager_test.go
+@@ -152,8 +152,8 @@
+ // the `numCalls` property will contain a count of how many times Store() was
+ // called.
+ type TestBlockingStorageClient struct {
+-	block    chan bool
+ 	numCalls uint64
++	block    chan bool
+ }
+ 
+ func NewTestBlockedStorageClient() *TestBlockingStorageClient {

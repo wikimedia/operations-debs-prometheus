@@ -3,3 +3,4 @@
 05-Disable_flaky_tests.patch
 06-Bug#818417-AWS_SDK_changes.patch
 07-Disable_dns_test.patch
+08-Alignment-error.patch
