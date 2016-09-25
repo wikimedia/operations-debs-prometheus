@@ -60,7 +60,8 @@ override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
 	# Build and install datetimepicker.
 	mkdir -vp $(BUILDDIR)/bootstrap-datetimepicker
-	lessc web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
+	python2-lesscpy \
+            web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.less > \
             $(BUILDDIR)/bootstrap-datetimepicker/bootstrap-datetimepicker.css
 	cp web/ui/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js \
             $(BUILDDIR)/bootstrap-datetimepicker/
