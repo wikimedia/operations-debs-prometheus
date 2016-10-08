@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/model"
+	"golang.org/x/net/context"
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/storage/local"
@@ -27,6 +28,9 @@ func TestRuleEval(t *testing.T) {
 	storage, closer := local.NewTestStorage(t, 2)
 	defer closer.Close()
 	engine := promql.NewEngine(storage, nil)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
+
 	now := model.Now()
 
 	suite := []struct {
@@ -59,7 +63,7 @@ func TestRuleEval(t *testing.T) {
 
 	for _, test := range suite {
 		rule := NewRecordingRule(test.name, test.expr, test.labels)
-		result, err := rule.eval(now, engine, "")
+		result, err := rule.eval(ctx, now, engine, "")
 		if err != nil {
 			t.Fatalf("Error evaluating %s", test.name)
 		}
@@ -76,10 +80,7 @@ func TestRecordingRuleHTMLSnippet(t *testing.T) {
 	}
 	rule := NewRecordingRule("testrule", expr, model.LabelSet{"html": "<b>BOLD</b>"})
 
-	// This is valid once the /graph changes have been reintroduced:
-	// const want = `<a href="/test/prefix/graph?g0.expr=testrule&g0.tab=0">testrule</a>{html=&#34;&lt;b&gt;BOLD&lt;/b&gt;&#34;} = <a href="/test/prefix/graph?g0.expr=foo%7Bhtml%3D%22%3Cb%3EBOLD%3Cb%3E%22%7D&g0.tab=0">foo{html=&#34;&lt;b&gt;BOLD&lt;b&gt;&#34;}</a>`
-	// This is what we need for now:
-	const want = `<a href="/test/prefix/graph#%5B%7B%22expr%22%3A%22testrule%22%2C%22tab%22%3A0%7D%5D">testrule</a>{html=&#34;&lt;b&gt;BOLD&lt;/b&gt;&#34;} = <a href="/test/prefix/graph#%5B%7B%22expr%22%3A%22foo%7Bhtml%3D%5C%22%3Cb%3EBOLD%3Cb%3E%5C%22%7D%22%2C%22tab%22%3A0%7D%5D">foo{html=&#34;&lt;b&gt;BOLD&lt;b&gt;&#34;}</a>`
+	const want = `<a href="/test/prefix/graph?g0.expr=testrule&g0.tab=0">testrule</a>{html=&#34;&lt;b&gt;BOLD&lt;/b&gt;&#34;} = <a href="/test/prefix/graph?g0.expr=foo%7Bhtml%3D%22%3Cb%3EBOLD%3Cb%3E%22%7D&g0.tab=0">foo{html=&#34;&lt;b&gt;BOLD&lt;b&gt;&#34;}</a>`
 
 	got := rule.HTMLSnippet("/test/prefix")
 	if got != want {

@@ -788,7 +788,7 @@ func funcChanges(ev *evaluator, args Expressions) model.Value {
 		prev := model.SampleValue(samples.Values[0].Value)
 		for _, sample := range samples.Values[1:] {
 			current := sample.Value
-			if current != prev {
+			if current != prev && !(math.IsNaN(float64(current)) && math.IsNaN(float64(prev))) {
 				changes++
 			}
 			prev = current
@@ -906,6 +906,13 @@ func funcDayOfWeek(ev *evaluator, args Expressions) model.Value {
 func funcHour(ev *evaluator, args Expressions) model.Value {
 	return dateWrapper(ev, args, func(t time.Time) model.SampleValue {
 		return model.SampleValue(t.Hour())
+	})
+}
+
+// === minute(v vector) scalar ===
+func funcMinute(ev *evaluator, args Expressions) model.Value {
+	return dateWrapper(ev, args, func(t time.Time) model.SampleValue {
+		return model.SampleValue(t.Minute())
 	})
 }
 
@@ -1101,6 +1108,13 @@ var functions = map[string]*Function{
 		ArgTypes:   []model.ValueType{model.ValMatrix},
 		ReturnType: model.ValVector,
 		Call:       funcMinOverTime,
+	},
+	"minute": {
+		Name:         "minute",
+		ArgTypes:     []model.ValueType{model.ValVector},
+		OptionalArgs: 1,
+		ReturnType:   model.ValVector,
+		Call:         funcMinute,
 	},
 	"month": {
 		Name:         "month",

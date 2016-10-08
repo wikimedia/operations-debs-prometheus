@@ -24,6 +24,7 @@ import (
 	influx "github.com/influxdb/influxdb/client"
 
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/relabel"
 	"github.com/prometheus/prometheus/storage/remote/graphite"
 	"github.com/prometheus/prometheus/storage/remote/influxdb"
 	"github.com/prometheus/prometheus/storage/remote/opentsdb"
@@ -33,6 +34,7 @@ import (
 type Storage struct {
 	queues         []*StorageQueueManager
 	externalLabels model.LabelSet
+	relabelConfigs []*config.RelabelConfig
 	mtx            sync.RWMutex
 }
 
@@ -42,6 +44,7 @@ func (s *Storage) ApplyConfig(conf *config.Config) error {
 	defer s.mtx.Unlock()
 
 	s.externalLabels = conf.GlobalConfig.ExternalLabels
+	s.relabelConfigs = conf.RemoteWriteConfig.WriteRelabelConfigs
 	return nil
 }
 
@@ -69,13 +72,6 @@ func New(o *Options) (*Storage, error) {
 		prometheus.MustRegister(c)
 		s.queues = append(s.queues, NewStorageQueueManager(c, nil))
 	}
-	if o.Address != "" {
-		c, err := NewClient(o.Address, o.StorageTimeout)
-		if err != nil {
-			return nil, err
-		}
-		s.queues = append(s.queues, NewStorageQueueManager(c, nil))
-	}
 	if len(s.queues) == 0 {
 		return nil, nil
 	}
@@ -94,15 +90,12 @@ type Options struct {
 	GraphiteAddress         string
 	GraphiteTransport       string
 	GraphitePrefix          string
-	// TODO: This just being called "Address" will make more sense once the
-	// other remote storage mechanisms are removed.
-	Address string
 }
 
-// Run starts the background processing of the storage queues.
-func (s *Storage) Run() {
+// Start starts the background processing of the storage queues.
+func (s *Storage) Start() {
 	for _, q := range s.queues {
-		go q.Run()
+		q.Start()
 	}
 }
 
@@ -126,7 +119,13 @@ func (s *Storage) Append(smpl *model.Sample) error {
 			snew.Metric[ln] = lv
 		}
 	}
+	snew.Metric = model.Metric(
+		relabel.Process(model.LabelSet(snew.Metric), s.relabelConfigs...))
 	s.mtx.RUnlock()
+
+	if snew.Metric == nil {
+		return nil
+	}
 
 	for _, q := range s.queues {
 		q.Append(&snew)
@@ -139,18 +138,4 @@ func (s *Storage) Append(smpl *model.Sample) error {
 // of asking for throttling.
 func (s *Storage) NeedsThrottling() bool {
 	return false
-}
-
-// Describe implements prometheus.Collector.
-func (s *Storage) Describe(ch chan<- *prometheus.Desc) {
-	for _, q := range s.queues {
-		q.Describe(ch)
-	}
-}
-
-// Collect implements prometheus.Collector.
-func (s *Storage) Collect(ch chan<- prometheus.Metric) {
-	for _, q := range s.queues {
-		q.Collect(ch)
-	}
 }
