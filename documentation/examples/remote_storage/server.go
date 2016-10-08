@@ -15,54 +15,42 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
-	"net"
+	"net/http"
 
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/common/model"
+
 	"github.com/prometheus/prometheus/storage/remote"
 )
 
-type server struct{}
-
-func (server *server) Write(ctx context.Context, req *remote.WriteRequest) (*remote.WriteResponse, error) {
-	for _, ts := range req.Timeseries {
-		m := make(model.Metric, len(ts.Labels))
-		for _, l := range ts.Labels {
-			m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
-		}
-		fmt.Println(m)
-
-		for _, s := range ts.Samples {
-			fmt.Printf("  %f %d\n", s.Value, s.TimestampMs)
-		}
-	}
-
-	return &remote.WriteResponse{}, nil
-}
-
-type snappyDecompressor struct{}
-
-func (d *snappyDecompressor) Do(r io.Reader) ([]byte, error) {
-	sr := snappy.NewReader(r)
-	return ioutil.ReadAll(sr)
-}
-
-func (d *snappyDecompressor) Type() string {
-	return "snappy"
-}
-
 func main() {
-	lis, err := net.Listen("tcp", ":1234")
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-	s := grpc.NewServer(grpc.RPCDecompressor(&snappyDecompressor{}))
-	remote.RegisterWriteServer(s, &server{})
-	s.Serve(lis)
+	http.HandleFunc("/receive", func(w http.ResponseWriter, r *http.Request) {
+		reqBuf, err := ioutil.ReadAll(snappy.NewReader(r.Body))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var req remote.WriteRequest
+		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		for _, ts := range req.Timeseries {
+			m := make(model.Metric, len(ts.Labels))
+			for _, l := range ts.Labels {
+				m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+			}
+			fmt.Println(m)
+
+			for _, s := range ts.Samples {
+				fmt.Printf("  %f %d\n", s.Value, s.TimestampMs)
+			}
+		}
+	})
+
+	http.ListenAndServe(":1234", nil)
 }
