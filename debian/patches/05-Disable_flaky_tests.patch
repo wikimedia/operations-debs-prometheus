@@ -1,9 +1,9 @@
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1357,6 +1357,7 @@
+@@ -1397,6 +1397,7 @@
  }
  
- func testEvictAndLoadChunkDescs(t *testing.T, encoding chunkEncoding) {
+ func testEvictAndLoadChunkDescs(t *testing.T, encoding chunk.Encoding) {
 +	t.Skip("Skipping time-dependant test.")
  	samples := make(model.Samples, 10000)
  	for i := range samples {
