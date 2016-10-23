@@ -1,10 +1,11 @@
-prometheus (1.2.0-1) UNRELEASED; urgency=medium
+prometheus (1.2.1+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Update dependencies.
   * Refresh patches.
+  * Unvendor jquery and replace with Debian's packaged version.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 09 Oct 2016 00:43:11 +0200
+ -- Martín Ferrari <tincho@debian.org>  Sun, 23 Oct 2016 15:21:56 +0200
 
 prometheus (1.1.3+ds-1) unstable; urgency=medium
 
