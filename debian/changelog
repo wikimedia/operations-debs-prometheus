@@ -4,6 +4,7 @@ prometheus (1.2.1+ds-1) UNRELEASED; urgency=medium
   * Update dependencies.
   * Refresh patches.
   * Unvendor jquery and replace with Debian's packaged version.
+  * Update prometheus-common dependency.
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 23 Oct 2016 15:21:56 +0200
 
