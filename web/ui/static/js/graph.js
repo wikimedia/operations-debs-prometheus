@@ -364,7 +364,10 @@ Prometheus.Graph.prototype.submitQuery = function() {
           self.showError("Error executing query: " + err);
         }
       },
-      complete: function() {
+      complete: function(xhr, resp) {
+        if (resp == "abort") {
+          return;
+        }
         var duration = new Date().getTime() - startTime;
         self.evalStats.html("Load time: " + duration + "ms <br /> Resolution: " + resolution + "s");
         self.spinner.hide();
@@ -741,9 +744,8 @@ Prometheus.Page.QueryParamHelper.prototype.parseQueryParamsOfOneGraph = function
   queryParams.forEach(function(tuple) {
     var optionNameAndValue = tuple.split('=');
     var optionName = optionNameAndValue[0];
-    var optionValue = decodeURIComponent(optionNameAndValue[1]);
 
-    optionValue = optionValue.replace(/\+/g, " "); // $.param turns spaces into pluses
+    var optionValue = decodeURIComponent(optionNameAndValue[1].replace(/\+/g, " "));
 
     if (optionName == "tab") {
       optionValue = parseInt(optionValue); // tab is integer
