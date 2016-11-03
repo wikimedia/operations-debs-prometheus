@@ -5,6 +5,7 @@ prometheus (1.2.3+ds-1) UNRELEASED; urgency=medium
   * Re-vendor github.com/hashicorp/consul until the Debian package is
     stable.
   * Remove unneeded build-deps.
+  * Update dependency on golang-github-miekg-dns-dev.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 03 Nov 2016 22:45:48 +0000
 
