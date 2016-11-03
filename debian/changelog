@@ -2,6 +2,8 @@ prometheus (1.2.3+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release, containing a few bugfixes.
   * Add minimum version for jquery dependency (relevant for backports).
+  * Re-vendor github.com/hashicorp/consul until the Debian package is
+    stable.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 03 Nov 2016 22:45:48 +0000
 

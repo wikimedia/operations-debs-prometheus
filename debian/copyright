@@ -18,6 +18,10 @@ Files: vendor/github.com/influxdb/*
 Copyright: 2013-2015 Errplane Inc.
 License: MIT
 
+Files: vendor/github.com/hashicorp/*
+Copyright: 2013-2016 HashiCorp
+License: MPL-2.0
+
 Files: web/ui/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
 License: MIT
