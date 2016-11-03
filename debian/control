@@ -45,6 +45,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-bootstrap,
          libjs-handlebars,
+         libjs-jquery (>> 1.11.3~),
          libjs-jquery-hotkeys,
          libjs-rickshaw,
 Recommends: prometheus-node-exporter, prometheus-cli
