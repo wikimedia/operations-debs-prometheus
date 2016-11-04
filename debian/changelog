@@ -1,8 +1,8 @@
-prometheus (1.2.3+ds-2) UNRELEASED; urgency=medium
+prometheus (1.2.3+ds-2) unstable; urgency=medium
 
   * Correct extra unneeded deps (the relevant parts are already vendored-in).
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 04 Nov 2016 01:52:46 +0100
+ -- Martín Ferrari <tincho@debian.org>  Fri, 04 Nov 2016 00:54:10 +0000
 
 prometheus (1.2.3+ds-1) unstable; urgency=medium
 
