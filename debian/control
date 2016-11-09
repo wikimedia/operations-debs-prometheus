@@ -29,7 +29,6 @@ Build-Depends: adduser, debhelper (>= 9.0.0),
                golang-google-cloud-compute-metadata-dev,
                golang-google-grpc-dev,
                golang-gopkg-yaml.v2-dev,
-               python-lesscpy,
 Standards-Version: 3.9.8
 Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git/
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git/
@@ -39,6 +38,7 @@ Package: prometheus
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-bootstrap,
+         libjs-eonasdan-bootstrap-datetimepicker,
          libjs-handlebars,
          libjs-jquery (>= 1.11.3~),
          libjs-jquery-hotkeys,
