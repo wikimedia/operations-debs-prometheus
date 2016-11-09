@@ -1,6 +1,5 @@
 usr/share/javascript/bootstrap      usr/share/prometheus/web/static/bootstrap
-usr/share/javascript/eonasdan-bootstrap-datetimepicker \
-        usr/share/prometheus/web/static/eonasdan-bootstrap-datetimepicker
+usr/share/javascript/eonasdan-bootstrap-datetimepicker usr/share/prometheus/web/static/eonasdan-bootstrap-datetimepicker
 usr/share/javascript/handlebars     usr/share/prometheus/web/static/handlebars
 usr/share/javascript/jquery         usr/share/prometheus/web/static/jquery
 usr/share/javascript/jquery-hotkeys usr/share/prometheus/web/static/jquery-hotkeys
