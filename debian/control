@@ -42,6 +42,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-handlebars,
          libjs-jquery (>= 1.11.3~),
          libjs-jquery-hotkeys,
+         libjs-moment,
          libjs-rickshaw,
 Recommends: prometheus-node-exporter, prometheus-cli
 Built-Using: ${misc:Built-Using}

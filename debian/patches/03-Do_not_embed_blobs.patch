@@ -103,7 +103,7 @@
  <script src="{{ pathPrefix }}/static/js/prom_console.js"></script>
 --- a/web/ui/templates/graph.html
 +++ b/web/ui/templates/graph.html
-@@ -1,18 +1,17 @@
+@@ -1,18 +1,18 @@
  {{define "head"}}
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css">
  
@@ -119,6 +119,7 @@
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/d3/d3.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
++    <script src="{{ pathPrefix }}/static/moment/moment.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js"></script>
  
@@ -162,13 +163,64 @@
  	)
 --- a/web/ui/static/js/graph.js
 +++ b/web/ui/static/js/graph.js
-@@ -110,8 +110,7 @@
+@@ -110,13 +110,18 @@
  
    self.endDate = graphWrapper.find("input[name=end_input]");
    self.endDate.datetimepicker({
 -    language: 'en',
 -    pickSeconds: false,
 +    locale: 'en',
++    format: 'YYYY-MM-DD HH:mm',
++    toolbarPlacement: 'bottom',
++    sideBySide: true,
++    showTodayButton: true,
++    showClear: true,
++    showClose: true,
    });
    if (self.options.end_input) {
-     self.endDate.data('datetimepicker').setValue(self.options.end_input);
+-    self.endDate.data('datetimepicker').setValue(self.options.end_input);
++    self.endDate.data('DateTimePicker').date(self.options.end_input);
+   }
+-  self.endDate.change(function() { self.submitQuery(); });
++  self.endDate.on("dp.change", function() { self.submitQuery(); });
+   self.refreshInterval.change(function() { self.updateRefresh(); });
+ 
+   self.isStacked = function() {
+@@ -277,9 +282,9 @@
+ Prometheus.Graph.prototype.getEndDate = function() {
+   var self = this;
+   if (!self.endDate || !self.endDate.val()) {
+-    return new Date();
++    return moment();
+   }
+-  return self.endDate.data('datetimepicker').getDate().getTime();
++  return self.endDate.data('DateTimePicker').date();
+ };
+ 
+ Prometheus.Graph.prototype.getOrSetEndDate = function() {
+@@ -291,18 +296,22 @@
+ 
+ Prometheus.Graph.prototype.setEndDate = function(date) {
+   var self = this;
+-  self.endDate.data('datetimepicker').setValue(date);
++  self.endDate.data('DateTimePicker').date(date);
+ };
+ 
+ Prometheus.Graph.prototype.increaseEnd = function() {
+   var self = this;
+-  self.setEndDate(new Date(self.getOrSetEndDate() + self.parseDuration(self.rangeInput.val()) * 1000/2 )); // increase by 1/2 range & convert ms in s
++  var newDate = moment(self.getOrSetEndDate());
++  newDate.add(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
++  self.setEndDate(newDate);
+   self.submitQuery();
+ };
+ 
+ Prometheus.Graph.prototype.decreaseEnd = function() {
+   var self = this;
+-  self.setEndDate(new Date(self.getOrSetEndDate() - self.parseDuration(self.rangeInput.val()) * 1000/2 ));
++  var newDate = moment(self.getOrSetEndDate());
++  newDate.subtract(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
++  self.setEndDate(newDate);
+   self.submitQuery();
+ };
+ 
