@@ -1,8 +1,8 @@
 usr/share/javascript/bootstrap      usr/share/prometheus/web/static/bootstrap
 usr/share/javascript/eonasdan-bootstrap-datetimepicker usr/share/prometheus/web/static/eonasdan-bootstrap-datetimepicker
-usr/share/javascript/handlebars     usr/share/prometheus/web/static/handlebars
 usr/share/javascript/jquery         usr/share/prometheus/web/static/jquery
 usr/share/javascript/jquery-hotkeys usr/share/prometheus/web/static/jquery-hotkeys
 usr/share/javascript/moment         usr/share/prometheus/web/static/moment
+usr/share/javascript/mustache       usr/share/prometheus/web/static/mustache
 usr/share/javascript/rickshaw       usr/share/prometheus/web/static/rickshaw
 usr/share/javascript/d3             usr/share/prometheus/web/static/d3
