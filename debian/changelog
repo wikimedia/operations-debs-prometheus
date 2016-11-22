@@ -1,3 +1,10 @@
+prometheus (1.2.3+ds2-3) UNRELEASED; urgency=medium
+
+  * Re-enable buildflags (needed for version information), which were
+    removed by mistake.
+
+ -- Martín Ferrari <tincho@debian.org>  Tue, 22 Nov 2016 18:56:48 +0100
+
 prometheus (1.2.3+ds2-2) unstable; urgency=medium
 
   * Fix the new datetime picker control (was not working at all).

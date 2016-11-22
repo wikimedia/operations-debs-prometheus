@@ -56,6 +56,9 @@ override_dh_auto_configure:
             cp -av vendor/$$i $$dst; \
         done
 
+override_dh_auto_build:
+	dh_auto_build -- $(BUILDFLAGS)
+
 override_dh_auto_test:
 	# Avoid some tests that fail on slow architectures.
 	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" dh_auto_test -- $(SHORT_TESTS)
