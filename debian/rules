@@ -8,7 +8,7 @@ export DH_GOLANG_INSTALL_EXTRA := retrieval/discovery/fixtures \
     storage/local/fixtures config/testdata promql/testdata retrieval/testdata \
     promql/fuzz-data
 # Do not build examples.
-export DH_GOLANG_EXCLUDES := documentation
+export DH_GOLANG_EXCLUDES := documentation vendor
 
 BUILDDIR := build
 METAPKG := github.com/prometheus/common
@@ -48,12 +48,12 @@ endif
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
 	# Include vendored dependencies.
-	for i in github.com/hashicorp/consul \
-                github.com/influxdb/influxdb; \
+	for i in github.com/hashicorp github.com/influxdb; \
         do \
+	    src=$(BUILDDIR)/src/$(DH_GOPKG)/vendor/$$i; \
             dst=`dirname $(BUILDDIR)/src/$$i`; \
             mkdir -vp $$dst; \
-            cp -av vendor/$$i $$dst; \
+            mv -v $$src $$dst; \
         done
 
 override_dh_auto_build:

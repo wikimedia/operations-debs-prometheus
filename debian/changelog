@@ -2,6 +2,7 @@ prometheus (1.2.3+ds2-3) UNRELEASED; urgency=medium
 
   * Re-enable buildflags (needed for version information), which were
     removed by mistake.
+  * Avoid conflicts with vendored dependencies when compiling with gccgo.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 22 Nov 2016 18:56:48 +0100
 
