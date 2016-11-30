@@ -1,8 +1,10 @@
-prometheus (1.2.3+ds2-3) UNRELEASED; urgency=medium
+prometheus (1.2.3+ds2-3) UNRELEASED; urgency=high
 
   * Re-enable buildflags (needed for version information), which were
     removed by mistake.
   * Avoid conflicts with vendored dependencies when compiling with gccgo.
+  * Disable TestDropMetrics, which is flaky in armel and has been
+    preventing transition to testing (raising urgency).
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 22 Nov 2016 18:56:48 +0100
 

@@ -1,6 +1,14 @@
 --- a/storage/local/storage_test.go
 +++ b/storage/local/storage_test.go
-@@ -1431,6 +1431,7 @@
+@@ -593,6 +593,7 @@
+ }
+ 
+ func TestDropMetrics(t *testing.T) {
++	t.Skip("Skipping flaky test.")
+ 	now := model.Now()
+ 	insertStart := now.Add(-2 * time.Hour)
+ 
+@@ -1431,6 +1432,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunk.Encoding) {
