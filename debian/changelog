@@ -1,4 +1,4 @@
-prometheus (1.2.3+ds2-3) UNRELEASED; urgency=high
+prometheus (1.2.3+ds2-3) unstable; urgency=high
 
   * Re-enable buildflags (needed for version information), which were
     removed by mistake.
@@ -6,7 +6,7 @@ prometheus (1.2.3+ds2-3) UNRELEASED; urgency=high
   * Disable TestDropMetrics, which is flaky in armel and has been
     preventing transition to testing (raising urgency).
 
- -- Martín Ferrari <tincho@debian.org>  Tue, 22 Nov 2016 18:56:48 +0100
+ -- Martín Ferrari <tincho@debian.org>  Wed, 30 Nov 2016 11:28:54 +0100
 
 prometheus (1.2.3+ds2-2) unstable; urgency=medium
 
