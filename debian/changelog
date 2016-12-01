@@ -1,10 +1,18 @@
-prometheus (1.2.3+ds2-4) UNRELEASED; urgency=high
+prometheus (1.2.3+ds2-5) UNRELEASED; urgency=medium
+
+  * Last test failures were actually problems with fsnotify+gccgo.
+    Throwing the towel on it: prometheus will only compile with golang-go for
+    now.
+
+ -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 15:09:51 +0100
+
+prometheus (1.2.3+ds2-4) unstable; urgency=high
 
   * Remove unneeded dependencies.
   * Increase test timeouts (some tests still failing on slow arches),
     and re-enable disabled tests on arm.
 
- -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 02:17:33 +0000
+ -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 12:07:27 +0100
 
 prometheus (1.2.3+ds2-3) unstable; urgency=high
 
