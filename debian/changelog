@@ -1,6 +1,8 @@
-prometheus (1.2.3+ds2-4) UNRELEASED; urgency=medium
+prometheus (1.2.3+ds2-4) UNRELEASED; urgency=high
 
   * Remove unneeded dependencies.
+  * Increase test timeouts (some tests still failing on slow arches),
+    and re-enable disabled tests on arm.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 02:17:33 +0000
 

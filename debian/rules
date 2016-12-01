@@ -32,15 +32,7 @@ BUILDFLAGS := -ldflags \
     -X $(METAPKG)/version.BuildUser=$(USER)\
     -X $(METAPKG)/version.BuildDate=$(BUILD_DATE)\
     -X $(METAPKG)/version.GoVersion=$(GO_VERSION)"
-
-# Avoid some tests that fail on slow architectures.
-ifeq ($(DEB_HOST_ARCH_CPU),arm)
-SKIP_TESTS := github.com/prometheus/prometheus/retrieval
-SHORT_TESTS := -short
-else
-SKIP_TESTS :=
-SHORT_TESTS :=
-endif
+TESTFLAGS  := -timeout 20m
 
 %:
 	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)
@@ -60,8 +52,7 @@ override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
 
 override_dh_auto_test:
-	# Avoid some tests that fail on slow architectures.
-	DH_GOLANG_EXCLUDES="$(SKIP_TESTS)" dh_auto_test -- $(SHORT_TESTS)
+	dh_auto_test -- $(TESTFLAGS)
 
 override_dh_auto_install:
 	dh_auto_install -- --no-source
