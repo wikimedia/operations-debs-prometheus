@@ -1,3 +1,9 @@
+prometheus (1.2.3+ds2-4) UNRELEASED; urgency=medium
+
+  * Remove unneeded dependencies.
+
+ -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 02:17:33 +0000
+
 prometheus (1.2.3+ds2-3) unstable; urgency=high
 
   * Re-enable buildflags (needed for version information), which were

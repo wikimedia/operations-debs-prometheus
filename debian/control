@@ -25,9 +25,6 @@ Build-Depends: adduser, debhelper (>= 9.0.0),
                golang-golang-x-sys-dev,
                golang-goleveldb-dev,
                golang-google-api-dev,
-               golang-google-appengine-dev,
-               golang-google-cloud-compute-metadata-dev,
-               golang-google-grpc-dev,
                golang-gopkg-yaml.v2-dev,
 Standards-Version: 3.9.8
 Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git/
