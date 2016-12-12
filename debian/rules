@@ -32,7 +32,13 @@ BUILDFLAGS := -ldflags \
     -X $(METAPKG)/version.BuildUser=$(USER)\
     -X $(METAPKG)/version.BuildDate=$(BUILD_DATE)\
     -X $(METAPKG)/version.GoVersion=$(GO_VERSION)"
+
+ifeq ($(DEB_HOST_ARCH_CPU),arm)
+# Tests in armel take way too long!
+TESTFLAGS  := -timeout 60m
+else
 TESTFLAGS  := -timeout 20m
+endif
 
 %:
 	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)

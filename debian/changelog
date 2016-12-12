@@ -3,6 +3,7 @@ prometheus (1.2.3+ds2-5) UNRELEASED; urgency=medium
   * Last test failures were actually problems with fsnotify+gccgo.
     Throwing the towel on it: prometheus will only compile with golang-go for
     now.
+  * Increase the tests timeout again even more for armel. Closes: #847764
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 01 Dec 2016 15:09:51 +0100
 
