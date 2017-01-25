@@ -1,3 +1,37 @@
+## 1.5.0 / 2017-01-23
+
+* [CHANGE] Use lexicographic order to sort alerts by name.
+* [FEATURE] Add Joyent Triton discovery.
+* [FEATURE] Add scrape targets and alertmanager targets API.
+* [FEATURE] Add various persistence related metrics.
+* [FEATURE] Add various query engine related metrics.
+* [FEATURE] Add ability to limit scrape samples, and related metrics.
+* [FEATURE] Add labeldrop and labelkeep relabelling actions.
+* [FEATURE] Display current working directory on status-page.
+* [ENHANCEMENT] Strictly use ServiceAccount for in cluster configuration on Kubernetes.
+* [ENHANCEMENT] Various performance and memory-management improvements.
+* [BUGFIX] Fix basic auth for alertmanagers configured via flag.
+* [BUGFIX] Don't panic on decoding corrupt data.
+* [BUGFIX] Ignore dotfiles in data directory.
+* [BUGFIX] Abort on intermediate federation errors.
+
+## 1.4.1 / 2016-11-28
+
+* [BUGFIX] Fix Consul service discovery
+
+## 1.4.0 / 2016-11-25
+
+* [FEATURE] Allow configuring Alertmanagers via service discovery
+* [FEATURE] Display used Alertmanagers on runtime page in the UI
+* [FEATURE] Support profiles in AWS EC2 service discovery configuration
+* [ENHANCEMENT] Remove duplicated logging of Kubernetes client errors
+* [ENHANCEMENT] Add metrics about Kubernetes service discovery
+* [BUGFIX] Update alert annotations on re-evaluation
+* [BUGFIX] Fix export of group modifier in PromQL queries
+* [BUGFIX] Remove potential deadlocks in several service discovery implementations
+* [BUGFIX] Use proper float64 modulo in PromQL `%` binary operations
+* [BUGFIX] Fix crash bug in Kubernetes service discovery
+
 ## 1.3.1 / 2016-11-04
 
 This bug-fix release pulls in the fixes from the 1.2.3 release.

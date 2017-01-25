@@ -70,6 +70,8 @@ scrape_configs:
   scrape_interval: 50s
   scrape_timeout:  5s
 
+  sample_limit: 1000
+
   metrics_path: /my_path
   scheme: https
 
@@ -95,6 +97,10 @@ scrape_configs:
     action:        keep
   - action:        labelmap
     regex:         1
+  - action:        labeldrop
+    regex:         d
+  - action:        labelkeep
+    regex:         k
 
   metric_relabel_configs:
   - source_labels: [__name__]
@@ -146,6 +152,7 @@ scrape_configs:
     - region: us-east-1
       access_key: access
       secret_key: secret
+      profile: profile
 
 - job_name: service-azure
   azure_sd_configs:
@@ -173,3 +180,24 @@ scrape_configs:
   static_configs:
     - targets:
       - localhost:9090
+
+- job_name: service-triton
+  triton_sd_configs:
+  - account: 'testAccount'
+    dns_suffix: 'triton.example.com'
+    endpoint: 'triton.example.com'
+    port: 9163
+    refresh_interval: 1m
+    version: 1
+    tls_config:
+      cert_file: testdata/valid_cert_file
+      key_file: testdata/valid_key_file
+
+alerting:
+  alertmanagers:
+  - scheme: https
+    static_configs:
+    - targets:
+      - "1.2.3.4:9093"
+      - "1.2.3.5:9093"
+      - "1.2.3.6:9093"
