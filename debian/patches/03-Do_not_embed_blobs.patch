@@ -9,7 +9,7 @@
  	"encoding/json"
  	"fmt"
  	"io"
-@@ -46,7 +45,6 @@
+@@ -48,7 +47,6 @@
  	"github.com/prometheus/prometheus/template"
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
@@ -17,7 +17,7 @@
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -111,7 +109,7 @@
+@@ -118,7 +116,7 @@
  	ExternalURL          *url.URL
  	RoutePrefix          string
  	MetricsPath          string
@@ -26,7 +26,7 @@
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -180,7 +178,7 @@
+@@ -195,7 +193,7 @@
  
  	router.Get("/consoles/*filepath", instrf("consoles", h.consoles))
  
@@ -35,7 +35,7 @@
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
-@@ -198,28 +196,6 @@
+@@ -217,28 +215,6 @@
  	return h
  }
  
@@ -64,7 +64,7 @@
  // ListenError returns the receive-only channel that signals errors while starting the web server.
  func (h *Handler) ListenError() <-chan error {
  	return h.listenErrCh
-@@ -454,11 +430,11 @@
+@@ -495,11 +471,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
@@ -103,27 +103,29 @@
  <script src="{{ pathPrefix }}/static/js/prom_console.js"></script>
 --- a/web/ui/templates/graph.html
 +++ b/web/ui/templates/graph.html
-@@ -1,22 +1,20 @@
+@@ -1,24 +1,21 @@
  {{define "head"}}
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css">
  
 -    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.css">
--    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
+-    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
 +    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/rickshaw/rickshaw.min.css">
 +    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
  
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.v3.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/bootstrap-datetimepicker/bootstrap-datetimepicker.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/moment/moment.min.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/d3/d3.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/moment/moment.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js"></script>
+     <script src="{{ pathPrefix }}/static/vendor/fuzzy.js"></script>
  
--    <script src="{{ pathPrefix }}/static/vendor/js/handlebars.js"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/mustache/mustache.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/mustache/mustache.min.js"></script>
      <script src="{{ pathPrefix }}/static/vendor/js/jquery.selection.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.hotkeys.js"></script>
@@ -137,10 +139,10 @@
  {{define "content"}}
 --- a/web/ui/templates/_base.html
 +++ b/web/ui/templates/_base.html
-@@ -3,10 +3,10 @@
-   <head>
+@@ -4,10 +4,10 @@
      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
      <title>Prometheus Time Series Collection and Processing Server</title>
+     <link rel="shortcut icon" href="{{ pathPrefix }}/static/img/favicon.ico">
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
 +    <script src="{{ pathPrefix }}/static/jquery/jquery.min.js"></script>
@@ -153,7 +155,7 @@
      <script>
 --- a/cmd/prometheus/config.go
 +++ b/cmd/prometheus/config.go
-@@ -92,6 +92,11 @@
+@@ -103,6 +103,11 @@
  		"Path under which to expose metrics.",
  	)
  	cfg.fs.StringVar(
@@ -165,97 +167,3 @@
  		&cfg.web.UserAssetsPath, "web.user-assets", "",
  		"Path to static asset directory, available at /user.",
  	)
---- a/web/ui/static/js/graph.js
-+++ b/web/ui/static/js/graph.js
-@@ -3,8 +3,6 @@
- 
- var SECOND = 1000;
- 
--Handlebars.registerHelper('pathPrefix', function() { return PATH_PREFIX; });
--
- Prometheus.Graph = function(element, options, handleChange, handleRemove) {
-   this.el = element;
-   this.graphHTML = null;
-@@ -48,7 +46,9 @@
- 
-   // Draw graph controls and container from Handlebars template.
- 
--  self.graphHTML = $(graphTemplate(self.options));
-+  var options = {'pathPrefix': PATH_PREFIX};
-+  jQuery.extend(options, self.options);
-+  self.graphHTML = $(Mustache.render(graphTemplate, options));
-   self.el.append(self.graphHTML);
- 
-   // Get references to all the interesting elements in the graph container and
-@@ -110,13 +110,18 @@
- 
-   self.endDate = graphWrapper.find("input[name=end_input]");
-   self.endDate.datetimepicker({
--    language: 'en',
--    pickSeconds: false,
-+    locale: 'en',
-+    format: 'YYYY-MM-DD HH:mm',
-+    toolbarPlacement: 'bottom',
-+    sideBySide: true,
-+    showTodayButton: true,
-+    showClear: true,
-+    showClose: true,
-   });
-   if (self.options.end_input) {
--    self.endDate.data('datetimepicker').setValue(self.options.end_input);
-+    self.endDate.data('DateTimePicker').date(self.options.end_input);
-   }
--  self.endDate.change(function() { self.submitQuery(); });
-+  self.endDate.on("dp.change", function() { self.submitQuery(); });
-   self.refreshInterval.change(function() { self.updateRefresh(); });
- 
-   self.isStacked = function() {
-@@ -277,9 +282,9 @@
- Prometheus.Graph.prototype.getEndDate = function() {
-   var self = this;
-   if (!self.endDate || !self.endDate.val()) {
--    return new Date();
-+    return moment();
-   }
--  return self.endDate.data('datetimepicker').getDate().getTime();
-+  return self.endDate.data('DateTimePicker').date();
- };
- 
- Prometheus.Graph.prototype.getOrSetEndDate = function() {
-@@ -291,18 +296,22 @@
- 
- Prometheus.Graph.prototype.setEndDate = function(date) {
-   var self = this;
--  self.endDate.data('datetimepicker').setValue(date);
-+  self.endDate.data('DateTimePicker').date(date);
- };
- 
- Prometheus.Graph.prototype.increaseEnd = function() {
-   var self = this;
--  self.setEndDate(new Date(self.getOrSetEndDate() + self.parseDuration(self.rangeInput.val()) * 1000/2 )); // increase by 1/2 range & convert ms in s
-+  var newDate = moment(self.getOrSetEndDate());
-+  newDate.add(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
-+  self.setEndDate(newDate);
-   self.submitQuery();
- };
- 
- Prometheus.Graph.prototype.decreaseEnd = function() {
-   var self = this;
--  self.setEndDate(new Date(self.getOrSetEndDate() - self.parseDuration(self.rangeInput.val()) * 1000/2 ));
-+  var newDate = moment(self.getOrSetEndDate());
-+  newDate.subtract(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
-+  self.setEndDate(newDate);
-   self.submitQuery();
- };
- 
-@@ -778,7 +787,9 @@
-   $.ajax({
-     url: PATH_PREFIX + "/static/js/graph_template.handlebar",
-     success: function(data) {
--      graphTemplate = Handlebars.compile(data);
-+
-+      graphTemplate = data;
-+      Mustache.parse(data);
-       if (isDeprecatedGraphURL()) {
-         redirectToMigratedURL();
-       } else {

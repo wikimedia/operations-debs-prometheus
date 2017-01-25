@@ -1,8 +1,8 @@
 # Changes related to golang-github-aws-aws-sdk-go latest upload
 # Patch by Filippo Giunchedi <filippo@debian.org>
 
---- a/retrieval/discovery/ec2.go
-+++ b/retrieval/discovery/ec2.go
+--- a/discovery/ec2/ec2.go
++++ b/discovery/ec2/ec2.go
 @@ -21,7 +21,7 @@
  
  	"github.com/aws/aws-sdk-go/aws"

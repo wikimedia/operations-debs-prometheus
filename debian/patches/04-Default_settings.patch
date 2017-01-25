@@ -1,6 +1,6 @@
 --- a/cmd/prometheus/config.go
 +++ b/cmd/prometheus/config.go
-@@ -70,7 +70,8 @@
+@@ -73,7 +73,8 @@
  		"Print version information.",
  	)
  	cfg.fs.StringVar(
@@ -10,7 +10,7 @@
  		"Prometheus configuration file name.",
  	)
  
-@@ -105,17 +106,20 @@
+@@ -116,17 +117,20 @@
  		"Enable remote service shutdown.",
  	)
  	cfg.fs.StringVar(
