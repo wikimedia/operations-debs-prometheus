@@ -37,6 +37,12 @@ Comment: The minified files were replaced by the original sources from
  c65c829fe8411f6eadb88415d09c1e85bb4603d0 (to match exactly what was shipped
  originally).
 
+Files: web/ui/static/vendor/fuzzy/*
+Copyright: 2015 Matt York
+License: MIT
+Comment: The minified files were replaced by the original sources from
+ https://github.com/mattyork/fuzzy version 0.1.3.
+
 License: Apache-2.0
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
