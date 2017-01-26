@@ -41,7 +41,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-jquery-hotkeys,
          libjs-moment,
          libjs-rickshaw,
-Recommends: prometheus-node-exporter, prometheus-cli
+Recommends: prometheus-node-exporter
 Built-Using: ${misc:Built-Using}
 Description: Monitoring system and time series database
  Prometheus is a systems and services monitoring system. It collects metrics
