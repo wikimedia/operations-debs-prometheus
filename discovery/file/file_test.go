@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package file
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ func testFileSD(t *testing.T, ext string) {
 	conf.RefreshInterval = model.Duration(1 * time.Hour)
 
 	var (
-		fsd         = NewFileDiscovery(&conf)
+		fsd         = NewDiscovery(&conf)
 		ch          = make(chan []*config.TargetGroup)
 		ctx, cancel = context.WithCancel(context.Background())
 	)
@@ -106,11 +106,17 @@ retry:
 	// not try to make sense of it all...
 	drained := make(chan struct{})
 	go func() {
-		for tgs := range ch {
-			// Below we will change the file to a bad syntax. Previously extracted target
-			// groups must not be deleted via sending an empty target group.
-			if len(tgs[0].Targets) == 0 {
-				t.Errorf("Unexpected empty target groups received: %s", tgs)
+	Loop:
+		for {
+			select {
+			case tgs := <-ch:
+				// Below we will change the file to a bad syntax. Previously extracted target
+				// groups must not be deleted via sending an empty target group.
+				if len(tgs[0].Targets) == 0 {
+					t.Errorf("Unexpected empty target groups received: %s", tgs)
+				}
+			case <-time.After(500 * time.Millisecond):
+				break Loop
 			}
 		}
 		close(drained)

@@ -328,6 +328,15 @@ func (c varbitChunk) Utilization() float64 {
 	return math.Min(float64(c.nextSampleOffset()/8+15)/float64(cap(c)), 1)
 }
 
+// Len implements chunk.  Runs in O(n).
+func (c varbitChunk) Len() int {
+	it := c.NewIterator()
+	i := 0
+	for ; it.Scan(); i++ {
+	}
+	return i
+}
+
 // FirstTime implements chunk.
 func (c varbitChunk) FirstTime() model.Time {
 	return model.Time(
@@ -518,7 +527,7 @@ func (c *varbitChunk) addSecondSample(s model.SamplePair) ([]Chunk, error) {
 	return []Chunk{c}, nil
 }
 
-// addLastSample isa a helper method only used by c.add() and in other helper
+// addLastSample is a helper method only used by c.add() and in other helper
 // methods called by c.add(). It simply sets the given sample as the last sample
 // in the heador and declares the chunk closed. In other words, addLastSample
 // adds the very last sample added to this chunk ever, while setLastSample sets

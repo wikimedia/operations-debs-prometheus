@@ -42,13 +42,13 @@ var (
 	dnsSDLookupsCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: namespace,
-			Name:      "dns_sd_lookups_total",
+			Name:      "sd_dns_lookups_total",
 			Help:      "The number of DNS-SD lookups.",
 		})
 	dnsSDLookupFailuresCount = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: namespace,
-			Name:      "dns_sd_lookup_failures_total",
+			Name:      "sd_dns_lookup_failures_total",
 			Help:      "The number of DNS-SD lookup failures.",
 		})
 )
@@ -90,8 +90,6 @@ func NewDiscovery(conf *config.DNSSDConfig) *Discovery {
 
 // Run implements the TargetProvider interface.
 func (dd *Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup) {
-	defer close(ch)
-
 	ticker := time.NewTicker(dd.interval)
 	defer ticker.Stop()
 

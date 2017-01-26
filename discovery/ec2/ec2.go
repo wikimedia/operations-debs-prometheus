@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package ec2
 
 import (
 	"fmt"
@@ -21,7 +21,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"golang.org/x/net/context"
@@ -36,6 +37,7 @@ const (
 	ec2LabelAZ            = ec2Label + "availability_zone"
 	ec2LabelInstanceID    = ec2Label + "instance_id"
 	ec2LabelInstanceState = ec2Label + "instance_state"
+	ec2LabelInstanceType  = ec2Label + "instance_type"
 	ec2LabelPublicDNS     = ec2Label + "public_dns_name"
 	ec2LabelPublicIP      = ec2Label + "public_ip"
 	ec2LabelPrivateIP     = ec2Label + "private_ip"
@@ -45,25 +47,45 @@ const (
 	subnetSeparator       = ","
 )
 
+var (
+	ec2SDRefreshFailuresCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "prometheus_sd_ec2_refresh_failures_total",
+			Help: "The number of EC2-SD scrape failures.",
+		})
+	ec2SDRefreshDuration = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Name: "prometheus_sd_ec2_refresh_duration_seconds",
+			Help: "The duration of a EC2-SD refresh in seconds.",
+		})
+)
+
+func init() {
+	prometheus.MustRegister(ec2SDRefreshFailuresCount)
+	prometheus.MustRegister(ec2SDRefreshDuration)
+}
+
 // EC2Discovery periodically performs EC2-SD requests. It implements
 // the TargetProvider interface.
 type EC2Discovery struct {
 	aws      *aws.Config
 	interval time.Duration
+	profile  string
 	port     int
 }
 
-// NewEC2Discovery returns a new EC2Discovery which periodically refreshes its targets.
-func NewEC2Discovery(conf *config.EC2SDConfig) *EC2Discovery {
+// NewDiscovery returns a new EC2Discovery which periodically refreshes its targets.
+func NewDiscovery(conf *config.EC2SDConfig) *EC2Discovery {
 	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
 	if conf.AccessKey == "" && conf.SecretKey == "" {
-		creds = defaults.DefaultChainCredentials
+		creds = nil
 	}
 	return &EC2Discovery{
 		aws: &aws.Config{
 			Region:      &conf.Region,
 			Credentials: creds,
 		},
+		profile:  conf.Profile,
 		interval: time.Duration(conf.RefreshInterval),
 		port:     conf.Port,
 	}
@@ -71,8 +93,6 @@ func NewEC2Discovery(conf *config.EC2SDConfig) *EC2Discovery {
 
 // Run implements the TargetProvider interface.
 func (ed *EC2Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup) {
-	defer close(ch)
-
 	ticker := time.NewTicker(ed.interval)
 	defer ticker.Stop()
 
@@ -81,7 +101,11 @@ func (ed *EC2Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup
 	if err != nil {
 		log.Error(err)
 	} else {
-		ch <- []*config.TargetGroup{tg}
+		select {
+		case ch <- []*config.TargetGroup{tg}:
+		case <-ctx.Done():
+			return
+		}
 	}
 
 	for {
@@ -90,8 +114,13 @@ func (ed *EC2Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup
 			tg, err := ed.refresh()
 			if err != nil {
 				log.Error(err)
-			} else {
-				ch <- []*config.TargetGroup{tg}
+				continue
+			}
+
+			select {
+			case ch <- []*config.TargetGroup{tg}:
+			case <-ctx.Done():
+				return
 			}
 		case <-ctx.Done():
 			return
@@ -99,12 +128,28 @@ func (ed *EC2Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup
 	}
 }
 
-func (ed *EC2Discovery) refresh() (*config.TargetGroup, error) {
-	ec2s := ec2.New(ed.aws)
-	tg := &config.TargetGroup{
+func (ed *EC2Discovery) refresh() (tg *config.TargetGroup, err error) {
+	t0 := time.Now()
+	defer func() {
+		ec2SDRefreshDuration.Observe(time.Since(t0).Seconds())
+		if err != nil {
+			ec2SDRefreshFailuresCount.Inc()
+		}
+	}()
+
+	sess, err := session.NewSessionWithOptions(session.Options{
+		Config:  *ed.aws,
+		Profile: ed.profile,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not create aws session: %s", err)
+	}
+
+	ec2s := ec2.New(sess)
+	tg = &config.TargetGroup{
 		Source: *ed.aws.Region,
 	}
-	if err := ec2s.DescribeInstancesPages(nil, func(p *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	if err = ec2s.DescribeInstancesPages(nil, func(p *ec2.DescribeInstancesOutput, lastPage bool) bool {
 		for _, r := range p.Reservations {
 			for _, inst := range r.Instances {
 				if inst.PrivateIpAddress == nil {
@@ -124,6 +169,7 @@ func (ed *EC2Discovery) refresh() (*config.TargetGroup, error) {
 
 				labels[ec2LabelAZ] = model.LabelValue(*inst.Placement.AvailabilityZone)
 				labels[ec2LabelInstanceState] = model.LabelValue(*inst.State.Name)
+				labels[ec2LabelInstanceType] = model.LabelValue(*inst.InstanceType)
 
 				if inst.VpcId != nil {
 					labels[ec2LabelVPCID] = model.LabelValue(*inst.VpcId)

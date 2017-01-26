@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package azure
 
 import (
 	"fmt"
@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/arm/network"
 	"github.com/Azure/go-autorest/autorest/azure"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"golang.org/x/net/context"
@@ -41,6 +42,24 @@ const (
 	azureLabelMachineTag           = azureLabel + "machine_tag_"
 )
 
+var (
+	azureSDRefreshFailuresCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "prometheus_sd_azure_refresh_failures_total",
+			Help: "Number of Azure-SD refresh failures.",
+		})
+	azureSDRefreshDuration = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Name: "prometheus_sd_azure_refresh_duration_seconds",
+			Help: "The duration of a Azure-SD refresh in seconds.",
+		})
+)
+
+func init() {
+	prometheus.MustRegister(azureSDRefreshDuration)
+	prometheus.MustRegister(azureSDRefreshFailuresCount)
+}
+
 // AzureDiscovery periodically performs Azure-SD requests. It implements
 // the TargetProvider interface.
 type AzureDiscovery struct {
@@ -49,8 +68,8 @@ type AzureDiscovery struct {
 	port     int
 }
 
-// NewAzureDiscovery returns a new AzureDiscovery which periodically refreshes its targets.
-func NewAzureDiscovery(cfg *config.AzureSDConfig) *AzureDiscovery {
+// NewDiscovery returns a new AzureDiscovery which periodically refreshes its targets.
+func NewDiscovery(cfg *config.AzureSDConfig) *AzureDiscovery {
 	return &AzureDiscovery{
 		cfg:      cfg,
 		interval: time.Duration(cfg.RefreshInterval),
@@ -60,7 +79,6 @@ func NewAzureDiscovery(cfg *config.AzureSDConfig) *AzureDiscovery {
 
 // Run implements the TargetProvider interface.
 func (ad *AzureDiscovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup) {
-	defer close(ch)
 	ticker := time.NewTicker(ad.interval)
 	defer ticker.Stop()
 
@@ -75,7 +93,10 @@ func (ad *AzureDiscovery) Run(ctx context.Context, ch chan<- []*config.TargetGro
 		if err != nil {
 			log.Errorf("unable to refresh during Azure discovery: %s", err)
 		} else {
-			ch <- []*config.TargetGroup{tg}
+			select {
+			case <-ctx.Done():
+			case ch <- []*config.TargetGroup{tg}:
+			}
 		}
 
 		select {
@@ -135,8 +156,15 @@ func newAzureResourceFromID(id string) (azureResource, error) {
 	}, nil
 }
 
-func (ad *AzureDiscovery) refresh() (*config.TargetGroup, error) {
-	tg := &config.TargetGroup{}
+func (ad *AzureDiscovery) refresh() (tg *config.TargetGroup, err error) {
+	t0 := time.Now()
+	defer func() {
+		azureSDRefreshDuration.Observe(time.Since(t0).Seconds())
+		if err != nil {
+			azureSDRefreshFailuresCount.Inc()
+		}
+	}()
+	tg = &config.TargetGroup{}
 	client, err := createAzureClient(*ad.cfg)
 	if err != nil {
 		return tg, fmt.Errorf("could not create Azure client: %s", err)

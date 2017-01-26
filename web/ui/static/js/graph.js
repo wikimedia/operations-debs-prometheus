@@ -3,8 +3,6 @@ var graphTemplate;
 
 var SECOND = 1000;
 
-Handlebars.registerHelper('pathPrefix', function() { return PATH_PREFIX; });
-
 Prometheus.Graph = function(element, options, handleChange, handleRemove) {
   this.el = element;
   this.graphHTML = null;
@@ -48,7 +46,9 @@ Prometheus.Graph.prototype.initialize = function() {
 
   // Draw graph controls and container from Handlebars template.
 
-  self.graphHTML = $(graphTemplate(self.options));
+  var options = {'pathPrefix': PATH_PREFIX};
+  jQuery.extend(options, self.options);
+  self.graphHTML = $(Mustache.render(graphTemplate, options));
   self.el.append(self.graphHTML);
 
   // Get references to all the interesting elements in the graph container and
@@ -110,13 +110,18 @@ Prometheus.Graph.prototype.initialize = function() {
 
   self.endDate = graphWrapper.find("input[name=end_input]");
   self.endDate.datetimepicker({
-    language: 'en',
-    pickSeconds: false,
+    locale: 'en',
+    format: 'YYYY-MM-DD HH:mm',
+    toolbarPlacement: 'bottom',
+    sideBySide: true,
+    showTodayButton: true,
+    showClear: true,
+    showClose: true,
   });
   if (self.options.end_input) {
-    self.endDate.data('datetimepicker').setValue(self.options.end_input);
+    self.endDate.data('DateTimePicker').date(self.options.end_input);
   }
-  self.endDate.change(function() { self.submitQuery(); });
+  self.endDate.on("dp.change", function() { self.submitQuery(); });
   self.refreshInterval.change(function() { self.updateRefresh(); });
 
   self.isStacked = function() {
@@ -196,9 +201,44 @@ Prometheus.Graph.prototype.populateInsertableMetrics = function() {
           self.insertMetric[0].options.add(new Option(metrics[i], metrics[i]));
         }
 
+        self.fuzzyResult = {
+          query: null,
+          result: null,
+          map: {}
+        }
+
         self.expr.typeahead({
           source: metrics,
-          items: "all"
+          items: "all",
+          matcher: function(item) {
+            // If we have result for current query, skip
+            if (!self.fuzzyResult.query || self.fuzzyResult.query !== this.query) {
+              self.fuzzyResult.query = this.query;
+              self.fuzzyResult.map = {};
+              self.fuzzyResult.result = fuzzy.filter(this.query.replace('_', ' '), metrics, {
+                pre: '<strong>',
+                post: '</strong>',
+                extract: function(el) { return el.replace('_', ' ') }
+              });
+              self.fuzzyResult.result.forEach(function(r) {
+                self.fuzzyResult.map[r.original] = r;
+              });
+            }
+
+            return item in self.fuzzyResult.map;
+          },
+
+          sorter: function(items) {
+            items.sort(function(a,b) {
+              var i = self.fuzzyResult.map[b].score - self.fuzzyResult.map[a].score;
+              return i === 0 ? a.localeCompare(b) : i;
+            });
+            return items;
+          },
+
+          highlighter: function (item) {
+            return $('<div>' + self.fuzzyResult.map[item].string.replace(' ', '_') + '</div>')
+          },
         });
         // This needs to happen after attaching the typeahead plugin, as it
         // otherwise breaks the typeahead functionality.
@@ -277,9 +317,9 @@ Prometheus.Graph.prototype.decreaseRange = function() {
 Prometheus.Graph.prototype.getEndDate = function() {
   var self = this;
   if (!self.endDate || !self.endDate.val()) {
-    return new Date();
+    return moment();
   }
-  return self.endDate.data('datetimepicker').getDate().getTime();
+  return self.endDate.data('DateTimePicker').date();
 };
 
 Prometheus.Graph.prototype.getOrSetEndDate = function() {
@@ -291,18 +331,22 @@ Prometheus.Graph.prototype.getOrSetEndDate = function() {
 
 Prometheus.Graph.prototype.setEndDate = function(date) {
   var self = this;
-  self.endDate.data('datetimepicker').setValue(date);
+  self.endDate.data('DateTimePicker').date(date);
 };
 
 Prometheus.Graph.prototype.increaseEnd = function() {
   var self = this;
-  self.setEndDate(new Date(self.getOrSetEndDate() + self.parseDuration(self.rangeInput.val()) * 1000/2 )); // increase by 1/2 range & convert ms in s
+  var newDate = moment(self.getOrSetEndDate());
+  newDate.add(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
+  self.setEndDate(newDate);
   self.submitQuery();
 };
 
 Prometheus.Graph.prototype.decreaseEnd = function() {
   var self = this;
-  self.setEndDate(new Date(self.getOrSetEndDate() - self.parseDuration(self.rangeInput.val()) * 1000/2 ));
+  var newDate = moment(self.getOrSetEndDate());
+  newDate.subtract(self.parseDuration(self.rangeInput.val()) / 2, 'seconds');
+  self.setEndDate(newDate);
   self.submitQuery();
 };
 
@@ -778,7 +822,9 @@ function init() {
   $.ajax({
     url: PATH_PREFIX + "/static/js/graph_template.handlebar",
     success: function(data) {
-      graphTemplate = Handlebars.compile(data);
+
+      graphTemplate = data;
+      Mustache.parse(data);
       if (isDeprecatedGraphURL()) {
         redirectToMigratedURL();
       } else {

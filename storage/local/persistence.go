@@ -68,7 +68,7 @@ const (
 
 	indexingMaxBatchSize  = 1024 * 1024
 	indexingBatchTimeout  = 500 * time.Millisecond // Commit batch when idle for that long.
-	indexingQueueCapacity = 1024 * 16
+	indexingQueueCapacity = 1024 * 256
 )
 
 var fpLen = len(model.Fingerprint(0).String()) // Length of a fingerprint as string.
@@ -110,13 +110,18 @@ type persistence struct {
 	indexingStopped chan struct{}
 	indexingFlush   chan chan int
 
-	indexingQueueLength   prometheus.Gauge
-	indexingQueueCapacity prometheus.Metric
-	indexingBatchSizes    prometheus.Summary
-	indexingBatchDuration prometheus.Summary
-	checkpointDuration    prometheus.Gauge
-	dirtyCounter          prometheus.Counter
-	startedDirty          prometheus.Gauge
+	indexingQueueLength     prometheus.Gauge
+	indexingQueueCapacity   prometheus.Metric
+	indexingBatchSizes      prometheus.Summary
+	indexingBatchDuration   prometheus.Summary
+	checkpointDuration      prometheus.Summary
+	checkpointLastDuration  prometheus.Gauge
+	checkpointLastSize      prometheus.Gauge
+	checkpointChunksWritten prometheus.Summary
+	dirtyCounter            prometheus.Counter
+	startedDirty            prometheus.Gauge
+	checkpointing           prometheus.Gauge
+	seriesChunksPersisted   prometheus.Histogram
 
 	dirtyMtx       sync.Mutex     // Protects dirty and becameDirty.
 	dirty          bool           // true if persistence was started in dirty state.
@@ -154,14 +159,26 @@ func newPersistence(
 		// empty. If not, we have found an old storage directory without
 		// version file, so we have to bail out.
 		if err := os.MkdirAll(basePath, 0700); err != nil {
-			return nil, err
+			if abspath, e := filepath.Abs(basePath); e == nil {
+				return nil, fmt.Errorf("cannot create persistent directory %s: %s", abspath, err)
+			}
+			return nil, fmt.Errorf("cannot create persistent directory %s: %s", basePath, err)
 		}
 		fis, err := ioutil.ReadDir(basePath)
 		if err != nil {
 			return nil, err
 		}
-		if len(fis) > 0 && !(len(fis) == 1 && fis[0].Name() == "lost+found" && fis[0].IsDir()) {
-			return nil, fmt.Errorf("could not detect storage version on disk, assuming version 0, need version %d - please wipe storage or run a version of Prometheus compatible with storage version 0", Version)
+		filesPresent := len(fis)
+		for i := range fis {
+			switch {
+			case fis[i].Name() == "lost+found" && fis[i].IsDir():
+				filesPresent--
+			case strings.HasPrefix(fis[i].Name(), "."):
+				filesPresent--
+			}
+		}
+		if filesPresent > 0 {
+			return nil, fmt.Errorf("found existing files in storage path that do not look like storage files compatible with this version of Prometheus; please delete the files in the storage path or choose a different storage path")
 		}
 		// Finally we can write our own version into a new version file.
 		file, err := os.Create(versionPath)
@@ -235,11 +252,31 @@ func newPersistence(
 				Help:      "Quantiles for batch indexing duration in seconds.",
 			},
 		),
-		checkpointDuration: prometheus.NewGauge(prometheus.GaugeOpts{
+		checkpointLastDuration: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
-			Name:      "checkpoint_duration_seconds",
-			Help:      "The duration in seconds it took to checkpoint in-memory metrics and head chunks.",
+			Name:      "checkpoint_last_duration_seconds",
+			Help:      "The duration in seconds it took to last checkpoint open chunks and chunks yet to be persisted.",
+		}),
+		checkpointDuration: prometheus.NewSummary(prometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Objectives: map[float64]float64{},
+			Name:       "checkpoint_duration_seconds",
+			Help:       "The duration in seconds taken for checkpointing open chunks and chunks yet to be persisted",
+		}),
+		checkpointLastSize: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "checkpoint_last_size_bytes",
+			Help:      "The size of the last checkpoint of open chunks and chunks yet to be persisted",
+		}),
+		checkpointChunksWritten: prometheus.NewSummary(prometheus.SummaryOpts{
+			Namespace:  namespace,
+			Subsystem:  subsystem,
+			Objectives: map[float64]float64{},
+			Name:       "checkpoint_series_chunks_written",
+			Help:       "The number of chunk written per series while checkpointing open chunks and chunks yet to be persisted.",
 		}),
 		dirtyCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -252,6 +289,21 @@ func newPersistence(
 			Subsystem: subsystem,
 			Name:      "started_dirty",
 			Help:      "Whether the local storage was found to be dirty (and crash recovery occurred) during Prometheus startup.",
+		}),
+		checkpointing: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "checkpointing",
+			Help:      "1 if the storage is checkpointing, 0 otherwise.",
+		}),
+		seriesChunksPersisted: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "series_chunks_persisted",
+			Help:      "The number of chunks persisted per series.",
+			// Even with 4 bytes per sample, you're not going to get more than 85
+			// chunks in 6 hours for a time series with 1s resolution.
+			Buckets: []float64{1, 2, 4, 8, 16, 32, 64, 128},
 		}),
 		dirty:          dirty,
 		pedanticChecks: pedanticChecks,
@@ -298,8 +350,13 @@ func (p *persistence) Describe(ch chan<- *prometheus.Desc) {
 	p.indexingBatchSizes.Describe(ch)
 	p.indexingBatchDuration.Describe(ch)
 	ch <- p.checkpointDuration.Desc()
+	ch <- p.checkpointLastDuration.Desc()
+	ch <- p.checkpointLastSize.Desc()
+	ch <- p.checkpointChunksWritten.Desc()
+	ch <- p.checkpointing.Desc()
 	ch <- p.dirtyCounter.Desc()
 	ch <- p.startedDirty.Desc()
+	ch <- p.seriesChunksPersisted.Desc()
 }
 
 // Collect implements prometheus.Collector.
@@ -311,8 +368,13 @@ func (p *persistence) Collect(ch chan<- prometheus.Metric) {
 	p.indexingBatchSizes.Collect(ch)
 	p.indexingBatchDuration.Collect(ch)
 	ch <- p.checkpointDuration
+	ch <- p.checkpointLastDuration
+	ch <- p.checkpointLastSize
+	ch <- p.checkpointChunksWritten
+	ch <- p.checkpointing
 	ch <- p.dirtyCounter
 	ch <- p.startedDirty
+	ch <- p.seriesChunksPersisted
 }
 
 // isDirty returns the dirty flag in a goroutine-safe way.
@@ -547,6 +609,8 @@ func (p *persistence) loadChunkDescs(fp model.Fingerprint, offsetFromEnd int) ([
 //
 func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap, fpLocker *fingerprintLocker) (err error) {
 	log.Info("Checkpointing in-memory metrics and chunks...")
+	p.checkpointing.Set(1)
+	defer p.checkpointing.Set(0)
 	begin := time.Now()
 	f, err := os.OpenFile(p.headsTempFileName(), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
 	if err != nil {
@@ -569,7 +633,8 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 		}
 		err = os.Rename(p.headsTempFileName(), p.headsFileName())
 		duration := time.Since(begin)
-		p.checkpointDuration.Set(duration.Seconds())
+		p.checkpointDuration.Observe(duration.Seconds())
+		p.checkpointLastDuration.Set(duration.Seconds())
 		log.Infof("Done checkpointing in-memory metrics and chunks in %v.", duration)
 	}()
 
@@ -603,8 +668,10 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 			fpLocker.Lock(m.fp)
 			defer fpLocker.Unlock(m.fp)
 
-			if len(m.series.chunkDescs) == 0 {
-				// This series was completely purged or archived in the meantime. Ignore.
+			chunksToPersist := len(m.series.chunkDescs) - m.series.persistWatermark
+			if len(m.series.chunkDescs) == 0 || chunksToPersist == 0 {
+				// This series was completely purged or archived in the meantime or has
+				// no chunks that need persisting. Ignore.
 				return
 			}
 			realNumberOfSeries++
@@ -623,7 +690,9 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 			if _, err = w.Write(buf); err != nil {
 				return
 			}
-			if _, err = codable.EncodeVarint(w, int64(m.series.persistWatermark)); err != nil {
+			// persistWatermark. We only checkpoint chunks that need persisting, so
+			// this is always 0.
+			if _, err = codable.EncodeVarint(w, int64(0)); err != nil {
 				return
 			}
 			if m.series.modTime.IsZero() {
@@ -635,36 +704,25 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 					return
 				}
 			}
-			if _, err = codable.EncodeVarint(w, int64(m.series.chunkDescsOffset)); err != nil {
+			// chunkDescsOffset.
+			if _, err = codable.EncodeVarint(w, int64(m.series.chunkDescsOffset+m.series.persistWatermark)); err != nil {
 				return
 			}
 			if _, err = codable.EncodeVarint(w, int64(m.series.savedFirstTime)); err != nil {
 				return
 			}
-			if _, err = codable.EncodeVarint(w, int64(len(m.series.chunkDescs))); err != nil {
+			// Number of chunkDescs.
+			if _, err = codable.EncodeVarint(w, int64(chunksToPersist)); err != nil {
 				return
 			}
-			for i, chunkDesc := range m.series.chunkDescs {
-				if i < m.series.persistWatermark {
-					if _, err = codable.EncodeVarint(w, int64(chunkDesc.FirstTime())); err != nil {
-						return
-					}
-					lt, err := chunkDesc.LastTime()
-					if err != nil {
-						return
-					}
-					if _, err = codable.EncodeVarint(w, int64(lt)); err != nil {
-						return
-					}
-				} else {
-					// This is a non-persisted chunk. Fully marshal it.
-					if err = w.WriteByte(byte(chunkDesc.C.Encoding())); err != nil {
-						return
-					}
-					if err = chunkDesc.C.Marshal(w); err != nil {
-						return
-					}
+			for _, chunkDesc := range m.series.chunkDescs[m.series.persistWatermark:] {
+				if err = w.WriteByte(byte(chunkDesc.C.Encoding())); err != nil {
+					return
 				}
+				if err = chunkDesc.C.Marshal(w); err != nil {
+					return
+				}
+				p.checkpointChunksWritten.Observe(float64(chunksToPersist))
 			}
 			// Series is checkpointed now, so declare it clean. In case the entire
 			// checkpoint fails later on, this is fine, as the storage's series
@@ -692,6 +750,11 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 			return err
 		}
 	}
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	p.checkpointLastSize.Set(float64(info.Size()))
 	return err
 }
 
@@ -1508,6 +1571,7 @@ func (p *persistence) writeChunks(w io.Writer, chunks []chunk.Chunk) error {
 		// would only put back the original buf.
 		p.bufPool.Put(b)
 	}()
+	numChunks := len(chunks)
 
 	for batchSize := chunkMaxBatchSize; len(chunks) > 0; chunks = chunks[batchSize:] {
 		if batchSize > len(chunks) {
@@ -1531,6 +1595,7 @@ func (p *persistence) writeChunks(w io.Writer, chunks []chunk.Chunk) error {
 			return err
 		}
 	}
+	p.seriesChunksPersisted.Observe(float64(numChunks))
 	return nil
 }
 

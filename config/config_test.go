@@ -68,29 +68,33 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			BearerTokenFile: "testdata/valid_token_file",
-
-			StaticConfigs: []*TargetGroup{
-				{
-					Targets: []model.LabelSet{
-						{model.AddressLabel: "localhost:9090"},
-						{model.AddressLabel: "localhost:9191"},
-					},
-					Labels: model.LabelSet{
-						"my":   "label",
-						"your": "label",
-					},
-				},
+			HTTPClientConfig: HTTPClientConfig{
+				BearerTokenFile: "testdata/valid_token_file",
 			},
 
-			FileSDConfigs: []*FileSDConfig{
-				{
-					Files:           []string{"foo/*.slow.json", "foo/*.slow.yml", "single/file.yml"},
-					RefreshInterval: model.Duration(10 * time.Minute),
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				StaticConfigs: []*TargetGroup{
+					{
+						Targets: []model.LabelSet{
+							{model.AddressLabel: "localhost:9090"},
+							{model.AddressLabel: "localhost:9191"},
+						},
+						Labels: model.LabelSet{
+							"my":   "label",
+							"your": "label",
+						},
+					},
 				},
-				{
-					Files:           []string{"bar/*.yaml"},
-					RefreshInterval: model.Duration(5 * time.Minute),
+
+				FileSDConfigs: []*FileSDConfig{
+					{
+						Files:           []string{"foo/*.slow.json", "foo/*.slow.yml", "single/file.yml"},
+						RefreshInterval: model.Duration(10 * time.Minute),
+					},
+					{
+						Files:           []string{"bar/*.yaml"},
+						RefreshInterval: model.Duration(5 * time.Minute),
+					},
 				},
 			},
 
@@ -129,29 +133,34 @@ var expectedConf = &Config{
 
 			ScrapeInterval: model.Duration(50 * time.Second),
 			ScrapeTimeout:  model.Duration(5 * time.Second),
+			SampleLimit:    1000,
 
-			BasicAuth: &BasicAuth{
-				Username: "admin_name",
-				Password: "admin_password",
+			HTTPClientConfig: HTTPClientConfig{
+				BasicAuth: &BasicAuth{
+					Username: "admin_name",
+					Password: "admin_password",
+				},
 			},
 			MetricsPath: "/my_path",
 			Scheme:      "https",
 
-			DNSSDConfigs: []*DNSSDConfig{
-				{
-					Names: []string{
-						"first.dns.address.domain.com",
-						"second.dns.address.domain.com",
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				DNSSDConfigs: []*DNSSDConfig{
+					{
+						Names: []string{
+							"first.dns.address.domain.com",
+							"second.dns.address.domain.com",
+						},
+						RefreshInterval: model.Duration(15 * time.Second),
+						Type:            "SRV",
 					},
-					RefreshInterval: model.Duration(15 * time.Second),
-					Type:            "SRV",
-				},
-				{
-					Names: []string{
-						"first.dns.address.domain.com",
+					{
+						Names: []string{
+							"first.dns.address.domain.com",
+						},
+						RefreshInterval: model.Duration(30 * time.Second),
+						Type:            "SRV",
 					},
-					RefreshInterval: model.Duration(30 * time.Second),
-					Type:            "SRV",
 				},
 			},
 
@@ -185,6 +194,18 @@ var expectedConf = &Config{
 					Replacement: DefaultRelabelConfig.Replacement,
 					Action:      RelabelLabelMap,
 				},
+				{
+					Regex:       MustNewRegexp("d"),
+					Separator:   ";",
+					Replacement: DefaultRelabelConfig.Replacement,
+					Action:      RelabelLabelDrop,
+				},
+				{
+					Regex:       MustNewRegexp("k"),
+					Separator:   ";",
+					Replacement: DefaultRelabelConfig.Replacement,
+					Action:      RelabelLabelKeep,
+				},
 			},
 			MetricRelabelConfigs: []*RelabelConfig{
 				{
@@ -205,12 +226,25 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			ConsulSDConfigs: []*ConsulSDConfig{
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				ConsulSDConfigs: []*ConsulSDConfig{
+					{
+						Server:       "localhost:1234",
+						Services:     []string{"nginx", "cache", "mysql"},
+						TagSeparator: DefaultConsulSDConfig.TagSeparator,
+						Scheme:       DefaultConsulSDConfig.Scheme,
+					},
+				},
+			},
+
+			RelabelConfigs: []*RelabelConfig{
 				{
-					Server:       "localhost:1234",
-					Services:     []string{"nginx", "cache", "mysql"},
-					TagSeparator: DefaultConsulSDConfig.TagSeparator,
-					Scheme:       DefaultConsulSDConfig.Scheme,
+					SourceLabels: model.LabelNames{"__meta_sd_consul_tags"},
+					Regex:        MustNewRegexp("label:([^=]+)=([^,]+)"),
+					Separator:    ",",
+					TargetLabel:  "${1}",
+					Replacement:  "${2}",
+					Action:       RelabelReplace,
 				},
 			},
 		},
@@ -223,12 +257,14 @@ var expectedConf = &Config{
 			MetricsPath: "/metrics",
 			Scheme:      "http",
 
-			TLSConfig: TLSConfig{
-				CertFile: "testdata/valid_cert_file",
-				KeyFile:  "testdata/valid_key_file",
-			},
+			HTTPClientConfig: HTTPClientConfig{
+				TLSConfig: TLSConfig{
+					CertFile: "testdata/valid_cert_file",
+					KeyFile:  "testdata/valid_key_file",
+				},
 
-			BearerToken: "avalidtoken",
+				BearerToken: "avalidtoken",
+			},
 		},
 		{
 			JobName: "service-kubernetes",
@@ -239,16 +275,16 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			KubernetesSDConfigs: []*KubernetesSDConfig{
-				{
-					APIServers: []URL{kubernetesSDHostURL()},
-					Role:       KubernetesRoleEndpoint,
-					BasicAuth: &BasicAuth{
-						Username: "myusername",
-						Password: "mypassword",
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				KubernetesSDConfigs: []*KubernetesSDConfig{
+					{
+						APIServer: kubernetesSDHostURL(),
+						Role:      KubernetesRoleEndpoint,
+						BasicAuth: &BasicAuth{
+							Username: "myusername",
+							Password: "mypassword",
+						},
 					},
-					RequestTimeout: model.Duration(10 * time.Second),
-					RetryInterval:  model.Duration(1 * time.Second),
 				},
 			},
 		},
@@ -261,12 +297,19 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			MarathonSDConfigs: []*MarathonSDConfig{
-				{
-					Servers: []string{
-						"http://marathon.example.com:8080",
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				MarathonSDConfigs: []*MarathonSDConfig{
+					{
+						Servers: []string{
+							"https://marathon.example.com:443",
+						},
+						Timeout:         model.Duration(30 * time.Second),
+						RefreshInterval: model.Duration(30 * time.Second),
+						TLSConfig: TLSConfig{
+							CertFile: "testdata/valid_cert_file",
+							KeyFile:  "testdata/valid_key_file",
+						},
 					},
-					RefreshInterval: model.Duration(30 * time.Second),
 				},
 			},
 		},
@@ -279,13 +322,16 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			EC2SDConfigs: []*EC2SDConfig{
-				{
-					Region:          "us-east-1",
-					AccessKey:       "access",
-					SecretKey:       "secret",
-					RefreshInterval: model.Duration(60 * time.Second),
-					Port:            80,
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				EC2SDConfigs: []*EC2SDConfig{
+					{
+						Region:          "us-east-1",
+						AccessKey:       "access",
+						SecretKey:       "secret",
+						Profile:         "profile",
+						RefreshInterval: model.Duration(60 * time.Second),
+						Port:            80,
+					},
 				},
 			},
 		},
@@ -298,14 +344,16 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			AzureSDConfigs: []*AzureSDConfig{
-				{
-					SubscriptionID:  "11AAAA11-A11A-111A-A111-1111A1111A11",
-					TenantID:        "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
-					ClientID:        "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
-					ClientSecret:    "nAdvAK2oBuVym4IXix",
-					RefreshInterval: model.Duration(5 * time.Minute),
-					Port:            9100,
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				AzureSDConfigs: []*AzureSDConfig{
+					{
+						SubscriptionID:  "11AAAA11-A11A-111A-A111-1111A1111A11",
+						TenantID:        "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
+						ClientID:        "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
+						ClientSecret:    "nAdvAK2oBuVym4IXix",
+						RefreshInterval: model.Duration(5 * time.Minute),
+						Port:            9100,
+					},
 				},
 			},
 		},
@@ -318,11 +366,13 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			NerveSDConfigs: []*NerveSDConfig{
-				{
-					Servers: []string{"localhost"},
-					Paths:   []string{"/monitoring"},
-					Timeout: model.Duration(10 * time.Second),
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				NerveSDConfigs: []*NerveSDConfig{
+					{
+						Servers: []string{"localhost"},
+						Paths:   []string{"/monitoring"},
+						Timeout: model.Duration(10 * time.Second),
+					},
 				},
 			},
 		},
@@ -335,10 +385,12 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			StaticConfigs: []*TargetGroup{
-				{
-					Targets: []model.LabelSet{
-						{model.AddressLabel: "localhost:9090"},
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				StaticConfigs: []*TargetGroup{
+					{
+						Targets: []model.LabelSet{
+							{model.AddressLabel: "localhost:9090"},
+						},
 					},
 				},
 			},
@@ -352,10 +404,58 @@ var expectedConf = &Config{
 			MetricsPath: DefaultScrapeConfig.MetricsPath,
 			Scheme:      DefaultScrapeConfig.Scheme,
 
-			StaticConfigs: []*TargetGroup{
-				{
-					Targets: []model.LabelSet{
-						{model.AddressLabel: "localhost:9090"},
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				StaticConfigs: []*TargetGroup{
+					{
+						Targets: []model.LabelSet{
+							{model.AddressLabel: "localhost:9090"},
+						},
+					},
+				},
+			},
+		},
+		{
+			JobName: "service-triton",
+
+			ScrapeInterval: model.Duration(15 * time.Second),
+			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+
+			MetricsPath: DefaultScrapeConfig.MetricsPath,
+			Scheme:      DefaultScrapeConfig.Scheme,
+
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				TritonSDConfigs: []*TritonSDConfig{
+					{
+
+						Account:         "testAccount",
+						DNSSuffix:       "triton.example.com",
+						Endpoint:        "triton.example.com",
+						Port:            9163,
+						RefreshInterval: model.Duration(60 * time.Second),
+						Version:         1,
+						TLSConfig: TLSConfig{
+							CertFile: "testdata/valid_cert_file",
+							KeyFile:  "testdata/valid_key_file",
+						},
+					},
+				},
+			},
+		},
+	},
+	AlertingConfig: AlertingConfig{
+		AlertmanagerConfigs: []*AlertmanagerConfig{
+			{
+				Scheme:  "https",
+				Timeout: 10 * time.Second,
+				ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+					StaticConfigs: []*TargetGroup{
+						{
+							Targets: []model.LabelSet{
+								{model.AddressLabel: "1.2.3.4:9093"},
+								{model.AddressLabel: "1.2.3.5:9093"},
+								{model.AddressLabel: "1.2.3.6:9093"},
+							},
+						},
 					},
 				},
 			},
@@ -368,7 +468,7 @@ func TestLoadConfig(t *testing.T) {
 	// Parse a valid file that sets a global scrape timeout. This tests whether parsing
 	// an overwritten default field in the global config permanently changes the default.
 	if _, err := LoadFile("testdata/global_timeout.good.yml"); err != nil {
-		t.Errorf("Error parsing %s: %s", "testdata/conf.good.yml", err)
+		t.Errorf("Error parsing %s: %s", "testdata/global_timeout.good.yml", err)
 	}
 
 	c, err := LoadFile("testdata/conf.good.yml")
@@ -506,6 +606,34 @@ func TestEmptyGlobalBlock(t *testing.T) {
 
 	if !reflect.DeepEqual(*c, exp) {
 		t.Fatalf("want %v, got %v", exp, c)
+	}
+}
+
+func TestTargetLabelValidity(t *testing.T) {
+	tests := []struct {
+		str   string
+		valid bool
+	}{
+		{"-label", false},
+		{"label", true},
+		{"label${1}", true},
+		{"${1}label", true},
+		{"${1}", true},
+		{"${1}label", true},
+		{"${", false},
+		{"$", false},
+		{"${}", false},
+		{"foo${", false},
+		{"$1", true},
+		{"asd$2asd", true},
+		{"-foo${1}bar-", false},
+		{"_${1}_", true},
+		{"foo${bar}foo", true},
+	}
+	for _, test := range tests {
+		if relabelTarget.Match([]byte(test.str)) != test.valid {
+			t.Fatalf("Expected %q to be %v", test.str, test.valid)
+		}
 	}
 }
 
