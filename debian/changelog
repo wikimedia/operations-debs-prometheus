@@ -1,4 +1,4 @@
-prometheus (1.5.0+ds-1) UNRELEASED; urgency=medium
+prometheus (1.5.0+ds-1) unstable; urgency=medium
 
   * The "Only use non-alternative facts for monitoring" release.
   * Refresh patches: re-enable test, disable parts of ec2 discovery that
@@ -8,7 +8,7 @@ prometheus (1.5.0+ds-1) UNRELEASED; urgency=medium
   * Remove prometheus-cli from Recommends.
   * Add original sources for JS fuzzy library.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 25 Jan 2017 18:29:11 -0300
+ -- Martín Ferrari <tincho@debian.org>  Thu, 26 Jan 2017 22:38:53 +0000
 
 prometheus (1.2.3+ds2-5) unstable; urgency=medium
 
