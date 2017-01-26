@@ -2,3 +2,4 @@
 04-Default_settings.patch
 05-Disable_flaky_tests.patch
 06-Bug#818417-AWS_SDK_changes.patch
+08-Disable_kubernetes.patch

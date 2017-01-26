@@ -1,3 +1,4 @@
 console_libraries
 consoles
-documentation/examples/*
+documentation/examples/prometheus.yml
+documentation/examples/remote_storage
