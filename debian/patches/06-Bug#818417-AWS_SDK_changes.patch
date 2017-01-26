@@ -1,32 +1,79 @@
 # Changes related to golang-github-aws-aws-sdk-go latest upload
 # Patch by Filippo Giunchedi <filippo@debian.org>
 
+# Added by Martín Ferrari: revert most of commit bec6870, as that change
+# requires version 1.5 of the SDK.
+
+--- a/config/config.go
++++ b/config/config.go
+@@ -1052,7 +1052,6 @@
+ 	Region          string         `yaml:"region"`
+ 	AccessKey       string         `yaml:"access_key,omitempty"`
+ 	SecretKey       string         `yaml:"secret_key,omitempty"`
+-	Profile         string         `yaml:"profile,omitempty"`
+ 	RefreshInterval model.Duration `yaml:"refresh_interval,omitempty"`
+ 	Port            int            `yaml:"port"`
+ 
+--- a/config/config_test.go
++++ b/config/config_test.go
+@@ -328,7 +328,6 @@
+ 						Region:          "us-east-1",
+ 						AccessKey:       "access",
+ 						SecretKey:       "secret",
+-						Profile:         "profile",
+ 						RefreshInterval: model.Duration(60 * time.Second),
+ 						Port:            80,
+ 					},
+--- a/config/testdata/conf.good.yml
++++ b/config/testdata/conf.good.yml
+@@ -152,7 +152,6 @@
+     - region: us-east-1
+       access_key: access
+       secret_key: secret
+-      profile: profile
+ 
+ - job_name: service-azure
+   azure_sd_configs:
 --- a/discovery/ec2/ec2.go
 +++ b/discovery/ec2/ec2.go
-@@ -21,7 +21,7 @@
+@@ -70,7 +70,6 @@
+ type EC2Discovery struct {
+ 	aws      *aws.Config
+ 	interval time.Duration
+-	profile  string
+ 	port     int
+ }
  
- 	"github.com/aws/aws-sdk-go/aws"
- 	"github.com/aws/aws-sdk-go/aws/credentials"
--	"github.com/aws/aws-sdk-go/aws/defaults"
-+	"github.com/aws/aws-sdk-go/aws/session"
- 	"github.com/prometheus/common/log"
- 	"github.com/prometheus/common/model"
- 	"golang.org/x/net/context"
-@@ -57,7 +57,7 @@
- func NewEC2Discovery(conf *config.EC2SDConfig) *EC2Discovery {
+@@ -78,14 +77,13 @@
+ func NewDiscovery(conf *config.EC2SDConfig) *EC2Discovery {
  	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
  	if conf.AccessKey == "" && conf.SecretKey == "" {
--		creds = defaults.DefaultChainCredentials
+-		creds = nil
 +		creds = credentials.NewEnvCredentials()
  	}
  	return &EC2Discovery{
  		aws: &aws.Config{
-@@ -100,7 +100,7 @@
- }
+ 			Region:      &conf.Region,
+ 			Credentials: creds,
+ 		},
+-		profile:  conf.Profile,
+ 		interval: time.Duration(conf.RefreshInterval),
+ 		port:     conf.Port,
+ 	}
+@@ -137,15 +135,7 @@
+ 		}
+ 	}()
  
- func (ed *EC2Discovery) refresh() (*config.TargetGroup, error) {
--	ec2s := ec2.New(ed.aws)
+-	sess, err := session.NewSessionWithOptions(session.Options{
+-		Config:  *ed.aws,
+-		Profile: ed.profile,
+-	})
+-	if err != nil {
+-		return nil, fmt.Errorf("could not create aws session: %s", err)
+-	}
+-
+-	ec2s := ec2.New(sess)
 +	ec2s := ec2.New(session.New(), ed.aws)
- 	tg := &config.TargetGroup{
+ 	tg = &config.TargetGroup{
  		Source: *ed.aws.Region,
  	}

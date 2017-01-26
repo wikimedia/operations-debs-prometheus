@@ -1,6 +1,8 @@
 prometheus (1.5.0+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Refresh patches: re-enable test, disable parts of ec2 discovery that
+    require a different sdk.
 
  -- Martín Ferrari <tincho@debian.org>  Wed, 25 Jan 2017 18:29:11 -0300
 

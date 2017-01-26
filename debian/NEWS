@@ -1,3 +1,12 @@
+prometheus (1.5.0+ds-1) UNRELEASED; urgency=medium
+
+  Differences from upstream:
+
+  * The profile support for EC2 discovery has been disabled, as that requires a
+    different version of the AWS SDK.
+
+ -- Martín Ferrari <tincho@debian.org>  Thu, 26 Jan 2017 17:39:25 +0000
+
 prometheus (1.0.0+ds-1) unstable; urgency=medium
 
   First stable release!
