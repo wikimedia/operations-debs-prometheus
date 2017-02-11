@@ -1,3 +1,10 @@
+prometheus (1.5.2+ds-2) UNRELEASED; urgency=medium
+
+  * Disable "long" tests in arm*, which take way too long and run out of
+    memory. Closes: #852959.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 10 Feb 2017 23:13:00 -0300
+
 prometheus (1.5.2+ds-1) unstable; urgency=medium
 
   * New upstream bugfix release.
