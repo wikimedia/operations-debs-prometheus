@@ -1,3 +1,9 @@
+prometheus (1.5.2+ds-3) UNRELEASED; urgency=medium
+
+  * Add missing epoch from golang-go dependency.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 17 Feb 2017 15:24:42 +0000
+
 prometheus (1.5.2+ds-2) unstable; urgency=medium
 
   * Disable "long" tests in arm*, which take way too long and run out of
