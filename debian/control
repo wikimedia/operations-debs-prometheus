@@ -36,7 +36,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
          libjs-bootstrap,
          libjs-eonasdan-bootstrap-datetimepicker,
-         libjs-mustache,
+         libjs-mustache (>= 2.3.0-1~),
          libjs-jquery (>= 1.11.3~),
          libjs-jquery-hotkeys,
          libjs-moment,
