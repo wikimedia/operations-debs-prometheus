@@ -1,9 +1,9 @@
-prometheus (1.5.2+ds-3) UNRELEASED; urgency=medium
+prometheus (1.5.2+ds-2~bpo8+1) UNRELEASED; urgency=medium
 
-  * Add missing epoch from golang-go dependency.
-  * Add version to libjs-mustache dependency. Closes: #855808.
+  * Rebuild for jessie-backports.
+  * Add version to libjs-mustache dependency.
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 17 Feb 2017 15:24:42 +0000
+ -- Martín Ferrari <tincho@debian.org>  Wed, 22 Feb 2017 15:51:35 +0000
 
 prometheus (1.5.2+ds-2) unstable; urgency=medium
 
