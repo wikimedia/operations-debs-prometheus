@@ -34,8 +34,8 @@ BUILDFLAGS := -ldflags \
     -X $(METAPKG)/version.GoVersion=$(GO_VERSION)"
 
 ifeq ($(DEB_HOST_ARCH_CPU),arm)
-# Tests in armel take way too long!
-TESTFLAGS  := -timeout 60m
+# Tests in armel take way too long, and run out of memory in armhf.
+TESTFLAGS  := -timeout 60m -short
 else
 TESTFLAGS  := -timeout 20m
 endif

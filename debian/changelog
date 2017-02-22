@@ -1,3 +1,23 @@
+prometheus (1.5.2+ds-3) UNRELEASED; urgency=medium
+
+  * Add missing epoch from golang-go dependency.
+  * Add version to libjs-mustache dependency. Closes: #855808.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 17 Feb 2017 15:24:42 +0000
+
+prometheus (1.5.2+ds-2) unstable; urgency=medium
+
+  * Disable "long" tests in arm*, which take way too long and run out of
+    memory. Closes: #852959.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 10 Feb 2017 23:13:51 -0300
+
+prometheus (1.5.2+ds-1) unstable; urgency=medium
+
+  * New upstream bugfix release.
+
+ -- Martín Ferrari <tincho@debian.org>  Sat, 11 Feb 2017 00:27:48 +0000
+
 prometheus (1.5.0+ds-1~bpo8+1) jessie-backports; urgency=medium
 
   * Rebuild for jessie-backports.
