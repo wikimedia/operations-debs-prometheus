@@ -1,9 +1,9 @@
-prometheus (1.5.2+ds-2~bpo8+1) UNRELEASED; urgency=medium
+prometheus (1.5.2+ds-2~bpo8+1) jessie-backports; urgency=medium
 
   * Rebuild for jessie-backports.
   * Add version to libjs-mustache dependency.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 22 Feb 2017 15:51:35 +0000
+ -- Martín Ferrari <tincho@debian.org>  Thu, 02 Mar 2017 06:15:07 +0000
 
 prometheus (1.5.2+ds-2) unstable; urgency=medium
 
