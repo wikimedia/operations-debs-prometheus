@@ -6,7 +6,7 @@
 
 --- a/config/config.go
 +++ b/config/config.go
-@@ -1052,7 +1052,6 @@
+@@ -1073,7 +1073,6 @@
  	Region          string         `yaml:"region"`
  	AccessKey       string         `yaml:"access_key,omitempty"`
  	SecretKey       string         `yaml:"secret_key,omitempty"`
@@ -16,7 +16,7 @@
  
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -328,7 +328,6 @@
+@@ -349,7 +349,6 @@
  						Region:          "us-east-1",
  						AccessKey:       "access",
  						SecretKey:       "secret",
@@ -26,7 +26,7 @@
  					},
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -152,7 +152,6 @@
+@@ -160,7 +160,6 @@
      - region: us-east-1
        access_key: access
        secret_key: secret
@@ -37,7 +37,7 @@
 --- a/discovery/ec2/ec2.go
 +++ b/discovery/ec2/ec2.go
 @@ -70,7 +70,6 @@
- type EC2Discovery struct {
+ type Discovery struct {
  	aws      *aws.Config
  	interval time.Duration
 -	profile  string
@@ -45,13 +45,13 @@
  }
  
 @@ -78,14 +77,13 @@
- func NewDiscovery(conf *config.EC2SDConfig) *EC2Discovery {
+ func NewDiscovery(conf *config.EC2SDConfig) *Discovery {
  	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
  	if conf.AccessKey == "" && conf.SecretKey == "" {
 -		creds = nil
 +		creds = credentials.NewEnvCredentials()
  	}
- 	return &EC2Discovery{
+ 	return &Discovery{
  		aws: &aws.Config{
  			Region:      &conf.Region,
  			Credentials: creds,
@@ -65,15 +65,15 @@
  	}()
  
 -	sess, err := session.NewSessionWithOptions(session.Options{
--		Config:  *ed.aws,
--		Profile: ed.profile,
+-		Config:  *d.aws,
+-		Profile: d.profile,
 -	})
 -	if err != nil {
 -		return nil, fmt.Errorf("could not create aws session: %s", err)
 -	}
 -
 -	ec2s := ec2.New(sess)
-+	ec2s := ec2.New(session.New(), ed.aws)
++	ec2s := ec2.New(session.New(), d.aws)
  	tg = &config.TargetGroup{
- 		Source: *ed.aws.Region,
+ 		Source: *d.aws.Region,
  	}

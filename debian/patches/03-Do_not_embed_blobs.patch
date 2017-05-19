@@ -64,7 +64,7 @@
  // ListenError returns the receive-only channel that signals errors while starting the web server.
  func (h *Handler) ListenError() <-chan error {
  	return h.listenErrCh
-@@ -495,11 +471,11 @@
+@@ -502,11 +478,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
@@ -99,64 +99,27 @@
 +<script src="{{ pathPrefix }}/static/jquery/jquery.min.js"></script>
 +<script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
  
- <script>var PATH_PREFIX = "{{ pathPrefix }}";</script>
- <script src="{{ pathPrefix }}/static/js/prom_console.js"></script>
---- a/web/ui/templates/graph.html
-+++ b/web/ui/templates/graph.html
-@@ -1,24 +1,21 @@
- {{define "head"}}
-     <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css">
- 
--    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.css">
--    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
-+    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/rickshaw/rickshaw.min.css">
-+    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css">
- 
--    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.v3.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/moment/moment.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/fuzzy.js"></script>
-+    <script src="{{ pathPrefix }}/static/d3/d3.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/moment/moment.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js"></script>
-+    <script src="{{ pathPrefix }}/static/vendor/fuzzy/fuzzy.js"></script>
- 
--    <script src="{{ pathPrefix }}/static/vendor/mustache/mustache.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/mustache/mustache.min.js"></script>
-     <script src="{{ pathPrefix }}/static/vendor/js/jquery.selection.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/js/jquery.hotkeys.js"></script>
-+    <script src="{{ pathPrefix }}/static/jquery-hotkeys/jquery.hotkeys.js"></script>
- 
-     <script src="{{ pathPrefix }}/static/js/graph.js?v=1"></script>
--
--    <script id="graph_template" type="text/x-handlebars-template"></script>
- {{end}}
- 
- {{define "content"}}
+ <script>
+ var PATH_PREFIX = "{{ pathPrefix }}";
 --- a/web/ui/templates/_base.html
 +++ b/web/ui/templates/_base.html
 @@ -4,10 +4,10 @@
      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
      <title>Prometheus Time Series Collection and Processing Server</title>
-     <link rel="shortcut icon" href="{{ pathPrefix }}/static/img/favicon.ico">
--    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js"></script>
--    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/jquery/jquery.min.js"></script>
-+    <script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js"></script>
+     <link rel="shortcut icon" href="{{ pathPrefix }}/static/img/favicon.ico?v={{ buildVersion }}">
+-    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/jquery/jquery.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/bootstrap/js/bootstrap.min.js?v={{ buildVersion }}"></script>
  
--    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css">
-+    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css">
-     <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css">
+-    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/css/bootstrap.min.css?v={{ buildVersion }}">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/bootstrap/css/bootstrap.min.css?v={{ buildVersion }}">
+     <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css?v={{ buildVersion }}">
  
      <script>
 --- a/cmd/prometheus/config.go
 +++ b/cmd/prometheus/config.go
-@@ -103,6 +103,11 @@
+@@ -132,6 +132,11 @@
  		"Path under which to expose metrics.",
  	)
  	cfg.fs.StringVar(
@@ -168,3 +131,35 @@
  		&cfg.web.UserAssetsPath, "web.user-assets", "",
  		"Path to static asset directory, available at /user.",
  	)
+--- a/web/ui/templates/graph.html
++++ b/web/ui/templates/graph.html
+@@ -1,20 +1,19 @@
+ {{define "head"}}
+     <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css?v={{ buildVersion }}">
+ 
+-    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.css?v={{ buildVersion }}">
+-    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css?v={{ buildVersion }}">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/rickshaw/rickshaw.min.css?v={{ buildVersion }}">
++    <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.css?v={{ buildVersion }}">
+ 
+-    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.v3.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/moment/moment.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/d3/d3.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/moment/moment.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js?v={{ buildVersion }}"></script>
+     <script src="{{ pathPrefix }}/static/vendor/fuzzy/fuzzy.js?v={{ buildVersion }}"></script>
+ 
+-    <script src="{{ pathPrefix }}/static/vendor/mustache/mustache.min.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/mustache/mustache.min.js?v={{ buildVersion }}"></script>
+     <script src="{{ pathPrefix }}/static/vendor/js/jquery.selection.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/js/jquery.hotkeys.js?v={{ buildVersion }}"></script>
++    <script src="{{ pathPrefix }}/static/jquery-hotkeys/jquery.hotkeys.js?v={{ buildVersion }}"></script>
+ 
+     <script src="{{ pathPrefix }}/static/js/graph.js?v={{ buildVersion }}"></script>
+ 

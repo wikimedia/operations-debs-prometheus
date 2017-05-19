@@ -10,7 +10,7 @@
  	// DefaultGCESDConfig is the default EC2 SD configuration.
  	DefaultGCESDConfig = GCESDConfig{
  		Port:            80,
-@@ -234,12 +231,6 @@
+@@ -240,12 +237,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *ServiceDiscoveryConfig) {
@@ -21,9 +21,9 @@
 -			kcfg.TLSConfig.KeyFile = join(kcfg.TLSConfig.KeyFile)
 -		}
  		for _, mcfg := range cfg.MarathonSDConfigs {
+ 			mcfg.BearerTokenFile = join(mcfg.BearerTokenFile)
  			mcfg.TLSConfig.CAFile = join(mcfg.TLSConfig.CAFile)
- 			mcfg.TLSConfig.CertFile = join(mcfg.TLSConfig.CertFile)
-@@ -436,8 +427,6 @@
+@@ -448,8 +439,6 @@
  	NerveSDConfigs []*NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*MarathonSDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -32,12 +32,14 @@
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*GCESDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
-@@ -943,68 +932,6 @@
+@@ -961,71 +950,6 @@
  	return nil
  }
  
+-// KubernetesRole is role of the service in Kubernetes.
 -type KubernetesRole string
 -
+-// The valid options for KubernetesRole.
 -const (
 -	KubernetesRoleNode     = "node"
 -	KubernetesRolePod      = "pod"
@@ -45,6 +47,7 @@
 -	KubernetesRoleEndpoint = "endpoints"
 -)
 -
+-// UnmarshalYAML implements the yaml.Unmarshaler interface.
 -func (c *KubernetesRole) UnmarshalYAML(unmarshal func(interface{}) error) error {
 -	if err := unmarshal((*string)(c)); err != nil {
 -		return err
@@ -103,15 +106,7 @@
  	// Project: The Google Cloud Project ID
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -16,7 +16,6 @@
- import (
- 	"encoding/json"
- 	"io/ioutil"
--	"net/url"
- 	"reflect"
- 	"strings"
- 	"testing"
-@@ -267,28 +266,6 @@
+@@ -288,28 +287,6 @@
  			},
  		},
  		{
@@ -140,7 +135,7 @@
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -535,15 +512,6 @@
+@@ -586,15 +563,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -156,7 +151,7 @@
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "Marathon SD config must contain at least one Marathon server",
  	}, {
-@@ -636,7 +604,3 @@
+@@ -687,7 +655,3 @@
  	}
  }
  
@@ -166,7 +161,7 @@
 -}
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -128,16 +128,6 @@
+@@ -136,16 +136,6 @@
  
    bearer_token: avalidtoken
  
@@ -309,7 +304,7 @@
  	}
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -110,11 +110,6 @@
+@@ -111,11 +111,6 @@
  			return nil, err
  		}
  
