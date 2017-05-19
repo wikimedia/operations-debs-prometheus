@@ -28,7 +28,7 @@ Prometheus' main distinguishing features as compared to other monitoring systems
 
 ## Architecture overview
 
-![](https://cdn.rawgit.com/prometheus/prometheus/e761f0d/documentation/images/architecture.svg)
+![](https://cdn.rawgit.com/prometheus/prometheus/c34257d069c630685da35bcef084632ffd5d6209/documentation/images/architecture.svg)
 
 ## Install
 
@@ -48,6 +48,12 @@ Debian packages [are available](https://packages.debian.org/sid/net/prometheus).
 ### Docker images
 
 Docker images are available on [Quay.io](https://quay.io/repository/prometheus/prometheus).
+
+You can launch a Prometheus container for trying it out with
+
+    $ docker run --name prometheus -d -p 127.0.0.1:9090:9090 quay.io/prometheus/prometheus
+
+Prometheus will now be reachable at http://localhost:9090/.
 
 ### Building from source
 
@@ -75,6 +81,7 @@ The Makefile provides several targets:
 
   * *build*: build the `prometheus` and `promtool` binaries
   * *test*: run the tests
+  * *test-short*: run the short tests
   * *format*: format the source code
   * *vet*: check the source code for common errors
   * *assets*: rebuild the static assets
@@ -84,7 +91,7 @@ The Makefile provides several targets:
 
   * The source code is periodically indexed: [Prometheus Core](http://godoc.org/github.com/prometheus/prometheus).
   * You will find a Travis CI configuration in `.travis.yml`.
-  * All of the core developers are accessible via the [Prometheus Developers Mailinglist](https://groups.google.com/forum/?fromgroups#!forum/prometheus-developers) and the `#prometheus` channel on `irc.freenode.net`.
+  * See the [Community page](https://prometheus.io/community) for how to reach the Prometheus developers and users on various communication channels.
 
 ## Contributing
 
