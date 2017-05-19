@@ -12,7 +12,7 @@
 # limitations under the License.
 
 GO           := GO15VENDOREXPERIMENT=1 go
-FIRST_GOPATH := $(firstword $(subst :, ,$(GOPATH)))
+FIRST_GOPATH := $(firstword $(subst :, ,$(shell $(GO) env GOPATH)))
 PROMU        := $(FIRST_GOPATH)/bin/promu
 pkgs          = $(shell $(GO) list ./... | grep -v /vendor/)
 
@@ -36,9 +36,13 @@ check_license:
 	@echo ">> checking license header"
 	@./scripts/check_license.sh
 
-test:
+test-short:
 	@echo ">> running short tests"
 	@$(GO) test -short $(pkgs)
+
+test:
+	@echo ">> running all tests"
+	@$(GO) test $(pkgs)
 
 format:
 	@echo ">> formatting code"

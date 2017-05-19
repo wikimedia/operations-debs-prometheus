@@ -64,7 +64,6 @@ type Discovery struct {
 	names []string
 
 	interval time.Duration
-	m        sync.RWMutex
 	port     int
 	qtype    uint16
 }
@@ -89,30 +88,30 @@ func NewDiscovery(conf *config.DNSSDConfig) *Discovery {
 }
 
 // Run implements the TargetProvider interface.
-func (dd *Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup) {
-	ticker := time.NewTicker(dd.interval)
+func (d *Discovery) Run(ctx context.Context, ch chan<- []*config.TargetGroup) {
+	ticker := time.NewTicker(d.interval)
 	defer ticker.Stop()
 
 	// Get an initial set right away.
-	dd.refreshAll(ctx, ch)
+	d.refreshAll(ctx, ch)
 
 	for {
 		select {
 		case <-ticker.C:
-			dd.refreshAll(ctx, ch)
+			d.refreshAll(ctx, ch)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (dd *Discovery) refreshAll(ctx context.Context, ch chan<- []*config.TargetGroup) {
+func (d *Discovery) refreshAll(ctx context.Context, ch chan<- []*config.TargetGroup) {
 	var wg sync.WaitGroup
 
-	wg.Add(len(dd.names))
-	for _, name := range dd.names {
+	wg.Add(len(d.names))
+	for _, name := range d.names {
 		go func(n string) {
-			if err := dd.refresh(ctx, n, ch); err != nil {
+			if err := d.refresh(ctx, n, ch); err != nil {
 				log.Errorf("Error refreshing DNS targets: %s", err)
 			}
 			wg.Done()
@@ -122,8 +121,8 @@ func (dd *Discovery) refreshAll(ctx context.Context, ch chan<- []*config.TargetG
 	wg.Wait()
 }
 
-func (dd *Discovery) refresh(ctx context.Context, name string, ch chan<- []*config.TargetGroup) error {
-	response, err := lookupAll(name, dd.qtype)
+func (d *Discovery) refresh(ctx context.Context, name string, ch chan<- []*config.TargetGroup) error {
+	response, err := lookupAll(name, d.qtype)
 	dnsSDLookupsCount.Inc()
 	if err != nil {
 		dnsSDLookupFailuresCount.Inc()
@@ -144,9 +143,9 @@ func (dd *Discovery) refresh(ctx context.Context, name string, ch chan<- []*conf
 
 			target = hostPort(addr.Target, int(addr.Port))
 		case *dns.A:
-			target = hostPort(addr.A.String(), dd.port)
+			target = hostPort(addr.A.String(), d.port)
 		case *dns.AAAA:
-			target = hostPort(addr.AAAA.String(), dd.port)
+			target = hostPort(addr.AAAA.String(), d.port)
 		default:
 			log.Warnf("%q is not a valid SRV record", record)
 			continue
@@ -179,13 +178,12 @@ func lookupAll(name string, qtype uint16) (*dns.Msg, error) {
 
 	for _, server := range conf.Servers {
 		servAddr := net.JoinHostPort(server, conf.Port)
-		for _, suffix := range conf.Search {
-			response, err = lookup(name, qtype, client, servAddr, suffix, false)
+		for _, lname := range conf.NameList(name) {
+			response, err = lookup(lname, qtype, client, servAddr, false)
 			if err != nil {
 				log.
 					With("server", server).
 					With("name", name).
-					With("suffix", suffix).
 					With("reason", err).
 					Warn("DNS resolution failed.")
 				continue
@@ -194,22 +192,12 @@ func lookupAll(name string, qtype uint16) (*dns.Msg, error) {
 				return response, nil
 			}
 		}
-		response, err = lookup(name, qtype, client, servAddr, "", false)
-		if err == nil {
-			return response, nil
-		}
-		log.
-			With("server", server).
-			With("name", name).
-			With("reason", err).
-			Warn("DNS resolution failed.")
 	}
 	return response, fmt.Errorf("could not resolve %s: no server responded", name)
 }
 
-func lookup(name string, queryType uint16, client *dns.Client, servAddr string, suffix string, edns bool) (*dns.Msg, error) {
+func lookup(lname string, queryType uint16, client *dns.Client, servAddr string, edns bool) (*dns.Msg, error) {
 	msg := &dns.Msg{}
-	lname := strings.Join([]string{name, suffix}, ".")
 	msg.SetQuestion(dns.Fqdn(lname), queryType)
 
 	if edns {
@@ -224,7 +212,7 @@ func lookup(name string, queryType uint16, client *dns.Client, servAddr string, 
 		if edns { // Truncated even though EDNS is used
 			client.Net = "tcp"
 		}
-		return lookup(name, queryType, client, servAddr, suffix, !edns)
+		return lookup(lname, queryType, client, servAddr, !edns)
 	}
 	if err != nil {
 		return nil, err

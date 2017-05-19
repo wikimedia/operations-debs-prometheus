@@ -15,10 +15,12 @@ package local
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -204,11 +206,25 @@ func newPersistence(
 
 	archivedFingerprintToMetrics, err := index.NewFingerprintMetricIndex(basePath)
 	if err != nil {
+		// At this point, we could simply blow away the archived
+		// fingerprint-to-metric index. However, then we would lose
+		// _all_ archived metrics. So better give the user an
+		// opportunity to repair the LevelDB with a 3rd party tool.
+		log.Errorf("Could not open the fingerprint-to-metric index for archived series. Please try a 3rd party tool to repair LevelDB in directory %q. If unsuccessful or undesired, delete the whole directory and restart Prometheus for crash recovery. You will lose all archived time series.", filepath.Join(basePath, index.FingerprintToMetricDir))
 		return nil, err
 	}
 	archivedFingerprintToTimeRange, err := index.NewFingerprintTimeRangeIndex(basePath)
 	if err != nil {
-		return nil, err
+		// We can recover the archived fingerprint-to-timerange index,
+		// so blow it away and set ourselves dirty. Then re-open the now
+		// empty index.
+		if err := index.DeleteFingerprintTimeRangeIndex(basePath); err != nil {
+			return nil, err
+		}
+		dirty = true
+		if archivedFingerprintToTimeRange, err = index.NewFingerprintTimeRangeIndex(basePath); err != nil {
+			return nil, err
+		}
 	}
 
 	p := &persistence{
@@ -608,7 +624,12 @@ func (p *persistence) loadChunkDescs(fp model.Fingerprint, offsetFromEnd int) ([
 // (4.8.2.1) A byte defining the chunk type.
 // (4.8.2.2) The chunk itself, marshaled with the Marshal() method.
 //
-func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap, fpLocker *fingerprintLocker) (err error) {
+// NOTE: Above, varint encoding is used consistently although uvarint would have
+// made more sense in many cases. This was simply a glitch while designing the
+// format.
+func (p *persistence) checkpointSeriesMapAndHeads(
+	ctx context.Context, fingerprintToSeries *seriesMap, fpLocker *fingerprintLocker,
+) (err error) {
 	log.Info("Checkpointing in-memory metrics and chunks...")
 	p.checkpointing.Set(1)
 	defer p.checkpointing.Set(0)
@@ -619,11 +640,16 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 	}
 
 	defer func() {
-		syncErr := f.Sync()
-		closeErr := f.Close()
+		defer os.Remove(p.headsTempFileName()) // Just in case it was left behind.
+
 		if err != nil {
+			// If we already had an error, do not bother to sync,
+			// just close, ignoring any further error.
+			f.Close()
 			return
 		}
+		syncErr := f.Sync()
+		closeErr := f.Close()
 		err = syncErr
 		if err != nil {
 			return
@@ -665,6 +691,11 @@ func (p *persistence) checkpointSeriesMapAndHeads(fingerprintToSeries *seriesMap
 
 	var realNumberOfSeries uint64
 	for m := range iter {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		func() { // Wrapped in function to use defer for unlocking the fp.
 			fpLocker.Lock(m.fp)
 			defer fpLocker.Unlock(m.fp)
@@ -920,8 +951,24 @@ func (p *persistence) dropAndPersistChunks(
 	}
 	defer f.Close()
 
+	fi, err := f.Stat()
+	if err != nil {
+		return
+	}
+	chunksInFile := int(fi.Size()) / chunkLenWithHeader
+	totalChunks := chunksInFile + len(chunks)
+
+	// Calculate chunk index from minShrinkRatio, to skip unnecessary chunk header reading.
+	chunkIndexToStartSeek := 0
+	if p.minShrinkRatio < 1 {
+		chunkIndexToStartSeek = int(math.Floor(float64(totalChunks) * p.minShrinkRatio))
+	}
+	if chunkIndexToStartSeek >= chunksInFile {
+		chunkIndexToStartSeek = chunksInFile - 1
+	}
+	numDropped = chunkIndexToStartSeek
+
 	headerBuf := make([]byte, chunkHeaderLen)
-	var firstTimeInFile model.Time
 	// Find the first chunk in the file that should be kept.
 	for ; ; numDropped++ {
 		_, err = f.Seek(offsetForChunkIndex(numDropped), os.SEEK_SET)
@@ -948,11 +995,6 @@ func (p *persistence) dropAndPersistChunks(
 		if err != nil {
 			return
 		}
-		if numDropped == 0 {
-			firstTimeInFile = model.Time(
-				binary.LittleEndian.Uint64(headerBuf[chunkHeaderFirstTimeOffset:]),
-			)
-		}
 		lastTime := model.Time(
 			binary.LittleEndian.Uint64(headerBuf[chunkHeaderLastTimeOffset:]),
 		)
@@ -961,19 +1003,21 @@ func (p *persistence) dropAndPersistChunks(
 		}
 	}
 
-	// We've found the first chunk that should be kept.
-	// First check if the shrink ratio is good enough to perform the
-	// actual drop or leave it for next time if it is not worth the effort.
-	fi, err := f.Stat()
-	if err != nil {
-		return
-	}
-	chunksInFile := int(fi.Size()) / chunkLenWithHeader
-	totalChunks := chunksInFile + len(chunks)
-	if numDropped == 0 || float64(numDropped)/float64(totalChunks) < p.minShrinkRatio {
+	// If numDropped isn't incremented, the minShrinkRatio condition isn't satisfied.
+	if numDropped == chunkIndexToStartSeek {
 		// Nothing to drop. Just adjust the return values and append the chunks (if any).
 		numDropped = 0
-		firstTimeNotDropped = firstTimeInFile
+		_, err = f.Seek(offsetForChunkIndex(0), os.SEEK_SET)
+		if err != nil {
+			return
+		}
+		_, err = io.ReadFull(f, headerBuf)
+		if err != nil {
+			return
+		}
+		firstTimeNotDropped = model.Time(
+			binary.LittleEndian.Uint64(headerBuf[chunkHeaderFirstTimeOffset:]),
+		)
 		if len(chunks) > 0 {
 			offset, err = p.persistChunks(fp, chunks)
 		} else {
@@ -1364,9 +1408,11 @@ func (p *persistence) processIndexingQueue() {
 
 		if err := p.labelPairToFingerprints.IndexBatch(pairToFPs); err != nil {
 			log.Error("Error indexing label pair to fingerprints batch: ", err)
+			p.setDirty(err)
 		}
 		if err := p.labelNameToLabelValues.IndexBatch(nameToValues); err != nil {
 			log.Error("Error indexing label name to label values batch: ", err)
+			p.setDirty(err)
 		}
 		batchSize = 0
 		nameToValues = index.LabelNameLabelValuesMapping{}

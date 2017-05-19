@@ -15,6 +15,7 @@ package local
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -176,7 +177,7 @@ func testPersistLoadDropChunks(t *testing.T, encoding chunk.Encoding) {
 	// Try to drop one chunk, which must be prevented by the shrink
 	// ratio. Since we do not pass in any chunks to persist, the offset
 	// should be the number of chunks in the file.
-	for fp, _ := range fpToChunks {
+	for fp := range fpToChunks {
 		firstTime, offset, numDropped, allDropped, err := p.dropAndPersistChunks(fp, 1, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -462,6 +463,81 @@ func testPersistLoadDropChunks(t *testing.T, encoding chunk.Encoding) {
 			t.Error("all chunks dropped")
 		}
 	}
+	// Drop all the chunks again.
+	for fp := range fpToChunks {
+		firstTime, offset, numDropped, allDropped, err := p.dropAndPersistChunks(fp, 100, nil)
+		if firstTime != 0 {
+			t.Errorf("want first time 0, got %d", firstTime)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if offset != 0 {
+			t.Errorf("want offset 0, got %d", offset)
+		}
+		if numDropped != 7 {
+			t.Errorf("want 7 dropped chunks, got %v", numDropped)
+		}
+		if !allDropped {
+			t.Error("not all chunks dropped")
+		}
+	}
+	// Re-add first two of the chunks again.
+	for fp, chunks := range fpToChunks {
+		firstTimeNotDropped, offset, numDropped, allDropped, err :=
+			p.dropAndPersistChunks(fp, model.Earliest, chunks[:2])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := firstTimeNotDropped, model.Time(0); got != want {
+			t.Errorf("Want firstTimeNotDropped %v, got %v.", got, want)
+		}
+		if got, want := offset, 0; got != want {
+			t.Errorf("Want offset %v, got %v.", got, want)
+		}
+		if got, want := numDropped, 0; got != want {
+			t.Errorf("Want numDropped %v, got %v.", got, want)
+		}
+		if allDropped {
+			t.Error("All dropped.")
+		}
+	}
+	// Try to drop the first of the chunks while adding eight more. The drop
+	// should not happen because of the shrink ratio. Also, this time the
+	// minimum cut-off point is within the added chunks and not in the file
+	// anymore.
+	for fp, chunks := range fpToChunks {
+		firstTime, offset, numDropped, allDropped, err := p.dropAndPersistChunks(fp, 1, chunks[2:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if offset != 2 {
+			t.Errorf("want offset 2, got %d", offset)
+		}
+		if firstTime != 0 {
+			t.Errorf("want first time 0, got %d", firstTime)
+		}
+		if numDropped != 0 {
+			t.Errorf("want 0 dropped chunk, got %v", numDropped)
+		}
+		if allDropped {
+			t.Error("all chunks dropped")
+		}
+		wantChunks := chunks
+		indexes := make([]int, len(wantChunks))
+		for i := range indexes {
+			indexes[i] = i
+		}
+		gotChunks, err := p.loadChunks(fp, indexes, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, wantChunk := range wantChunks {
+			if !chunksEqual(wantChunk, gotChunks[i]) {
+				t.Errorf("%d. Chunks not equal.", i)
+			}
+		}
+	}
 }
 
 func TestPersistLoadDropChunksType0(t *testing.T) {
@@ -470,6 +546,27 @@ func TestPersistLoadDropChunksType0(t *testing.T) {
 
 func TestPersistLoadDropChunksType1(t *testing.T) {
 	testPersistLoadDropChunks(t, 1)
+}
+
+func TestCancelCheckpoint(t *testing.T) {
+	p, closer := newTestPersistence(t, 2)
+	defer closer.Close()
+
+	fpLocker := newFingerprintLocker(10)
+	sm := newSeriesMap()
+	s, _ := newMemorySeries(m1, nil, time.Time{})
+	sm.put(m1.FastFingerprint(), s)
+	sm.put(m2.FastFingerprint(), s)
+	sm.put(m3.FastFingerprint(), s)
+	sm.put(m4.FastFingerprint(), s)
+	sm.put(m5.FastFingerprint(), s)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel right now to avoid races.
+	cancel()
+	if err := p.checkpointSeriesMapAndHeads(ctx, sm, fpLocker); err != context.Canceled {
+		t.Fatalf("expected error %v, got %v", context.Canceled, err)
+	}
 }
 
 func testCheckpointAndLoadSeriesMapAndHeads(t *testing.T, encoding chunk.Encoding) {
@@ -509,7 +606,7 @@ func testCheckpointAndLoadSeriesMapAndHeads(t *testing.T, encoding chunk.Encodin
 	sm.put(m4.FastFingerprint(), s4)
 	sm.put(m5.FastFingerprint(), s5)
 
-	if err := p.checkpointSeriesMapAndHeads(sm, fpLocker); err != nil {
+	if err := p.checkpointSeriesMapAndHeads(context.Background(), sm, fpLocker); err != nil {
 		t.Fatal(err)
 	}
 
