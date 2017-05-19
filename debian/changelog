@@ -1,4 +1,4 @@
-prometheus (1.6.2+ds-1) UNRELEASED; urgency=medium
+prometheus (1.6.2+ds-1) experimental; urgency=medium
 
   * New upstream release.
   * Add missing epoch from golang-go dependency.
@@ -7,7 +7,7 @@ prometheus (1.6.2+ds-1) UNRELEASED; urgency=medium
   * Update copyright for embedded fuzzy lib.
   * Update dependencies.
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 19 May 2017 15:20:47 +0000
+ -- Martín Ferrari <tincho@debian.org>  Fri, 19 May 2017 21:12:15 +0000
 
 prometheus (1.5.2+ds-2) unstable; urgency=medium
 
