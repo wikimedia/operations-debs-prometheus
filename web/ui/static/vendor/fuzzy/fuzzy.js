@@ -3,7 +3,29 @@
  * https://github.com/myork/fuzzy
  *
  * Copyright (c) 2012 Matt York
- * Licensed under the MIT license.
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * A slightly modified version of https://github.com/mattyork/fuzzy/blob/3613086aa40c180ca722aeaf48cef575dc57eb5d/lib/fuzzy.js
  */
 
 (function() {
@@ -34,11 +56,12 @@ fuzzy.test = function(pattern, str) {
 
 // If `pattern` matches `str`, wrap each matching character
 // in `opts.pre` and `opts.post`. If no match, return null
-fuzzy.match = function(pattern, str, opts) {
+fuzzy.match = function(pattern, str, opts, _fromIndex) {
   opts = opts || {};
   var patternIdx = 0
     , result = []
     , len = str.length
+    , fromIndex = _fromIndex || 0
     , totalScore = 0
     , currScore = 0
     // prefix
@@ -52,11 +75,19 @@ fuzzy.match = function(pattern, str, opts) {
 
   pattern = opts.caseSensitive && pattern || pattern.toLowerCase();
 
+  // If there's an exact match, add pre/post, max out score and skip the lookup
+  if (compareString === pattern) {
+    return {
+      rendered: pre + compareString.split('').join(post+pre) + post,
+      score: Infinity
+    };
+  }
+
   // For each character in the string, either add it to the result
   // or wrap in template if it's the next string in the pattern
   for(var idx = 0; idx < len; idx++) {
     ch = str[idx];
-    if(compareString[idx] === pattern[patternIdx]) {
+    if(idx >= fromIndex && compareString[idx] === pattern[patternIdx]) {
       ch = pre + ch + post;
       patternIdx += 1;
 
@@ -71,9 +102,17 @@ fuzzy.match = function(pattern, str, opts) {
 
   // return rendered string if we have a match for every char
   if(patternIdx === pattern.length) {
-    // if the string is an exact match with pattern, totalScore should be maxed
-    totalScore = (compareString === pattern) ? Infinity : totalScore;
-    return {rendered: result.join(''), score: totalScore};
+    var nextPossible = str.indexOf(pattern[0], str.indexOf(pattern[0], fromIndex) + 1)
+      , candidate;
+
+    // If possible, try to find a better match at the rest of the string
+    if (nextPossible > -1 && str.length - nextPossible >= pattern.length) {
+      var candidate = fuzzy.match(pattern, str, opts, nextPossible);
+    }
+
+    return candidate && candidate.score > totalScore ? candidate : {
+      rendered: result.join(''), score: totalScore
+    };
   }
 
   return null;
@@ -107,7 +146,7 @@ fuzzy.filter = function(pattern, arr, opts) {
   if(!arr || arr.length === 0) {
     return [];
   }
-  if (typeof pattern !== 'string') {
+  if (typeof pattern !== 'string' || pattern === '') {
     return arr;
   }
   opts = opts || {};
@@ -141,4 +180,3 @@ fuzzy.filter = function(pattern, arr, opts) {
 
 
 }());
-

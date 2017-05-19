@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/prometheus/prometheus/retrieval"
 	"github.com/prometheus/prometheus/rules"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/storage/fanin"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/web"
@@ -42,6 +44,13 @@ import (
 func main() {
 	os.Exit(Main())
 }
+
+// defaultGCPercent is the value used to to call SetGCPercent if the GOGC
+// environment variable is not set or empty. The value here is intended to hit
+// the sweet spot between memory utilization and GC effort. It is lower than the
+// usual default of 100 as a lot of the heap in Prometheus is used to cache
+// memory chunks, which have a lifetime of hours if not days or weeks.
+const defaultGCPercent = 40
 
 var (
 	configSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -72,6 +81,10 @@ func Main() int {
 		return 0
 	}
 
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(defaultGCPercent)
+	}
+
 	log.Infoln("Starting prometheus", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
@@ -92,24 +105,20 @@ func Main() int {
 		return 1
 	}
 
-	remoteStorage, err := remote.New(&cfg.remote)
-	if err != nil {
-		log.Errorf("Error initializing remote storage: %s", err)
-		return 1
-	}
-	if remoteStorage != nil {
-		sampleAppender = append(sampleAppender, remoteStorage)
-		reloadables = append(reloadables, remoteStorage)
-	}
+	remoteAppender := &remote.Writer{}
+	sampleAppender = append(sampleAppender, remoteAppender)
+	remoteReader := &remote.Reader{}
+	reloadables = append(reloadables, remoteAppender, remoteReader)
 
-	reloadableRemoteStorage := remote.NewConfigurable()
-	sampleAppender = append(sampleAppender, reloadableRemoteStorage)
-	reloadables = append(reloadables, reloadableRemoteStorage)
+	queryable := fanin.Queryable{
+		Local:  localStorage,
+		Remote: remoteReader,
+	}
 
 	var (
 		notifier       = notifier.New(&cfg.notifier)
 		targetManager  = retrieval.NewTargetManager(sampleAppender)
-		queryEngine    = promql.NewEngine(localStorage, &cfg.queryEngine)
+		queryEngine    = promql.NewEngine(queryable, &cfg.queryEngine)
 		ctx, cancelCtx = context.WithCancel(context.Background())
 	)
 
@@ -117,7 +126,7 @@ func Main() int {
 		SampleAppender: sampleAppender,
 		Notifier:       notifier,
 		QueryEngine:    queryEngine,
-		Context:        ctx,
+		Context:        fanin.WithLocalOnly(ctx),
 		ExternalURL:    cfg.web.ExternalURL,
 	})
 
@@ -188,18 +197,12 @@ func Main() int {
 		}
 	}()
 
-	if remoteStorage != nil {
-		remoteStorage.Start()
-		defer remoteStorage.Stop()
-	}
-
-	defer reloadableRemoteStorage.Stop()
+	defer remoteAppender.Stop()
 
 	// The storage has to be fully initialized before registering.
 	if instrumentedStorage, ok := localStorage.(prometheus.Collector); ok {
 		prometheus.MustRegister(instrumentedStorage)
 	}
-	prometheus.MustRegister(notifier)
 	prometheus.MustRegister(configSuccess)
 	prometheus.MustRegister(configSuccessTime)
 

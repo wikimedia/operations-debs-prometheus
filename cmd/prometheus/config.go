@@ -26,6 +26,7 @@ import (
 	"unicode"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/config"
@@ -34,7 +35,6 @@ import (
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/local/chunk"
 	"github.com/prometheus/prometheus/storage/local/index"
-	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/web"
 )
 
@@ -52,13 +52,42 @@ var cfg = struct {
 	notifierTimeout    time.Duration
 	queryEngine        promql.EngineOptions
 	web                web.Options
-	remote             remote.Options
 
 	alertmanagerURLs stringset
 	prometheusURL    string
-	influxdbURL      string
+
+	// Deprecated storage flags, kept for backwards compatibility.
+	deprecatedMemoryChunks       uint64
+	deprecatedMaxChunksToPersist uint64
 }{
 	alertmanagerURLs: stringset{},
+	notifier: notifier.Options{
+		Registerer: prometheus.DefaultRegisterer,
+	},
+}
+
+// Value type for flags that are now unused, but which are kept around to
+// fulfill 1.0 stability guarantees.
+type unusedFlag struct {
+	name  string
+	value string
+	help  string
+}
+
+func (f *unusedFlag) Set(v string) error {
+	f.value = v
+	log.Warnf("Flag %q is unused, but set to %q! See the flag's help message: %s", f.name, f.value, f.help)
+	return nil
+}
+
+func (f unusedFlag) String() string {
+	return f.value
+}
+
+func registerUnusedFlags(fs *flag.FlagSet, help string, flags []string) {
+	for _, name := range flags {
+		fs.Var(&unusedFlag{name: name, help: help}, name, help)
+	}
 }
 
 func init() {
@@ -124,25 +153,29 @@ func init() {
 		&cfg.storage.PersistenceStoragePath, "storage.local.path", "data",
 		"Base path for metrics storage.",
 	)
-	cfg.fs.IntVar(
-		&cfg.storage.MemoryChunks, "storage.local.memory-chunks", 1024*1024,
-		"How many chunks to keep in memory. While the size of a chunk is 1kiB, the total memory usage will be significantly higher than this value * 1kiB. Furthermore, for various reasons, more chunks might have to be kept in memory temporarily. Sample ingestion will be throttled if the configured value is exceeded by more than 10%.",
+	cfg.fs.Uint64Var(
+		&cfg.storage.TargetHeapSize, "storage.local.target-heap-size", 2*1024*1024*1024,
+		"The metrics storage attempts to limit its own memory usage such that the total heap size approaches this value. Note that this is not a hard limit. Actual heap size might be temporarily or permanently higher for a variety of reasons. The default value is a relatively safe setting to not use more than 3 GiB physical memory.",
+	)
+	cfg.fs.Uint64Var(
+		&cfg.deprecatedMemoryChunks, "storage.local.memory-chunks", 0,
+		"Deprecated. If set, -storage.local.target-heap-size will be set to this value times 3072.",
 	)
 	cfg.fs.DurationVar(
 		&cfg.storage.PersistenceRetentionPeriod, "storage.local.retention", 15*24*time.Hour,
 		"How long to retain samples in the local storage.",
 	)
-	cfg.fs.IntVar(
-		&cfg.storage.MaxChunksToPersist, "storage.local.max-chunks-to-persist", 512*1024,
-		"How many chunks can be waiting for persistence before sample ingestion will be throttled. Many chunks waiting to be persisted will increase the checkpoint size.",
+	cfg.fs.Uint64Var(
+		&cfg.deprecatedMaxChunksToPersist, "storage.local.max-chunks-to-persist", 0,
+		"Deprecated. This flag has no effect anymore.",
 	)
 	cfg.fs.DurationVar(
 		&cfg.storage.CheckpointInterval, "storage.local.checkpoint-interval", 5*time.Minute,
-		"The period at which the in-memory metrics and the chunks not yet persisted to series files are checkpointed.",
+		"The time to wait between checkpoints of in-memory metrics and chunks not yet persisted to series files. Note that a checkpoint is never triggered before at least as much time has passed as the last checkpoint took.",
 	)
 	cfg.fs.IntVar(
 		&cfg.storage.CheckpointDirtySeriesLimit, "storage.local.checkpoint-dirty-series-limit", 5000,
-		"If approx. that many time series are in a state that would require a recovery operation after a crash, a checkpoint is triggered, even if the checkpoint interval hasn't passed yet. A recovery operation requires a disk seek. The default limit intends to keep the recovery time below 1min even on spinning disks. With SSD, recovery is much faster, so you might want to increase this value in that case to avoid overly frequent checkpoints.",
+		"If approx. that many time series are in a state that would require a recovery operation after a crash, a checkpoint is triggered, even if the checkpoint interval hasn't passed yet. A recovery operation requires a disk seek. The default limit intends to keep the recovery time below 1min even on spinning disks. With SSD, recovery is much faster, so you might want to increase this value in that case to avoid overly frequent checkpoints. Also note that a checkpoint is never triggered before at least as much time has passed as the last checkpoint took.",
 	)
 	cfg.fs.Var(
 		&cfg.storage.SyncStrategy, "storage.local.series-sync-strategy",
@@ -190,44 +223,19 @@ func init() {
 		"Local storage engine. Supported values are: 'persisted' (full local storage with on-disk persistence) and 'none' (no local storage).",
 	)
 
-	// Remote storage.
-	cfg.fs.StringVar(
-		&cfg.remote.GraphiteAddress, "storage.remote.graphite-address", "",
-		"The host:port of the remote Graphite server to send samples to. None, if empty.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.GraphiteTransport, "storage.remote.graphite-transport", "tcp",
-		"Transport protocol to use to communicate with Graphite. 'tcp', if empty.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.GraphitePrefix, "storage.remote.graphite-prefix", "",
-		"The prefix to prepend to all metrics exported to Graphite. None, if empty.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.OpentsdbURL, "storage.remote.opentsdb-url", "",
-		"The URL of the remote OpenTSDB server to send samples to. None, if empty.",
-	)
-	cfg.fs.StringVar(
-		&cfg.influxdbURL, "storage.remote.influxdb-url", "",
-		"The URL of the remote InfluxDB server to send samples to. None, if empty.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.InfluxdbRetentionPolicy, "storage.remote.influxdb.retention-policy", "default",
-		"The InfluxDB retention policy to use.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.InfluxdbUsername, "storage.remote.influxdb.username", "",
-		"The username to use when sending samples to InfluxDB. The corresponding password must be provided via the INFLUXDB_PW environment variable.",
-	)
-	cfg.fs.StringVar(
-		&cfg.remote.InfluxdbDatabase, "storage.remote.influxdb.database", "prometheus",
-		"The name of the database to use for storing samples in InfluxDB.",
-	)
-
-	cfg.fs.DurationVar(
-		&cfg.remote.StorageTimeout, "storage.remote.timeout", 30*time.Second,
-		"The timeout to use when sending samples to the remote storage.",
-	)
+	// Unused flags for removed remote storage code.
+	const remoteStorageFlagsHelp = "WARNING: THIS FLAG IS UNUSED! Built-in support for InfluxDB, Graphite, and OpenTSDB has been removed. Use Prometheus's generic remote write feature for building remote storage integrations. See https://prometheus.io/docs/operating/configuration/#<remote_write>"
+	registerUnusedFlags(cfg.fs, remoteStorageFlagsHelp, []string{
+		"storage.remote.graphite-address",
+		"storage.remote.graphite-transport",
+		"storage.remote.graphite-prefix",
+		"storage.remote.opentsdb-url",
+		"storage.remote.influxdb-url",
+		"storage.remote.influxdb.retention-policy",
+		"storage.remote.influxdb.username",
+		"storage.remote.influxdb.database",
+		"storage.remote.timeout",
+	})
 
 	// Alertmanager.
 	cfg.fs.Var(
@@ -276,6 +284,13 @@ func parse(args []string) error {
 	if promql.StalenessDelta < 0 {
 		return fmt.Errorf("negative staleness delta: %s", promql.StalenessDelta)
 	}
+	// The staleness delta is also a reasonable head chunk timeout. Thus, we
+	// don't expose it as a separate flag but set it here.
+	cfg.storage.HeadChunkTimeout = promql.StalenessDelta
+
+	if cfg.storage.TargetHeapSize < 1024*1024 {
+		return fmt.Errorf("target heap size smaller than %d: %d", 1024*1024, cfg.storage.TargetHeapSize)
+	}
 
 	if err := parsePrometheusURL(); err != nil {
 		return err
@@ -287,16 +302,20 @@ func parse(args []string) error {
 	// RoutePrefix must always be at least '/'.
 	cfg.web.RoutePrefix = "/" + strings.Trim(cfg.web.RoutePrefix, "/")
 
-	if err := parseInfluxdbURL(); err != nil {
-		return err
-	}
 	for u := range cfg.alertmanagerURLs {
 		if err := validateAlertmanagerURL(u); err != nil {
 			return err
 		}
 	}
 
-	cfg.remote.InfluxdbPassword = os.Getenv("INFLUXDB_PW")
+	// Deal with deprecated storage flags.
+	if cfg.deprecatedMaxChunksToPersist > 0 {
+		log.Warn("Flag -storage.local.max-chunks-to-persist is deprecated. It has no effect.")
+	}
+	if cfg.deprecatedMemoryChunks > 0 {
+		cfg.storage.TargetHeapSize = cfg.deprecatedMemoryChunks * 3072
+		log.Warnf("Flag -storage.local.memory-chunks is deprecated. Its value %d is used to override -storage.local.target-heap-size to %d.", cfg.deprecatedMemoryChunks, cfg.storage.TargetHeapSize)
+	}
 
 	return nil
 }
@@ -329,24 +348,6 @@ func parsePrometheusURL() error {
 		ppref = "/" + ppref
 	}
 	cfg.web.ExternalURL.Path = ppref
-	return nil
-}
-
-func parseInfluxdbURL() error {
-	if cfg.influxdbURL == "" {
-		return nil
-	}
-
-	if ok := govalidator.IsURL(cfg.influxdbURL); !ok {
-		return fmt.Errorf("invalid InfluxDB URL: %s", cfg.influxdbURL)
-	}
-
-	url, err := url.Parse(cfg.influxdbURL)
-	if err != nil {
-		return err
-	}
-
-	cfg.remote.InfluxdbURL = url
 	return nil
 }
 

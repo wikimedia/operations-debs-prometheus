@@ -24,12 +24,14 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/version"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/local"
+	"github.com/prometheus/prometheus/util/httputil"
 )
 
 const (
@@ -113,7 +115,7 @@ type scrapePool struct {
 }
 
 func newScrapePool(ctx context.Context, cfg *config.ScrapeConfig, app storage.SampleAppender) *scrapePool {
-	client, err := NewHTTPClient(cfg.HTTPClientConfig)
+	client, err := httputil.NewClientFromConfig(cfg.HTTPClientConfig)
 	if err != nil {
 		// Any errors that could occur here should be caught during config validation.
 		log.Errorf("Error creating HTTP client for job %q: %s", cfg.JobName, err)
@@ -160,7 +162,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) {
 	sp.mtx.Lock()
 	defer sp.mtx.Unlock()
 
-	client, err := NewHTTPClient(cfg.HTTPClientConfig)
+	client, err := httputil.NewClientFromConfig(cfg.HTTPClientConfig)
 	if err != nil {
 		// Any errors that could occur here should be caught during config validation.
 		log.Errorf("Error creating HTTP client for job %q: %s", cfg.JobName, err)
@@ -176,8 +178,12 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) {
 
 	for fp, oldLoop := range sp.loops {
 		var (
-			t       = sp.targets[fp]
-			s       = &targetScraper{Target: t, client: sp.client}
+			t = sp.targets[fp]
+			s = &targetScraper{
+				Target:  t,
+				client:  sp.client,
+				timeout: timeout,
+			}
 			newLoop = sp.newLoop(sp.ctx, s, sp.appender, t.Labels(), sp.config)
 		)
 		wg.Add(1)
@@ -238,7 +244,12 @@ func (sp *scrapePool) sync(targets []*Target) {
 		uniqueTargets[hash] = struct{}{}
 
 		if _, ok := sp.targets[hash]; !ok {
-			s := &targetScraper{Target: t, client: sp.client}
+			s := &targetScraper{
+				Target:  t,
+				client:  sp.client,
+				timeout: timeout,
+			}
+
 			l := sp.newLoop(sp.ctx, s, sp.appender, t.Labels(), sp.config)
 
 			sp.targets[hash] = t
@@ -281,10 +292,13 @@ type scraper interface {
 // targetScraper implements the scraper interface for a target.
 type targetScraper struct {
 	*Target
-	client *http.Client
+	client  *http.Client
+	timeout time.Duration
 }
 
 const acceptHeader = `application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.7,text/plain;version=0.0.4;q=0.3,*/*;q=0.1`
+
+var userAgentHeader = fmt.Sprintf("Prometheus/%s", version.Version)
 
 func (s *targetScraper) scrape(ctx context.Context, ts time.Time) (model.Samples, error) {
 	req, err := http.NewRequest("GET", s.URL().String(), nil)
@@ -292,6 +306,8 @@ func (s *targetScraper) scrape(ctx context.Context, ts time.Time) (model.Samples
 		return nil, err
 	}
 	req.Header.Add("Accept", acceptHeader)
+	req.Header.Set("User-Agent", userAgentHeader)
+	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", fmt.Sprintf("%f", s.timeout.Seconds()))
 
 	resp, err := ctxhttp.Do(ctx, s.client, req)
 	if err != nil {
@@ -484,7 +500,7 @@ func (sl *scrapeLoop) append(samples model.Samples) (int, error) {
 		var wrappedBufApp storage.SampleAppender
 		wrappedBufApp, countingApp = sl.wrapAppender(bufApp)
 		for _, s := range samples {
-			// Ignore errors as bufferedAppender always succeds.
+			// Ignore errors as bufferedAppender always succeeds.
 			wrappedBufApp.Append(s)
 		}
 		samples = bufApp.buffer
