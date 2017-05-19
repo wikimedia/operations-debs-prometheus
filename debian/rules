@@ -46,7 +46,7 @@ endif
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang
 	# Include vendored dependencies.
-	for i in github.com/hashicorp github.com/influxdb; \
+	for i in github.com/hashicorp; \
         do \
 	    src=$(BUILDDIR)/src/$(DH_GOPKG)/vendor/$$i; \
             dst=`dirname $(BUILDDIR)/src/$$i`; \
