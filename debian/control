@@ -30,8 +30,8 @@ Build-Depends: adduser, debhelper (>= 9.0.0),
                golang-google-api-dev,
                golang-gopkg-yaml.v2-dev,
 Standards-Version: 3.9.8
-Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git/
-Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git/
+Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git
 Homepage: https://prometheus.io/
 
 Package: prometheus
