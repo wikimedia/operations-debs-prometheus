@@ -1,5 +1,6 @@
 prometheus (1.6.2+ds-2) UNRELEASED; urgency=medium
 
+  * Uploading to unstable version already in experimental.
   * debian/control: Fix Vcs-* fields.
   * debian/control: Mark package as autopkgtest-able.
 
