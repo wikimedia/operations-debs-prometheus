@@ -1,8 +1,9 @@
-prometheus (1.6.2+ds-3) UNRELEASED; urgency=medium
+prometheus (1.6.3+ds-1) UNRELEASED; urgency=medium
 
   * Use new goleveldb package name. Closes: #866920.
+  * New upstream release. Closes: #865786
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 05 Jul 2017 10:17:10 +0000
+ -- Martín Ferrari <tincho@debian.org>  Wed, 05 Jul 2017 10:43:57 +0000
 
 prometheus (1.6.2+ds-2) unstable; urgency=medium
 
