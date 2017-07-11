@@ -1,3 +1,4 @@
+01-Fix_redirectToMigratedURL.patch
 03-Do_not_embed_blobs.patch
 04-Default_settings.patch
 05-Disable_flaky_tests.patch
