@@ -1,3 +1,11 @@
+prometheus (1.6.3+ds-1~bpo9+1) UNRELEASED; urgency=medium
+
+  * Rebuild for stretch-backports.
+  * Use golang-1.8-go directly, as golang-defaults points to 1.7.
+  * Use old name for golang-goleveldb.
+
+ -- Martín Ferrari <tincho@debian.org>  Sun, 16 Jul 2017 22:51:22 +0000
+
 prometheus (1.6.3+ds-1) unstable; urgency=medium
 
   * Use new goleveldb package name. Closes: #866920.

@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org>
 Uploaders: Martín Ferrari <tincho@debian.org>
 Build-Depends: adduser, debhelper (>= 9.0.0),
-               golang-go (>= 2:1.8~),
+               golang-1.8-go,
                dh-golang (>= 1.17~),
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev,
@@ -22,7 +22,7 @@ Build-Depends: adduser, debhelper (>= 9.0.0),
                golang-github-prometheus-common-dev (>= 0+git20170220),
                golang-github-samuel-go-zookeeper-dev,
                golang-github-sirupsen-logrus-dev,
-               golang-github-syndtr-goleveldb-dev,
+               golang-github-syndtr-goleveldb-dev | golang-goleveldb-dev,
                golang-golang-x-net-dev (>= 1:0.0+git20160518),
                golang-golang-x-oauth2-google-dev,
                golang-golang-x-sys-dev,
