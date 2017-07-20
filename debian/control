@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org>
 Uploaders: Martín Ferrari <tincho@debian.org>
 Build-Depends: adduser, debhelper (>= 9.0.0),
-               golang-1.8-go,
+               golang-go (>= 2:1.8~),
                dh-golang (>= 1.17~),
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev,
