@@ -11,6 +11,7 @@ prometheus (1.6.3+ds2-1) UNRELEASED; urgency=high
       Closes: #851817.
   * Backport commit 4d9b917 to solve build failure. Closes: #868943.
     Increasing urgency as it is an RC bug.
+  * Remove gen-orig-tgz target, replace with gbp configuration.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 11 Jul 2017 18:07:20 +0000
 

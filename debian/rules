@@ -52,10 +52,3 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	dh_auto_install -- --no-source
-
-gen-orig-tgz:
-	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ] ; then \
-	    git archive --format=tar.gz --prefix=$(DEBPKGNAME)-$(VERSION)/ \
-                upstream/$(subst ~,_,$(VERSION)) > \
-                ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ; \
-	fi
