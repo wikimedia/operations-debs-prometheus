@@ -37,7 +37,8 @@ Testsuite: autopkgtest-pkg-go
 
 Package: prometheus
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, daemon,
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         daemon | systemd-sysv,
          libjs-bootstrap,
          libjs-eonasdan-bootstrap-datetimepicker,
          libjs-mustache (>= 2.3.0-1~),
