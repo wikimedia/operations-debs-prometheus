@@ -1,4 +1,4 @@
-prometheus (1.6.3+ds2-1) UNRELEASED; urgency=medium
+prometheus (1.6.3+ds2-1) UNRELEASED; urgency=high
 
   * Add patch to handle properly old-style graph URLs, which are used by the
     Debian version of Grafana.
@@ -9,6 +9,8 @@ prometheus (1.6.3+ds2-1) UNRELEASED; urgency=medium
     - Remove now unneeded influxDB vendored deps.
     - Remove all remaining vendored dependencies & use Debian packages.
       Closes: #851817.
+  * Backport commit 4d9b917 to solve build failure. Closes: #868943.
+    Increasing urgency as it is an RC bug.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 11 Jul 2017 18:07:20 +0000
 
