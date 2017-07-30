@@ -1,6 +1,6 @@
 --- a/web/ui/static/js/graph.js
 +++ b/web/ui/static/js/graph.js
-@@ -905,7 +905,7 @@
+@@ -927,7 +927,7 @@
      });
    });
    var query = $.param(queryObject);

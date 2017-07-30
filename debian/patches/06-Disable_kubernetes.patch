@@ -1,6 +1,6 @@
 --- a/config/config.go
 +++ b/config/config.go
-@@ -134,9 +134,6 @@
+@@ -133,9 +133,6 @@
  		RefreshInterval: model.Duration(30 * time.Second),
  	}
  
@@ -10,7 +10,7 @@
  	// DefaultGCESDConfig is the default EC2 SD configuration.
  	DefaultGCESDConfig = GCESDConfig{
  		Port:            80,
-@@ -240,12 +237,6 @@
+@@ -262,12 +259,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *ServiceDiscoveryConfig) {
@@ -23,7 +23,7 @@
  		for _, mcfg := range cfg.MarathonSDConfigs {
  			mcfg.BearerTokenFile = join(mcfg.BearerTokenFile)
  			mcfg.TLSConfig.CAFile = join(mcfg.TLSConfig.CAFile)
-@@ -448,8 +439,6 @@
+@@ -464,8 +455,6 @@
  	NerveSDConfigs []*NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*MarathonSDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -32,7 +32,7 @@
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*GCESDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
-@@ -961,71 +950,6 @@
+@@ -979,72 +968,6 @@
  	return nil
  }
  
@@ -62,12 +62,13 @@
 -
 -// KubernetesSDConfig is the configuration for Kubernetes service discovery.
 -type KubernetesSDConfig struct {
--	APIServer       URL            `yaml:"api_server"`
--	Role            KubernetesRole `yaml:"role"`
--	BasicAuth       *BasicAuth     `yaml:"basic_auth,omitempty"`
--	BearerToken     string         `yaml:"bearer_token,omitempty"`
--	BearerTokenFile string         `yaml:"bearer_token_file,omitempty"`
--	TLSConfig       TLSConfig      `yaml:"tls_config,omitempty"`
+-	APIServer          URL                          `yaml:"api_server"`
+-	Role               KubernetesRole               `yaml:"role"`
+-	BasicAuth          *BasicAuth                   `yaml:"basic_auth,omitempty"`
+-	BearerToken        Secret                       `yaml:"bearer_token,omitempty"`
+-	BearerTokenFile    string                       `yaml:"bearer_token_file,omitempty"`
+-	TLSConfig          TLSConfig                    `yaml:"tls_config,omitempty"`
+-	NamespaceDiscovery KubernetesNamespaceDiscovery `yaml:"namespaces"`
 -
 -	// Catches all undefined fields and must be empty after parsing.
 -	XXX map[string]interface{} `yaml:",inline"`
@@ -101,12 +102,12 @@
 -	return nil
 -}
 -
- // GCESDConfig is the configuration for GCE based service discovery.
- type GCESDConfig struct {
- 	// Project: The Google Cloud Project ID
+ // KubernetesNamespaceDiscovery is the configuration for discovering
+ // Kubernetes namespaces.
+ type KubernetesNamespaceDiscovery struct {
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -288,28 +287,6 @@
+@@ -291,52 +291,6 @@
  			},
  		},
  		{
@@ -125,7 +126,31 @@
 -						Role:      KubernetesRoleEndpoint,
 -						BasicAuth: &BasicAuth{
 -							Username: "myusername",
--							Password: "mypassword",
+-							Password: "mysecret",
+-						},
+-						NamespaceDiscovery: KubernetesNamespaceDiscovery{},
+-					},
+-				},
+-			},
+-		},
+-		{
+-			JobName: "service-kubernetes-namespaces",
+-
+-			ScrapeInterval: model.Duration(15 * time.Second),
+-			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+-
+-			MetricsPath: DefaultScrapeConfig.MetricsPath,
+-			Scheme:      DefaultScrapeConfig.Scheme,
+-
+-			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+-				KubernetesSDConfigs: []*KubernetesSDConfig{
+-					{
+-						APIServer: kubernetesSDHostURL(),
+-						Role:      KubernetesRoleEndpoint,
+-						NamespaceDiscovery: KubernetesNamespaceDiscovery{
+-							Names: []string{
+-								"default",
+-							},
 -						},
 -					},
 -				},
@@ -135,7 +160,7 @@
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -586,15 +563,6 @@
+@@ -616,18 +570,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -145,13 +170,16 @@
 -		filename: "kubernetes_role.bad.yml",
 -		errMsg:   "role",
 -	}, {
+-		filename: "kubernetes_namespace_discovery.bad.yml",
+-		errMsg:   "unknown fields in namespaces",
+-	}, {
 -		filename: "kubernetes_bearertoken_basicauth.bad.yml",
 -		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
 -	}, {
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "Marathon SD config must contain at least one Marathon server",
  	}, {
-@@ -687,7 +655,3 @@
+@@ -723,7 +665,3 @@
  	}
  }
  
@@ -161,9 +189,9 @@
 -}
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -136,16 +136,6 @@
+@@ -137,25 +137,6 @@
  
-   bearer_token: avalidtoken
+   bearer_token: mysecret
  
 -- job_name: service-kubernetes
 -
@@ -173,7 +201,16 @@
 -
 -    basic_auth:
 -      username: 'myusername'
--      password: 'mypassword'
+-      password: 'mysecret'
+-
+-- job_name: service-kubernetes-namespaces
+-
+-  kubernetes_sd_configs:
+-  - role: endpoints
+-    api_server: 'https://localhost:1234'
+-    namespaces:
+-      names:
+-        - default
 -
  - job_name: service-marathon
    marathon_sd_configs:
@@ -285,22 +322,22 @@
  	"github.com/prometheus/prometheus/discovery/gce"
 -	"github.com/prometheus/prometheus/discovery/kubernetes"
  	"github.com/prometheus/prometheus/discovery/marathon"
+ 	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
- 	"github.com/prometheus/prometheus/discovery/zookeeper"
-@@ -79,14 +78,6 @@
+@@ -80,14 +79,6 @@
  		}
  		app("marathon", i, m)
  	}
 -	for i, c := range cfg.KubernetesSDConfigs {
--		k, err := kubernetes.New(log.Base(), c)
+-		k, err := kubernetes.New(logger, c)
 -		if err != nil {
--			log.Errorf("Cannot create Kubernetes discovery: %s", err)
+-			logger.Errorf("Cannot create Kubernetes discovery: %s", err)
 -			continue
 -		}
 -		app("kubernetes", i, k)
 -	}
  	for i, c := range cfg.ServersetSDConfigs {
- 		app("serverset", i, zookeeper.NewServersetDiscovery(c))
+ 		app("serverset", i, zookeeper.NewServersetDiscovery(c, logger))
  	}
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go

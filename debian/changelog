@@ -1,3 +1,10 @@
+prometheus (1.7.1+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * Refresh patches, delete now unneeded 07-New_common_compat.patch.
+
+ -- Martín Ferrari <tincho@debian.org>  Sun, 30 Jul 2017 18:57:22 +0000
+
 prometheus (1.6.3+ds2-1) unstable; urgency=high
 
   * Add patch to handle properly old-style graph URLs, which are used by the
