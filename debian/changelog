@@ -1,10 +1,14 @@
-prometheus (1.6.3+ds-2) UNRELEASED; urgency=medium
+prometheus (1.6.3+ds2-1) UNRELEASED; urgency=medium
 
   * Add patch to handle properly old-style graph URLs, which are used by the
     Debian version of Grafana.
   * Only depend on daemon if systemd-sysv is not installed.
   * Use dh-systemd to properly enable systemd service.
   * debian/default: Update description of flags. Closes: #870147.
+  * Repack upstream source:
+    - Remove now unneeded influxDB vendored deps.
+    - Remove all remaining vendored dependencies & use Debian packages.
+      Closes: #851817.
 
  -- Martín Ferrari <tincho@debian.org>  Tue, 11 Jul 2017 18:07:20 +0000
 
