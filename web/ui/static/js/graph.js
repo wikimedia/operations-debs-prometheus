@@ -386,6 +386,7 @@ Prometheus.Graph.prototype.submitQuery = function() {
     url = PATH_PREFIX + "/api/v1/query";
     success = function(json, textStatus) { self.handleConsoleResponse(json, textStatus); };
   }
+  self.params = params;
 
   self.queryXhr = $.ajax({
       method: self.queryForm.attr("method"),
@@ -415,7 +416,14 @@ Prometheus.Graph.prototype.submitQuery = function() {
           return;
         }
         var duration = new Date().getTime() - startTime;
-        var totalTimeSeries = xhr.responseJSON.data.result.length;
+        var totalTimeSeries = 0;
+        if (xhr.responseJSON.data !== undefined) {
+          if (xhr.responseJSON.data.resultType === "scalar") {
+            totalTimeSeries = 1;
+          } else {
+            totalTimeSeries = xhr.responseJSON.data.result.length;
+          }
+        }
         self.evalStats.html("Load time: " + duration + "ms <br /> Resolution: " + resolution + "s <br />" + "Total time series: " + totalTimeSeries);
         self.spinner.hide();
       }
@@ -511,7 +519,21 @@ Prometheus.Graph.prototype.transformData = function(json) {
       color: palette.color()
     };
   });
-  Rickshaw.Series.zeroFill(data);
+  data.forEach(function(s) {
+    // Insert nulls for all missing steps.
+    var newSeries = [];
+    var pos = 0;
+    for (var t = self.params.start; t <= self.params.end; t += self.params.step) {
+      // Allow for floating point inaccuracy.
+      if (s.data.length > pos && s.data[pos].x < t + self.params.step / 100) {
+        newSeries.push(s.data[pos]);
+        pos++;
+      } else {
+        newSeries.push({x: t, y: null});
+      }
+    }
+    s.data = newSeries;
+  });
   return data;
 };
 
