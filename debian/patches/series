@@ -1,7 +1,7 @@
 01-Fix_redirectToMigratedURL.patch
-03-Do_not_embed_blobs.patch
-04-Default_settings.patch
-05-Disable_flaky_tests.patch
-06-Bug#818417-AWS_SDK_changes.patch
-08-Disable_kubernetes.patch
-09-New_common_compat.patch
+02-Do_not_embed_blobs.patch
+03-Default_settings.patch
+04-Disable_flaky_tests.patch
+05-Bug#818417-AWS_SDK_changes.patch
+06-Disable_kubernetes.patch
+07-New_common_compat.patch
