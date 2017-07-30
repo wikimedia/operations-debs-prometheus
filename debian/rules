@@ -41,7 +41,8 @@ TESTFLAGS  := -timeout 20m
 endif
 
 %:
-	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)
+	dh $@ --buildsystem=golang --with=golang,systemd \
+            --builddirectory=$(BUILDDIR)
 
 override_dh_auto_configure:
 	dh_auto_configure -O--buildsystem=golang

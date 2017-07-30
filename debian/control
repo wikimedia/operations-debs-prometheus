@@ -6,6 +6,7 @@ Uploaders: Martín Ferrari <tincho@debian.org>
 Build-Depends: adduser, debhelper (>= 9.0.0),
                golang-go (>= 2:1.8~),
                dh-golang (>= 1.17~),
+               dh-systemd,
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev,
                golang-github-azure-azure-sdk-for-go-dev,
