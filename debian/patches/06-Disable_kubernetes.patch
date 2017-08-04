@@ -160,6 +160,15 @@
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
+@@ -542,7 +496,7 @@
+ 	s := c.String()
+ 	secretRe := regexp.MustCompile("<secret>")
+ 	matches := secretRe.FindAllStringIndex(s, -1)
+-	if len(matches) != 6 || strings.Contains(s, "mysecret") {
++	if len(matches) != 5 || strings.Contains(s, "mysecret") {
+ 		t.Fatalf("config's String method reveals authentication credentials.")
+ 	}
+ 
 @@ -616,18 +570,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
