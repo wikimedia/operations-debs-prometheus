@@ -9,8 +9,6 @@ export DH_GOLANG_INSTALL_EXTRA := discovery/file/fixtures \
     promql/fuzz-data
 # Do not build examples.
 export DH_GOLANG_EXCLUDES := documentation vendor
-# Use the golang-1.8-go binaries directly.
-export PATH := /usr/lib/go-1.8/bin:$(PATH)
 
 BUILDDIR := build
 METAPKG := github.com/prometheus/common
