@@ -1,11 +1,11 @@
-prometheus (1.7.1+ds-1~bpo9+2) UNRELEASED; urgency=medium
+prometheus (1.7.1+ds-1~bpo9+2) stretch-backports; urgency=medium
 
   * Rebuild for stretch-backports.
   * Switch back to golang-go dependency.
   * Re-vendor tiny consul dependency to avoid backporting dozens of packages.
   * Update versioned dependency on -common.
 
- -- Martín Ferrari <tincho@debian.org>  Thu, 20 Jul 2017 22:27:36 +0000
+ -- Martín Ferrari <tincho@debian.org>  Thu, 17 Aug 2017 13:19:19 +0000
 
 prometheus (1.7.1+ds-1) unstable; urgency=medium
 
