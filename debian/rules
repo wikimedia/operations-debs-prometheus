@@ -43,18 +43,8 @@ TESTFLAGS  := -timeout 20m
 endif
 
 %:
-	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)
-
-override_dh_auto_configure:
-	dh_auto_configure -O--buildsystem=golang
-	# Include vendored dependencies.
-	for i in github.com/hashicorp; \
-        do \
-	    src=$(BUILDDIR)/src/$(DH_GOPKG)/vendor/$$i; \
-            dst=`dirname $(BUILDDIR)/src/$$i`; \
-            mkdir -vp $$dst; \
-            mv -v $$src $$dst; \
-        done
+	dh $@ --buildsystem=golang --with=golang,systemd \
+            --builddirectory=$(BUILDDIR)
 
 override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
@@ -64,10 +54,3 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	dh_auto_install -- --no-source
-
-gen-orig-tgz:
-	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ] ; then \
-	    git archive --format=tar.gz --prefix=$(DEBPKGNAME)-$(VERSION)/ \
-                upstream/$(subst ~,_,$(VERSION)) > \
-                ../$(DEBPKGNAME)_$(VERSION).orig.tar.gz ; \
-	fi

@@ -15,14 +15,13 @@ ARGS=""
 #      Alert manager HTTP API timeout.
 #
 #   -alertmanager.url
-#      The URL of the alert manager to send notifications to.
+#      Comma-separated list of Alertmanager URLs to send notifications to.
 #
 # == LOG ==
 #
-#   -log.format
-#      If set use a syslog logger or JSON logging. Example:
-#      logger:syslog?appname=bob&local=7 or logger:stdout?json=true. Defaults to
-#      stderr.
+#   -log.format "logger:stderr"
+#      Set the log target and format. Example:
+#      "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"
 #
 #   -log.level "info"
 #      Only log messages with the given severity or above. Valid levels:
@@ -48,19 +47,27 @@ ARGS=""
 #      a disk seek. The default limit intends to keep the recovery time below
 #      1min even on spinning disks. With SSD, recovery is much faster, so you
 #      might want to increase this value in that case to avoid overly frequent
-#      checkpoints.
+#      checkpoints. Also note that a checkpoint is never triggered before at
+#      least as much time has passed as the last checkpoint took.
 #
 #   -storage.local.checkpoint-interval 5m0s
-#      The period at which the in-memory metrics and the chunks not yet
-#      persisted to series files are checkpointed.
+#      The time to wait between checkpoints of in-memory metrics and
+#      chunks not yet persisted to series files. Note that a checkpoint is never
+#      triggered before at least as much time has passed as the last checkpoint
+#      took.
 #
 #   -storage.local.chunk-encoding-version 1
 #      Which chunk encoding version to use for newly created chunks.
-#      Currently supported is 0 (delta encoding) and 1 (double-delta encoding).
+#      Currently supported is 0 (delta encoding), 1 (double-delta encoding), and
+#      2 (double-delta encoding with variable bit-width).
 #
 #   -storage.local.dirty false
 #      If set, the local storage layer will perform crash recovery even if
 #      the last shutdown appears to be clean.
+#
+#   -storage.local.engine "persisted"
+#      Local storage engine. Supported values are: 'persisted' (full local
+#      storage with on-disk persistence) and 'none' (no local storage).
 #
 #   -storage.local.index-cache-size.fingerprint-to-metric 10485760
 #      The size in bytes for the fingerprint to metric index cache.
@@ -74,17 +81,15 @@ ARGS=""
 #   -storage.local.index-cache-size.label-pair-to-fingerprints 20971520
 #      The size in bytes for the label pair to fingerprints index cache.
 #
-#   -storage.local.max-chunks-to-persist 524288
-#      How many chunks can be waiting for persistence before sample
-#      ingestion will be throttled. Many chunks waiting to be persisted will
-#      increase the checkpoint size.
+#   -storage.local.max-chunks-to-persist 0
+#      Deprecated. This flag has no effect anymore.
 #
-#   -storage.local.memory-chunks 1048576
-#      How many chunks to keep in memory. While the size of a chunk is
-#      1kiB, the total memory usage will be significantly higher than this value
-#      * 1kiB. Furthermore, for various reasons, more chunks might have to be
-#      kept in memory temporarily. Sample ingestion will be throttled if the
-#      configured value is exceeded by more than 10%.
+#   -storage.local.memory-chunks 0
+#      Deprecated. If set, -storage.local.target-heap-size will be set to
+#      this value times 3072.
+#
+#   -storage.local.num-fingerprint-mutexes 4096
+#      The number of mutexes used for fingerprint locking.
 #
 #   -storage.local.path "/var/lib/prometheus/metrics"
 #      Base path for metrics storage.
@@ -111,39 +116,27 @@ ARGS=""
 #      'adaptive' strategy, series files are sync'd for as long as the storage
 #      is not too much behind on chunk persistence.
 #
+#   -storage.local.target-heap-size 2147483648
+#      The metrics storage attempts to limit its own memory usage such
+#      that the total heap size approaches this value. Note that this is not a
+#      hard limit. Actual heap size might be temporarily or permanently higher
+#      for a variety of reasons. The default value is a relatively safe setting
+#      to not use more than 3 GiB physical memory.
+#
 #   -storage.remote.graphite-address
-#      The host:port of the remote Graphite server to send samples to.
-#      None, if empty.
-#
 #   -storage.remote.graphite-prefix
-#      The prefix to prepend to all metrics exported to Graphite. None, if
-#      empty.
-#
-#   -storage.remote.graphite-transport "tcp"
-#      Transport protocol to use to communicate with Graphite. 'tcp', if
-#      empty.
-#
+#   -storage.remote.graphite-transport
 #   -storage.remote.influxdb-url
-#      The URL of the remote InfluxDB server to send samples to. None, if
-#      empty.
-#
-#   -storage.remote.influxdb.database "prometheus"
-#      The name of the database to use for storing samples in InfluxDB.
-#
-#   -storage.remote.influxdb.retention-policy "default"
-#      The InfluxDB retention policy to use.
-#
+#   -storage.remote.influxdb.database
+#   -storage.remote.influxdb.retention-policy
 #   -storage.remote.influxdb.username
-#      The username to use when sending samples to InfluxDB. The
-#      corresponding password must be provided via the INFLUXDB_PW environment
-#      variable.
-#
 #   -storage.remote.opentsdb-url
-#      The URL of the remote OpenTSDB server to send samples to. None, if
-#      empty.
-#
-#   -storage.remote.timeout 30s
-#      The timeout to use when sending samples to the remote storage.
+#   -storage.remote.timeout
+#      WARNING: THESE FLAGS ARE UNUSED!
+#      Built-in support for InfluxDB, Graphite, and OpenTSDB has been removed.
+#      Use Prometheus's generic remote write feature for building remote
+#      storage integrations. See
+#      https://prometheus.io/docs/operating/configuration/#<remote_write>
 #
 # == WEB ==
 #
@@ -169,6 +162,17 @@ ARGS=""
 #
 #   -web.local-assets "/usr/share/prometheus/web/"
 #      Path to static assets/templates directory.
+#
+#   -web.max-connections 512
+#      Maximum number of simultaneous connections.
+#
+#   -web.read-timeout 30s
+#      Maximum duration before timing out read of the request, and closing
+#      idle connections.
+#
+#   -web.route-prefix
+#      Prefix for the internal routes of web endpoints. Defaults to path
+#      of -web.external-url.
 #
 #   -web.telemetry-path "/metrics"
 #      Path under which to expose metrics.

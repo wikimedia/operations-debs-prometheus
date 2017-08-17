@@ -1,0 +1,11 @@
+--- a/web/ui/static/js/graph.js
++++ b/web/ui/static/js/graph.js
+@@ -927,7 +927,7 @@
+     });
+   });
+   var query = $.param(queryObject);
+-  window.location = "/graph?" + query;
++  window.location = PATH_PREFIX + "/graph?" + query;
+ }
+ 
+ $(init);

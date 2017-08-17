@@ -1,8 +1,35 @@
-prometheus (1.6.3+ds-1~bpo9+2) UNRELEASED; urgency=medium
+prometheus (1.7.1+ds-1~bpo9+2) UNRELEASED; urgency=medium
 
   * Switch back to golang-go dependency.
 
  -- Martín Ferrari <tincho@debian.org>  Thu, 20 Jul 2017 22:27:36 +0000
+
+prometheus (1.7.1+ds-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Refresh patches, delete now unneeded 07-New_common_compat.patch.
+  * Add new dependencies.
+  * Update debian/changelog to reflect removed dependencies.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 04 Aug 2017 08:08:16 +0000
+
+prometheus (1.6.3+ds2-1) unstable; urgency=high
+
+  * Add patch to handle properly old-style graph URLs, which are used by the
+    Debian version of Grafana.
+  * Only depend on daemon if systemd-sysv is not installed.
+  * Use dh-systemd to properly enable systemd service.
+  * debian/default: Update description of flags. Closes: #870147.
+  * Repack upstream source:
+    - Remove now unneeded influxDB vendored deps.
+    - Remove all remaining vendored dependencies & use Debian packages.
+      Closes: #851817.
+  * Backport commit 4d9b917 to solve build failure. Closes: #868943.
+    Increasing urgency as it is an RC bug.
+  * Remove gen-orig-tgz target, replace with gbp configuration.
+  * Renumber patches.
+
+ -- Martín Ferrari <tincho@debian.org>  Sun, 30 Jul 2017 18:23:03 +0000
 
 prometheus (1.6.3+ds-1~bpo9+1) stretch-backports; urgency=medium
 

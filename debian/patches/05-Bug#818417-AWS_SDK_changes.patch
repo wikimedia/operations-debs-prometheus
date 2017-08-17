@@ -6,30 +6,30 @@
 
 --- a/config/config.go
 +++ b/config/config.go
-@@ -1073,7 +1073,6 @@
+@@ -1114,7 +1114,6 @@
  	Region          string         `yaml:"region"`
  	AccessKey       string         `yaml:"access_key,omitempty"`
- 	SecretKey       string         `yaml:"secret_key,omitempty"`
+ 	SecretKey       Secret         `yaml:"secret_key,omitempty"`
 -	Profile         string         `yaml:"profile,omitempty"`
  	RefreshInterval model.Duration `yaml:"refresh_interval,omitempty"`
  	Port            int            `yaml:"port"`
  
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -349,7 +349,6 @@
+@@ -376,7 +376,6 @@
  						Region:          "us-east-1",
  						AccessKey:       "access",
- 						SecretKey:       "secret",
+ 						SecretKey:       "mysecret",
 -						Profile:         "profile",
  						RefreshInterval: model.Duration(60 * time.Second),
  						Port:            80,
  					},
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -160,7 +160,6 @@
+@@ -170,7 +170,6 @@
      - region: us-east-1
        access_key: access
-       secret_key: secret
+       secret_key: mysecret
 -      profile: profile
  
  - job_name: service-azure
@@ -42,11 +42,11 @@
  	interval time.Duration
 -	profile  string
  	port     int
+ 	logger   log.Logger
  }
- 
-@@ -78,14 +77,13 @@
- func NewDiscovery(conf *config.EC2SDConfig) *Discovery {
- 	creds := credentials.NewStaticCredentials(conf.AccessKey, conf.SecretKey, "")
+@@ -79,14 +78,13 @@
+ func NewDiscovery(conf *config.EC2SDConfig, logger log.Logger) *Discovery {
+ 	creds := credentials.NewStaticCredentials(conf.AccessKey, string(conf.SecretKey), "")
  	if conf.AccessKey == "" && conf.SecretKey == "" {
 -		creds = nil
 +		creds = credentials.NewEnvCredentials()
@@ -59,8 +59,8 @@
 -		profile:  conf.Profile,
  		interval: time.Duration(conf.RefreshInterval),
  		port:     conf.Port,
- 	}
-@@ -137,15 +135,7 @@
+ 		logger:   logger,
+@@ -139,15 +137,7 @@
  		}
  	}()
  
