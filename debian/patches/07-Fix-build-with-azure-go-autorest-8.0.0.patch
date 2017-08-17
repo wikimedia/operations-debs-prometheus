@@ -1,0 +1,82 @@
+From: Shengjing Zhu <i@zhsj.me>
+Date: Thu, 17 Aug 2017 12:11:35 +0800
+Subject: Fix build with azure/go-autorest >= 8.0.0
+
+Signed-off-by: Shengjing Zhu <i@zhsj.me>
+---
+ discovery/azure/azure.go | 26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/discovery/azure/azure.go b/discovery/azure/azure.go
+index 4f96e5a..5e31ba2 100644
+--- a/discovery/azure/azure.go
++++ b/discovery/azure/azure.go
+@@ -21,6 +21,8 @@ import (
+ 
+ 	"github.com/Azure/azure-sdk-for-go/arm/compute"
+ 	"github.com/Azure/azure-sdk-for-go/arm/network"
++	"github.com/Azure/go-autorest/autorest"
++	"github.com/Azure/go-autorest/autorest/adal"
+ 	"github.com/Azure/go-autorest/autorest/azure"
+ 
+ 	"github.com/prometheus/client_golang/prometheus"
+@@ -118,20 +120,22 @@ type azureClient struct {
+ // createAzureClient is a helper function for creating an Azure compute client to ARM.
+ func createAzureClient(cfg config.AzureSDConfig) (azureClient, error) {
+ 	var c azureClient
+-	oauthConfig, err := azure.PublicCloud.OAuthConfigForTenant(cfg.TenantID)
++	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint, cfg.TenantID)
+ 	if err != nil {
+ 		return azureClient{}, err
+ 	}
+-	spt, err := azure.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), azure.PublicCloud.ResourceManagerEndpoint)
++	spt, err := adal.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), azure.PublicCloud.ResourceManagerEndpoint)
+ 	if err != nil {
+ 		return azureClient{}, err
+ 	}
+ 
++	authorizer := autorest.NewBearerAuthorizer(spt)
++
+ 	c.vm = compute.NewVirtualMachinesClient(cfg.SubscriptionID)
+-	c.vm.Authorizer = spt
++	c.vm.Authorizer = authorizer
+ 
+ 	c.nic = network.NewInterfacesClient(cfg.SubscriptionID)
+-	c.nic.Authorizer = spt
++	c.nic.Authorizer = authorizer
+ 
+ 	return c, nil
+ }
+@@ -220,7 +224,7 @@ func (d *Discovery) refresh() (tg *config.TargetGroup, err error) {
+ 			}
+ 
+ 			// Get the IP address information via separate call to the network provider.
+-			for _, nic := range *vm.Properties.NetworkProfile.NetworkInterfaces {
++			for _, nic := range *vm.NetworkProfile.NetworkInterfaces {
+ 				r, err := newAzureResourceFromID(*nic.ID, d.logger)
+ 				if err != nil {
+ 					ch <- target{labelSet: nil, err: err}
+@@ -238,17 +242,17 @@ func (d *Discovery) refresh() (tg *config.TargetGroup, err error) {
+ 				// This information is available via another API call however the Go SDK does not
+ 				// yet support this. On deallocated machines, this value happens to be nil so it
+ 				// is a cheap and easy way to determine if a machine is allocated or not.
+-				if networkInterface.Properties.Primary == nil {
++				if networkInterface.Primary == nil {
+ 					d.logger.Debugf("Virtual machine %s is deallocated. Skipping during Azure SD.", *vm.Name)
+ 					ch <- target{}
+ 					return
+ 				}
+ 
+-				if *networkInterface.Properties.Primary {
+-					for _, ip := range *networkInterface.Properties.IPConfigurations {
+-						if ip.Properties.PrivateIPAddress != nil {
+-							labels[azureLabelMachinePrivateIP] = model.LabelValue(*ip.Properties.PrivateIPAddress)
+-							address := net.JoinHostPort(*ip.Properties.PrivateIPAddress, fmt.Sprintf("%d", d.port))
++				if *networkInterface.Primary {
++					for _, ip := range *networkInterface.IPConfigurations {
++						if ip.PrivateIPAddress != nil {
++							labels[azureLabelMachinePrivateIP] = model.LabelValue(*ip.PrivateIPAddress)
++							address := net.JoinHostPort(*ip.PrivateIPAddress, fmt.Sprintf("%d", d.port))
+ 							labels[model.AddressLabel] = model.LabelValue(address)
+ 							ch <- target{labelSet: labels, err: nil}
+ 							return
