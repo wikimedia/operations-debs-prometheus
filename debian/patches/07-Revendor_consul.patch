@@ -1,0 +1,4068 @@
+diff --git a/vendor/github.com/hashicorp/consul/LICENSE b/vendor/github.com/hashicorp/consul/LICENSE
+new file mode 100644
+index 00000000..c33dcc7c
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/LICENSE
+@@ -0,0 +1,354 @@
++Mozilla Public License, version 2.0
++
++1. Definitions
++
++1.1. “Contributor”
++
++     means each individual or legal entity that creates, contributes to the
++     creation of, or owns Covered Software.
++
++1.2. “Contributor Version”
++
++     means the combination of the Contributions of others (if any) used by a
++     Contributor and that particular Contributor’s Contribution.
++
++1.3. “Contribution”
++
++     means Covered Software of a particular Contributor.
++
++1.4. “Covered Software”
++
++     means Source Code Form to which the initial Contributor has attached the
++     notice in Exhibit A, the Executable Form of such Source Code Form, and
++     Modifications of such Source Code Form, in each case including portions
++     thereof.
++
++1.5. “Incompatible With Secondary Licenses”
++     means
++
++     a. that the initial Contributor has attached the notice described in
++        Exhibit B to the Covered Software; or
++
++     b. that the Covered Software was made available under the terms of version
++        1.1 or earlier of the License, but not also under the terms of a
++        Secondary License.
++
++1.6. “Executable Form”
++
++     means any form of the work other than Source Code Form.
++
++1.7. “Larger Work”
++
++     means a work that combines Covered Software with other material, in a separate
++     file or files, that is not Covered Software.
++
++1.8. “License”
++
++     means this document.
++
++1.9. “Licensable”
++
++     means having the right to grant, to the maximum extent possible, whether at the
++     time of the initial grant or subsequently, any and all of the rights conveyed by
++     this License.
++
++1.10. “Modifications”
++
++     means any of the following:
++
++     a. any file in Source Code Form that results from an addition to, deletion
++        from, or modification of the contents of Covered Software; or
++
++     b. any new file in Source Code Form that contains any Covered Software.
++
++1.11. “Patent Claims” of a Contributor
++
++      means any patent claim(s), including without limitation, method, process,
++      and apparatus claims, in any patent Licensable by such Contributor that
++      would be infringed, but for the grant of the License, by the making,
++      using, selling, offering for sale, having made, import, or transfer of
++      either its Contributions or its Contributor Version.
++
++1.12. “Secondary License”
++
++      means either the GNU General Public License, Version 2.0, the GNU Lesser
++      General Public License, Version 2.1, the GNU Affero General Public
++      License, Version 3.0, or any later versions of those licenses.
++
++1.13. “Source Code Form”
++
++      means the form of the work preferred for making modifications.
++
++1.14. “You” (or “Your”)
++
++      means an individual or a legal entity exercising rights under this
++      License. For legal entities, “You” includes any entity that controls, is
++      controlled by, or is under common control with You. For purposes of this
++      definition, “control” means (a) the power, direct or indirect, to cause
++      the direction or management of such entity, whether by contract or
++      otherwise, or (b) ownership of more than fifty percent (50%) of the
++      outstanding shares or beneficial ownership of such entity.
++
++
++2. License Grants and Conditions
++
++2.1. Grants
++
++     Each Contributor hereby grants You a world-wide, royalty-free,
++     non-exclusive license:
++
++     a. under intellectual property rights (other than patent or trademark)
++        Licensable by such Contributor to use, reproduce, make available,
++        modify, display, perform, distribute, and otherwise exploit its
++        Contributions, either on an unmodified basis, with Modifications, or as
++        part of a Larger Work; and
++
++     b. under Patent Claims of such Contributor to make, use, sell, offer for
++        sale, have made, import, and otherwise transfer either its Contributions
++        or its Contributor Version.
++
++2.2. Effective Date
++
++     The licenses granted in Section 2.1 with respect to any Contribution become
++     effective for each Contribution on the date the Contributor first distributes
++     such Contribution.
++
++2.3. Limitations on Grant Scope
++
++     The licenses granted in this Section 2 are the only rights granted under this
++     License. No additional rights or licenses will be implied from the distribution
++     or licensing of Covered Software under this License. Notwithstanding Section
++     2.1(b) above, no patent license is granted by a Contributor:
++
++     a. for any code that a Contributor has removed from Covered Software; or
++
++     b. for infringements caused by: (i) Your and any other third party’s
++        modifications of Covered Software, or (ii) the combination of its
++        Contributions with other software (except as part of its Contributor
++        Version); or
++
++     c. under Patent Claims infringed by Covered Software in the absence of its
++        Contributions.
++
++     This License does not grant any rights in the trademarks, service marks, or
++     logos of any Contributor (except as may be necessary to comply with the
++     notice requirements in Section 3.4).
++
++2.4. Subsequent Licenses
++
++     No Contributor makes additional grants as a result of Your choice to
++     distribute the Covered Software under a subsequent version of this License
++     (see Section 10.2) or under the terms of a Secondary License (if permitted
++     under the terms of Section 3.3).
++
++2.5. Representation
++
++     Each Contributor represents that the Contributor believes its Contributions
++     are its original creation(s) or it has sufficient rights to grant the
++     rights to its Contributions conveyed by this License.
++
++2.6. Fair Use
++
++     This License is not intended to limit any rights You have under applicable
++     copyright doctrines of fair use, fair dealing, or other equivalents.
++
++2.7. Conditions
++
++     Sections 3.1, 3.2, 3.3, and 3.4 are conditions of the licenses granted in
++     Section 2.1.
++
++
++3. Responsibilities
++
++3.1. Distribution of Source Form
++
++     All distribution of Covered Software in Source Code Form, including any
++     Modifications that You create or to which You contribute, must be under the
++     terms of this License. You must inform recipients that the Source Code Form
++     of the Covered Software is governed by the terms of this License, and how
++     they can obtain a copy of this License. You may not attempt to alter or
++     restrict the recipients’ rights in the Source Code Form.
++
++3.2. Distribution of Executable Form
++
++     If You distribute Covered Software in Executable Form then:
++
++     a. such Covered Software must also be made available in Source Code Form,
++        as described in Section 3.1, and You must inform recipients of the
++        Executable Form how they can obtain a copy of such Source Code Form by
++        reasonable means in a timely manner, at a charge no more than the cost
++        of distribution to the recipient; and
++
++     b. You may distribute such Executable Form under the terms of this License,
++        or sublicense it under different terms, provided that the license for
++        the Executable Form does not attempt to limit or alter the recipients’
++        rights in the Source Code Form under this License.
++
++3.3. Distribution of a Larger Work
++
++     You may create and distribute a Larger Work under terms of Your choice,
++     provided that You also comply with the requirements of this License for the
++     Covered Software. If the Larger Work is a combination of Covered Software
++     with a work governed by one or more Secondary Licenses, and the Covered
++     Software is not Incompatible With Secondary Licenses, this License permits
++     You to additionally distribute such Covered Software under the terms of
++     such Secondary License(s), so that the recipient of the Larger Work may, at
++     their option, further distribute the Covered Software under the terms of
++     either this License or such Secondary License(s).
++
++3.4. Notices
++
++     You may not remove or alter the substance of any license notices (including
++     copyright notices, patent notices, disclaimers of warranty, or limitations
++     of liability) contained within the Source Code Form of the Covered
++     Software, except that You may alter any license notices to the extent
++     required to remedy known factual inaccuracies.
++
++3.5. Application of Additional Terms
++
++     You may choose to offer, and to charge a fee for, warranty, support,
++     indemnity or liability obligations to one or more recipients of Covered
++     Software. However, You may do so only on Your own behalf, and not on behalf
++     of any Contributor. You must make it absolutely clear that any such
++     warranty, support, indemnity, or liability obligation is offered by You
++     alone, and You hereby agree to indemnify every Contributor for any
++     liability incurred by such Contributor as a result of warranty, support,
++     indemnity or liability terms You offer. You may include additional
++     disclaimers of warranty and limitations of liability specific to any
++     jurisdiction.
++
++4. Inability to Comply Due to Statute or Regulation
++
++   If it is impossible for You to comply with any of the terms of this License
++   with respect to some or all of the Covered Software due to statute, judicial
++   order, or regulation then You must: (a) comply with the terms of this License
++   to the maximum extent possible; and (b) describe the limitations and the code
++   they affect. Such description must be placed in a text file included with all
++   distributions of the Covered Software under this License. Except to the
++   extent prohibited by statute or regulation, such description must be
++   sufficiently detailed for a recipient of ordinary skill to be able to
++   understand it.
++
++5. Termination
++
++5.1. The rights granted under this License will terminate automatically if You
++     fail to comply with any of its terms. However, if You become compliant,
++     then the rights granted under this License from a particular Contributor
++     are reinstated (a) provisionally, unless and until such Contributor
++     explicitly and finally terminates Your grants, and (b) on an ongoing basis,
++     if such Contributor fails to notify You of the non-compliance by some
++     reasonable means prior to 60 days after You have come back into compliance.
++     Moreover, Your grants from a particular Contributor are reinstated on an
++     ongoing basis if such Contributor notifies You of the non-compliance by
++     some reasonable means, this is the first time You have received notice of
++     non-compliance with this License from such Contributor, and You become
++     compliant prior to 30 days after Your receipt of the notice.
++
++5.2. If You initiate litigation against any entity by asserting a patent
++     infringement claim (excluding declaratory judgment actions, counter-claims,
++     and cross-claims) alleging that a Contributor Version directly or
++     indirectly infringes any patent, then the rights granted to You by any and
++     all Contributors for the Covered Software under Section 2.1 of this License
++     shall terminate.
++
++5.3. In the event of termination under Sections 5.1 or 5.2 above, all end user
++     license agreements (excluding distributors and resellers) which have been
++     validly granted by You or Your distributors under this License prior to
++     termination shall survive termination.
++
++6. Disclaimer of Warranty
++
++   Covered Software is provided under this License on an “as is” basis, without
++   warranty of any kind, either expressed, implied, or statutory, including,
++   without limitation, warranties that the Covered Software is free of defects,
++   merchantable, fit for a particular purpose or non-infringing. The entire
++   risk as to the quality and performance of the Covered Software is with You.
++   Should any Covered Software prove defective in any respect, You (not any
++   Contributor) assume the cost of any necessary servicing, repair, or
++   correction. This disclaimer of warranty constitutes an essential part of this
++   License. No use of  any Covered Software is authorized under this License
++   except under this disclaimer.
++
++7. Limitation of Liability
++
++   Under no circumstances and under no legal theory, whether tort (including
++   negligence), contract, or otherwise, shall any Contributor, or anyone who
++   distributes Covered Software as permitted above, be liable to You for any
++   direct, indirect, special, incidental, or consequential damages of any
++   character including, without limitation, damages for lost profits, loss of
++   goodwill, work stoppage, computer failure or malfunction, or any and all
++   other commercial damages or losses, even if such party shall have been
++   informed of the possibility of such damages. This limitation of liability
++   shall not apply to liability for death or personal injury resulting from such
++   party’s negligence to the extent applicable law prohibits such limitation.
++   Some jurisdictions do not allow the exclusion or limitation of incidental or
++   consequential damages, so this exclusion and limitation may not apply to You.
++
++8. Litigation
++
++   Any litigation relating to this License may be brought only in the courts of
++   a jurisdiction where the defendant maintains its principal place of business
++   and such litigation shall be governed by laws of that jurisdiction, without
++   reference to its conflict-of-law provisions. Nothing in this Section shall
++   prevent a party’s ability to bring cross-claims or counter-claims.
++
++9. Miscellaneous
++
++   This License represents the complete agreement concerning the subject matter
++   hereof. If any provision of this License is held to be unenforceable, such
++   provision shall be reformed only to the extent necessary to make it
++   enforceable. Any law or regulation which provides that the language of a
++   contract shall be construed against the drafter shall not be used to construe
++   this License against a Contributor.
++
++
++10. Versions of the License
++
++10.1. New Versions
++
++      Mozilla Foundation is the license steward. Except as provided in Section
++      10.3, no one other than the license steward has the right to modify or
++      publish new versions of this License. Each version will be given a
++      distinguishing version number.
++
++10.2. Effect of New Versions
++
++      You may distribute the Covered Software under the terms of the version of
++      the License under which You originally received the Covered Software, or
++      under the terms of any subsequent version published by the license
++      steward.
++
++10.3. Modified Versions
++
++      If you create software not governed by this License, and you want to
++      create a new license for such software, you may create and use a modified
++      version of this License if you rename the license and remove any
++      references to the name of the license steward (except to note that such
++      modified license differs from this License).
++
++10.4. Distributing Source Code Form that is Incompatible With Secondary Licenses
++      If You choose to distribute Source Code Form that is Incompatible With
++      Secondary Licenses under the terms of this version of the License, the
++      notice described in Exhibit B of this License must be attached.
++
++Exhibit A - Source Code Form License Notice
++
++      This Source Code Form is subject to the
++      terms of the Mozilla Public License, v.
++      2.0. If a copy of the MPL was not
++      distributed with this file, You can
++      obtain one at
++      http://mozilla.org/MPL/2.0/.
++
++If it is not possible or desirable to put the notice in a particular file, then
++You may include the notice in a location (such as a LICENSE file in a relevant
++directory) where a recipient would be likely to look for such a notice.
++
++You may add additional accurate notices of copyright ownership.
++
++Exhibit B - “Incompatible With Secondary Licenses” Notice
++
++      This Source Code Form is “Incompatible
++      With Secondary Licenses”, as defined by
++      the Mozilla Public License, v. 2.0.
++
+diff --git a/vendor/github.com/hashicorp/consul/api/README.md b/vendor/github.com/hashicorp/consul/api/README.md
+new file mode 100644
+index 00000000..7e64988f
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/README.md
+@@ -0,0 +1,43 @@
++Consul API client
++=================
++
++This package provides the `api` package which attempts to
++provide programmatic access to the full Consul API.
++
++Currently, all of the Consul APIs included in version 0.6.0 are supported.
++
++Documentation
++=============
++
++The full documentation is available on [Godoc](https://godoc.org/github.com/hashicorp/consul/api)
++
++Usage
++=====
++
++Below is an example of using the Consul client:
++
++```go
++// Get a new client
++client, err := api.NewClient(api.DefaultConfig())
++if err != nil {
++    panic(err)
++}
++
++// Get a handle to the KV API
++kv := client.KV()
++
++// PUT a new KV pair
++p := &api.KVPair{Key: "foo", Value: []byte("test")}
++_, err = kv.Put(p, nil)
++if err != nil {
++    panic(err)
++}
++
++// Lookup the pair
++pair, _, err := kv.Get("foo", nil)
++if err != nil {
++    panic(err)
++}
++fmt.Printf("KV: %v", pair)
++
++```
+diff --git a/vendor/github.com/hashicorp/consul/api/acl.go b/vendor/github.com/hashicorp/consul/api/acl.go
+new file mode 100644
+index 00000000..c3fb0d53
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/acl.go
+@@ -0,0 +1,140 @@
++package api
++
++const (
++	// ACLCLientType is the client type token
++	ACLClientType = "client"
++
++	// ACLManagementType is the management type token
++	ACLManagementType = "management"
++)
++
++// ACLEntry is used to represent an ACL entry
++type ACLEntry struct {
++	CreateIndex uint64
++	ModifyIndex uint64
++	ID          string
++	Name        string
++	Type        string
++	Rules       string
++}
++
++// ACL can be used to query the ACL endpoints
++type ACL struct {
++	c *Client
++}
++
++// ACL returns a handle to the ACL endpoints
++func (c *Client) ACL() *ACL {
++	return &ACL{c}
++}
++
++// Create is used to generate a new token with the given parameters
++func (a *ACL) Create(acl *ACLEntry, q *WriteOptions) (string, *WriteMeta, error) {
++	r := a.c.newRequest("PUT", "/v1/acl/create")
++	r.setWriteOptions(q)
++	r.obj = acl
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return "", nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	var out struct{ ID string }
++	if err := decodeBody(resp, &out); err != nil {
++		return "", nil, err
++	}
++	return out.ID, wm, nil
++}
++
++// Update is used to update the rules of an existing token
++func (a *ACL) Update(acl *ACLEntry, q *WriteOptions) (*WriteMeta, error) {
++	r := a.c.newRequest("PUT", "/v1/acl/update")
++	r.setWriteOptions(q)
++	r.obj = acl
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	return wm, nil
++}
++
++// Destroy is used to destroy a given ACL token ID
++func (a *ACL) Destroy(id string, q *WriteOptions) (*WriteMeta, error) {
++	r := a.c.newRequest("PUT", "/v1/acl/destroy/"+id)
++	r.setWriteOptions(q)
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	return wm, nil
++}
++
++// Clone is used to return a new token cloned from an existing one
++func (a *ACL) Clone(id string, q *WriteOptions) (string, *WriteMeta, error) {
++	r := a.c.newRequest("PUT", "/v1/acl/clone/"+id)
++	r.setWriteOptions(q)
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return "", nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	var out struct{ ID string }
++	if err := decodeBody(resp, &out); err != nil {
++		return "", nil, err
++	}
++	return out.ID, wm, nil
++}
++
++// Info is used to query for information about an ACL token
++func (a *ACL) Info(id string, q *QueryOptions) (*ACLEntry, *QueryMeta, error) {
++	r := a.c.newRequest("GET", "/v1/acl/info/"+id)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var entries []*ACLEntry
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	if len(entries) > 0 {
++		return entries[0], qm, nil
++	}
++	return nil, qm, nil
++}
++
++// List is used to get all the ACL tokens
++func (a *ACL) List(q *QueryOptions) ([]*ACLEntry, *QueryMeta, error) {
++	r := a.c.newRequest("GET", "/v1/acl/list")
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var entries []*ACLEntry
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/agent.go b/vendor/github.com/hashicorp/consul/api/agent.go
+new file mode 100644
+index 00000000..87a6c100
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/agent.go
+@@ -0,0 +1,411 @@
++package api
++
++import (
++	"fmt"
++)
++
++// AgentCheck represents a check known to the agent
++type AgentCheck struct {
++	Node        string
++	CheckID     string
++	Name        string
++	Status      string
++	Notes       string
++	Output      string
++	ServiceID   string
++	ServiceName string
++}
++
++// AgentService represents a service known to the agent
++type AgentService struct {
++	ID                string
++	Service           string
++	Tags              []string
++	Port              int
++	Address           string
++	EnableTagOverride bool
++}
++
++// AgentMember represents a cluster member known to the agent
++type AgentMember struct {
++	Name        string
++	Addr        string
++	Port        uint16
++	Tags        map[string]string
++	Status      int
++	ProtocolMin uint8
++	ProtocolMax uint8
++	ProtocolCur uint8
++	DelegateMin uint8
++	DelegateMax uint8
++	DelegateCur uint8
++}
++
++// AgentServiceRegistration is used to register a new service
++type AgentServiceRegistration struct {
++	ID                string   `json:",omitempty"`
++	Name              string   `json:",omitempty"`
++	Tags              []string `json:",omitempty"`
++	Port              int      `json:",omitempty"`
++	Address           string   `json:",omitempty"`
++	EnableTagOverride bool     `json:",omitempty"`
++	Check             *AgentServiceCheck
++	Checks            AgentServiceChecks
++}
++
++// AgentCheckRegistration is used to register a new check
++type AgentCheckRegistration struct {
++	ID        string `json:",omitempty"`
++	Name      string `json:",omitempty"`
++	Notes     string `json:",omitempty"`
++	ServiceID string `json:",omitempty"`
++	AgentServiceCheck
++}
++
++// AgentServiceCheck is used to define a node or service level check
++type AgentServiceCheck struct {
++	Script            string `json:",omitempty"`
++	DockerContainerID string `json:",omitempty"`
++	Shell             string `json:",omitempty"` // Only supported for Docker.
++	Interval          string `json:",omitempty"`
++	Timeout           string `json:",omitempty"`
++	TTL               string `json:",omitempty"`
++	HTTP              string `json:",omitempty"`
++	TCP               string `json:",omitempty"`
++	Status            string `json:",omitempty"`
++
++	// In Consul 0.7 and later, checks that are associated with a service
++	// may also contain this optional DeregisterCriticalServiceAfter field,
++	// which is a timeout in the same Go time format as Interval and TTL. If
++	// a check is in the critical state for more than this configured value,
++	// then its associated service (and all of its associated checks) will
++	// automatically be deregistered.
++	DeregisterCriticalServiceAfter string `json:",omitempty"`
++}
++type AgentServiceChecks []*AgentServiceCheck
++
++// Agent can be used to query the Agent endpoints
++type Agent struct {
++	c *Client
++
++	// cache the node name
++	nodeName string
++}
++
++// Agent returns a handle to the agent endpoints
++func (c *Client) Agent() *Agent {
++	return &Agent{c: c}
++}
++
++// Self is used to query the agent we are speaking to for
++// information about itself
++func (a *Agent) Self() (map[string]map[string]interface{}, error) {
++	r := a.c.newRequest("GET", "/v1/agent/self")
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out map[string]map[string]interface{}
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// NodeName is used to get the node name of the agent
++func (a *Agent) NodeName() (string, error) {
++	if a.nodeName != "" {
++		return a.nodeName, nil
++	}
++	info, err := a.Self()
++	if err != nil {
++		return "", err
++	}
++	name := info["Config"]["NodeName"].(string)
++	a.nodeName = name
++	return name, nil
++}
++
++// Checks returns the locally registered checks
++func (a *Agent) Checks() (map[string]*AgentCheck, error) {
++	r := a.c.newRequest("GET", "/v1/agent/checks")
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out map[string]*AgentCheck
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// Services returns the locally registered services
++func (a *Agent) Services() (map[string]*AgentService, error) {
++	r := a.c.newRequest("GET", "/v1/agent/services")
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out map[string]*AgentService
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// Members returns the known gossip members. The WAN
++// flag can be used to query a server for WAN members.
++func (a *Agent) Members(wan bool) ([]*AgentMember, error) {
++	r := a.c.newRequest("GET", "/v1/agent/members")
++	if wan {
++		r.params.Set("wan", "1")
++	}
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out []*AgentMember
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// ServiceRegister is used to register a new service with
++// the local agent
++func (a *Agent) ServiceRegister(service *AgentServiceRegistration) error {
++	r := a.c.newRequest("PUT", "/v1/agent/service/register")
++	r.obj = service
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// ServiceDeregister is used to deregister a service with
++// the local agent
++func (a *Agent) ServiceDeregister(serviceID string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/service/deregister/"+serviceID)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// PassTTL is used to set a TTL check to the passing state.
++//
++// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
++// The client interface will be removed in 0.8 or changed to use
++// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
++func (a *Agent) PassTTL(checkID, note string) error {
++	return a.updateTTL(checkID, note, "pass")
++}
++
++// WarnTTL is used to set a TTL check to the warning state.
++//
++// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
++// The client interface will be removed in 0.8 or changed to use
++// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
++func (a *Agent) WarnTTL(checkID, note string) error {
++	return a.updateTTL(checkID, note, "warn")
++}
++
++// FailTTL is used to set a TTL check to the failing state.
++//
++// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
++// The client interface will be removed in 0.8 or changed to use
++// UpdateTTL()'s endpoint and the server endpoints will be removed in 0.9.
++func (a *Agent) FailTTL(checkID, note string) error {
++	return a.updateTTL(checkID, note, "fail")
++}
++
++// updateTTL is used to update the TTL of a check. This is the internal
++// method that uses the old API that's present in Consul versions prior to
++// 0.6.4. Since Consul didn't have an analogous "update" API before it seemed
++// ok to break this (former) UpdateTTL in favor of the new UpdateTTL below,
++// but keep the old Pass/Warn/Fail methods using the old API under the hood.
++//
++// DEPRECATION NOTICE: This interface is deprecated in favor of UpdateTTL().
++// The client interface will be removed in 0.8 and the server endpoints will
++// be removed in 0.9.
++func (a *Agent) updateTTL(checkID, note, status string) error {
++	switch status {
++	case "pass":
++	case "warn":
++	case "fail":
++	default:
++		return fmt.Errorf("Invalid status: %s", status)
++	}
++	endpoint := fmt.Sprintf("/v1/agent/check/%s/%s", status, checkID)
++	r := a.c.newRequest("PUT", endpoint)
++	r.params.Set("note", note)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// checkUpdate is the payload for a PUT for a check update.
++type checkUpdate struct {
++	// Status is one of the api.Health* states: HealthPassing
++	// ("passing"), HealthWarning ("warning"), or HealthCritical
++	// ("critical").
++	Status string
++
++	// Output is the information to post to the UI for operators as the
++	// output of the process that decided to hit the TTL check. This is
++	// different from the note field that's associated with the check
++	// itself.
++	Output string
++}
++
++// UpdateTTL is used to update the TTL of a check. This uses the newer API
++// that was introduced in Consul 0.6.4 and later. We translate the old status
++// strings for compatibility (though a newer version of Consul will still be
++// required to use this API).
++func (a *Agent) UpdateTTL(checkID, output, status string) error {
++	switch status {
++	case "pass", HealthPassing:
++		status = HealthPassing
++	case "warn", HealthWarning:
++		status = HealthWarning
++	case "fail", HealthCritical:
++		status = HealthCritical
++	default:
++		return fmt.Errorf("Invalid status: %s", status)
++	}
++
++	endpoint := fmt.Sprintf("/v1/agent/check/update/%s", checkID)
++	r := a.c.newRequest("PUT", endpoint)
++	r.obj = &checkUpdate{
++		Status: status,
++		Output: output,
++	}
++
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// CheckRegister is used to register a new check with
++// the local agent
++func (a *Agent) CheckRegister(check *AgentCheckRegistration) error {
++	r := a.c.newRequest("PUT", "/v1/agent/check/register")
++	r.obj = check
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// CheckDeregister is used to deregister a check with
++// the local agent
++func (a *Agent) CheckDeregister(checkID string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/check/deregister/"+checkID)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// Join is used to instruct the agent to attempt a join to
++// another cluster member
++func (a *Agent) Join(addr string, wan bool) error {
++	r := a.c.newRequest("PUT", "/v1/agent/join/"+addr)
++	if wan {
++		r.params.Set("wan", "1")
++	}
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// ForceLeave is used to have the agent eject a failed node
++func (a *Agent) ForceLeave(node string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/force-leave/"+node)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// EnableServiceMaintenance toggles service maintenance mode on
++// for the given service ID.
++func (a *Agent) EnableServiceMaintenance(serviceID, reason string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/service/maintenance/"+serviceID)
++	r.params.Set("enable", "true")
++	r.params.Set("reason", reason)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// DisableServiceMaintenance toggles service maintenance mode off
++// for the given service ID.
++func (a *Agent) DisableServiceMaintenance(serviceID string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/service/maintenance/"+serviceID)
++	r.params.Set("enable", "false")
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// EnableNodeMaintenance toggles node maintenance mode on for the
++// agent we are connected to.
++func (a *Agent) EnableNodeMaintenance(reason string) error {
++	r := a.c.newRequest("PUT", "/v1/agent/maintenance")
++	r.params.Set("enable", "true")
++	r.params.Set("reason", reason)
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
++
++// DisableNodeMaintenance toggles node maintenance mode off for the
++// agent we are connected to.
++func (a *Agent) DisableNodeMaintenance() error {
++	r := a.c.newRequest("PUT", "/v1/agent/maintenance")
++	r.params.Set("enable", "false")
++	_, resp, err := requireOK(a.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	resp.Body.Close()
++	return nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/api.go b/vendor/github.com/hashicorp/consul/api/api.go
+new file mode 100644
+index 00000000..dd811fde
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/api.go
+@@ -0,0 +1,591 @@
++package api
++
++import (
++	"bytes"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/json"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"log"
++	"net"
++	"net/http"
++	"net/url"
++	"os"
++	"strconv"
++	"strings"
++	"time"
++
++	"github.com/hashicorp/go-cleanhttp"
++)
++
++// QueryOptions are used to parameterize a query
++type QueryOptions struct {
++	// Providing a datacenter overwrites the DC provided
++	// by the Config
++	Datacenter string
++
++	// AllowStale allows any Consul server (non-leader) to service
++	// a read. This allows for lower latency and higher throughput
++	AllowStale bool
++
++	// RequireConsistent forces the read to be fully consistent.
++	// This is more expensive but prevents ever performing a stale
++	// read.
++	RequireConsistent bool
++
++	// WaitIndex is used to enable a blocking query. Waits
++	// until the timeout or the next index is reached
++	WaitIndex uint64
++
++	// WaitTime is used to bound the duration of a wait.
++	// Defaults to that of the Config, but can be overridden.
++	WaitTime time.Duration
++
++	// Token is used to provide a per-request ACL token
++	// which overrides the agent's default token.
++	Token string
++
++	// Near is used to provide a node name that will sort the results
++	// in ascending order based on the estimated round trip time from
++	// that node. Setting this to "_agent" will use the agent's node
++	// for the sort.
++	Near string
++}
++
++// WriteOptions are used to parameterize a write
++type WriteOptions struct {
++	// Providing a datacenter overwrites the DC provided
++	// by the Config
++	Datacenter string
++
++	// Token is used to provide a per-request ACL token
++	// which overrides the agent's default token.
++	Token string
++}
++
++// QueryMeta is used to return meta data about a query
++type QueryMeta struct {
++	// LastIndex. This can be used as a WaitIndex to perform
++	// a blocking query
++	LastIndex uint64
++
++	// Time of last contact from the leader for the
++	// server servicing the request
++	LastContact time.Duration
++
++	// Is there a known leader
++	KnownLeader bool
++
++	// How long did the request take
++	RequestTime time.Duration
++
++	// Is address translation enabled for HTTP responses on this agent
++	AddressTranslationEnabled bool
++}
++
++// WriteMeta is used to return meta data about a write
++type WriteMeta struct {
++	// How long did the request take
++	RequestTime time.Duration
++}
++
++// HttpBasicAuth is used to authenticate http client with HTTP Basic Authentication
++type HttpBasicAuth struct {
++	// Username to use for HTTP Basic Authentication
++	Username string
++
++	// Password to use for HTTP Basic Authentication
++	Password string
++}
++
++// Config is used to configure the creation of a client
++type Config struct {
++	// Address is the address of the Consul server
++	Address string
++
++	// Scheme is the URI scheme for the Consul server
++	Scheme string
++
++	// Datacenter to use. If not provided, the default agent datacenter is used.
++	Datacenter string
++
++	// HttpClient is the client to use. Default will be
++	// used if not provided.
++	HttpClient *http.Client
++
++	// HttpAuth is the auth info to use for http access.
++	HttpAuth *HttpBasicAuth
++
++	// WaitTime limits how long a Watch will block. If not provided,
++	// the agent default values will be used.
++	WaitTime time.Duration
++
++	// Token is used to provide a per-request ACL token
++	// which overrides the agent's default token.
++	Token string
++}
++
++// TLSConfig is used to generate a TLSClientConfig that's useful for talking to
++// Consul using TLS.
++type TLSConfig struct {
++	// Address is the optional address of the Consul server. The port, if any
++	// will be removed from here and this will be set to the ServerName of the
++	// resulting config.
++	Address string
++
++	// CAFile is the optional path to the CA certificate used for Consul
++	// communication, defaults to the system bundle if not specified.
++	CAFile string
++
++	// CertFile is the optional path to the certificate for Consul
++	// communication. If this is set then you need to also set KeyFile.
++	CertFile string
++
++	// KeyFile is the optional path to the private key for Consul communication.
++	// If this is set then you need to also set CertFile.
++	KeyFile string
++
++	// InsecureSkipVerify if set to true will disable TLS host verification.
++	InsecureSkipVerify bool
++}
++
++// DefaultConfig returns a default configuration for the client. By default this
++// will pool and reuse idle connections to Consul. If you have a long-lived
++// client object, this is the desired behavior and should make the most efficient
++// use of the connections to Consul. If you don't reuse a client object , which
++// is not recommended, then you may notice idle connections building up over
++// time. To avoid this, use the DefaultNonPooledConfig() instead.
++func DefaultConfig() *Config {
++	return defaultConfig(cleanhttp.DefaultPooledTransport)
++}
++
++// DefaultNonPooledConfig returns a default configuration for the client which
++// does not pool connections. This isn't a recommended configuration because it
++// will reconnect to Consul on every request, but this is useful to avoid the
++// accumulation of idle connections if you make many client objects during the
++// lifetime of your application.
++func DefaultNonPooledConfig() *Config {
++	return defaultConfig(cleanhttp.DefaultTransport)
++}
++
++// defaultConfig returns the default configuration for the client, using the
++// given function to make the transport.
++func defaultConfig(transportFn func() *http.Transport) *Config {
++	config := &Config{
++		Address: "127.0.0.1:8500",
++		Scheme:  "http",
++		HttpClient: &http.Client{
++			Transport: transportFn(),
++		},
++	}
++
++	if addr := os.Getenv("CONSUL_HTTP_ADDR"); addr != "" {
++		config.Address = addr
++	}
++
++	if token := os.Getenv("CONSUL_HTTP_TOKEN"); token != "" {
++		config.Token = token
++	}
++
++	if auth := os.Getenv("CONSUL_HTTP_AUTH"); auth != "" {
++		var username, password string
++		if strings.Contains(auth, ":") {
++			split := strings.SplitN(auth, ":", 2)
++			username = split[0]
++			password = split[1]
++		} else {
++			username = auth
++		}
++
++		config.HttpAuth = &HttpBasicAuth{
++			Username: username,
++			Password: password,
++		}
++	}
++
++	if ssl := os.Getenv("CONSUL_HTTP_SSL"); ssl != "" {
++		enabled, err := strconv.ParseBool(ssl)
++		if err != nil {
++			log.Printf("[WARN] client: could not parse CONSUL_HTTP_SSL: %s", err)
++		}
++
++		if enabled {
++			config.Scheme = "https"
++		}
++	}
++
++	if verify := os.Getenv("CONSUL_HTTP_SSL_VERIFY"); verify != "" {
++		doVerify, err := strconv.ParseBool(verify)
++		if err != nil {
++			log.Printf("[WARN] client: could not parse CONSUL_HTTP_SSL_VERIFY: %s", err)
++		}
++
++		if !doVerify {
++			tlsClientConfig, err := SetupTLSConfig(&TLSConfig{
++				InsecureSkipVerify: true,
++			})
++
++			// We don't expect this to fail given that we aren't
++			// parsing any of the input, but we panic just in case
++			// since this doesn't have an error return.
++			if err != nil {
++				panic(err)
++			}
++
++			transport := transportFn()
++			transport.TLSClientConfig = tlsClientConfig
++			config.HttpClient.Transport = transport
++		}
++	}
++
++	return config
++}
++
++// TLSConfig is used to generate a TLSClientConfig that's useful for talking to
++// Consul using TLS.
++func SetupTLSConfig(tlsConfig *TLSConfig) (*tls.Config, error) {
++	tlsClientConfig := &tls.Config{
++		InsecureSkipVerify: tlsConfig.InsecureSkipVerify,
++	}
++
++	if tlsConfig.Address != "" {
++		server := tlsConfig.Address
++		hasPort := strings.LastIndex(server, ":") > strings.LastIndex(server, "]")
++		if hasPort {
++			var err error
++			server, _, err = net.SplitHostPort(server)
++			if err != nil {
++				return nil, err
++			}
++		}
++		tlsClientConfig.ServerName = server
++	}
++
++	if tlsConfig.CertFile != "" && tlsConfig.KeyFile != "" {
++		tlsCert, err := tls.LoadX509KeyPair(tlsConfig.CertFile, tlsConfig.KeyFile)
++		if err != nil {
++			return nil, err
++		}
++		tlsClientConfig.Certificates = []tls.Certificate{tlsCert}
++	}
++
++	if tlsConfig.CAFile != "" {
++		data, err := ioutil.ReadFile(tlsConfig.CAFile)
++		if err != nil {
++			return nil, fmt.Errorf("failed to read CA file: %v", err)
++		}
++
++		caPool := x509.NewCertPool()
++		if !caPool.AppendCertsFromPEM(data) {
++			return nil, fmt.Errorf("failed to parse CA certificate")
++		}
++		tlsClientConfig.RootCAs = caPool
++	}
++
++	return tlsClientConfig, nil
++}
++
++// Client provides a client to the Consul API
++type Client struct {
++	config Config
++}
++
++// NewClient returns a new client
++func NewClient(config *Config) (*Client, error) {
++	// bootstrap the config
++	defConfig := DefaultConfig()
++
++	if len(config.Address) == 0 {
++		config.Address = defConfig.Address
++	}
++
++	if len(config.Scheme) == 0 {
++		config.Scheme = defConfig.Scheme
++	}
++
++	if config.HttpClient == nil {
++		config.HttpClient = defConfig.HttpClient
++	}
++
++	if parts := strings.SplitN(config.Address, "unix://", 2); len(parts) == 2 {
++		trans := cleanhttp.DefaultTransport()
++		trans.Dial = func(_, _ string) (net.Conn, error) {
++			return net.Dial("unix", parts[1])
++		}
++		config.HttpClient = &http.Client{
++			Transport: trans,
++		}
++		config.Address = parts[1]
++	}
++
++	client := &Client{
++		config: *config,
++	}
++	return client, nil
++}
++
++// request is used to help build up a request
++type request struct {
++	config *Config
++	method string
++	url    *url.URL
++	params url.Values
++	body   io.Reader
++	header http.Header
++	obj    interface{}
++}
++
++// setQueryOptions is used to annotate the request with
++// additional query options
++func (r *request) setQueryOptions(q *QueryOptions) {
++	if q == nil {
++		return
++	}
++	if q.Datacenter != "" {
++		r.params.Set("dc", q.Datacenter)
++	}
++	if q.AllowStale {
++		r.params.Set("stale", "")
++	}
++	if q.RequireConsistent {
++		r.params.Set("consistent", "")
++	}
++	if q.WaitIndex != 0 {
++		r.params.Set("index", strconv.FormatUint(q.WaitIndex, 10))
++	}
++	if q.WaitTime != 0 {
++		r.params.Set("wait", durToMsec(q.WaitTime))
++	}
++	if q.Token != "" {
++		r.header.Set("X-Consul-Token", q.Token)
++	}
++	if q.Near != "" {
++		r.params.Set("near", q.Near)
++	}
++}
++
++// durToMsec converts a duration to a millisecond specified string. If the
++// user selected a positive value that rounds to 0 ms, then we will use 1 ms
++// so they get a short delay, otherwise Consul will translate the 0 ms into
++// a huge default delay.
++func durToMsec(dur time.Duration) string {
++	ms := dur / time.Millisecond
++	if dur > 0 && ms == 0 {
++		ms = 1
++	}
++	return fmt.Sprintf("%dms", ms)
++}
++
++// serverError is a string we look for to detect 500 errors.
++const serverError = "Unexpected response code: 500"
++
++// IsServerError returns true for 500 errors from the Consul servers, these are
++// usually retryable at a later time.
++func IsServerError(err error) bool {
++	if err == nil {
++		return false
++	}
++
++	// TODO (slackpad) - Make a real error type here instead of using
++	// a string check.
++	return strings.Contains(err.Error(), serverError)
++}
++
++// setWriteOptions is used to annotate the request with
++// additional write options
++func (r *request) setWriteOptions(q *WriteOptions) {
++	if q == nil {
++		return
++	}
++	if q.Datacenter != "" {
++		r.params.Set("dc", q.Datacenter)
++	}
++	if q.Token != "" {
++		r.header.Set("X-Consul-Token", q.Token)
++	}
++}
++
++// toHTTP converts the request to an HTTP request
++func (r *request) toHTTP() (*http.Request, error) {
++	// Encode the query parameters
++	r.url.RawQuery = r.params.Encode()
++
++	// Check if we should encode the body
++	if r.body == nil && r.obj != nil {
++		if b, err := encodeBody(r.obj); err != nil {
++			return nil, err
++		} else {
++			r.body = b
++		}
++	}
++
++	// Create the HTTP request
++	req, err := http.NewRequest(r.method, r.url.RequestURI(), r.body)
++	if err != nil {
++		return nil, err
++	}
++
++	req.URL.Host = r.url.Host
++	req.URL.Scheme = r.url.Scheme
++	req.Host = r.url.Host
++	req.Header = r.header
++
++	// Setup auth
++	if r.config.HttpAuth != nil {
++		req.SetBasicAuth(r.config.HttpAuth.Username, r.config.HttpAuth.Password)
++	}
++
++	return req, nil
++}
++
++// newRequest is used to create a new request
++func (c *Client) newRequest(method, path string) *request {
++	r := &request{
++		config: &c.config,
++		method: method,
++		url: &url.URL{
++			Scheme: c.config.Scheme,
++			Host:   c.config.Address,
++			Path:   path,
++		},
++		params: make(map[string][]string),
++		header: make(http.Header),
++	}
++	if c.config.Datacenter != "" {
++		r.params.Set("dc", c.config.Datacenter)
++	}
++	if c.config.WaitTime != 0 {
++		r.params.Set("wait", durToMsec(r.config.WaitTime))
++	}
++	if c.config.Token != "" {
++		r.header.Set("X-Consul-Token", r.config.Token)
++	}
++	return r
++}
++
++// doRequest runs a request with our client
++func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
++	req, err := r.toHTTP()
++	if err != nil {
++		return 0, nil, err
++	}
++	start := time.Now()
++	resp, err := c.config.HttpClient.Do(req)
++	diff := time.Now().Sub(start)
++	return diff, resp, err
++}
++
++// Query is used to do a GET request against an endpoint
++// and deserialize the response into an interface using
++// standard Consul conventions.
++func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
++	r := c.newRequest("GET", endpoint)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	if err := decodeBody(resp, out); err != nil {
++		return nil, err
++	}
++	return qm, nil
++}
++
++// write is used to do a PUT request against an endpoint
++// and serialize/deserialized using the standard Consul conventions.
++func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
++	r := c.newRequest("PUT", endpoint)
++	r.setWriteOptions(q)
++	r.obj = in
++	rtt, resp, err := requireOK(c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	if out != nil {
++		if err := decodeBody(resp, &out); err != nil {
++			return nil, err
++		}
++	}
++	return wm, nil
++}
++
++// parseQueryMeta is used to help parse query meta-data
++func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
++	header := resp.Header
++
++	// Parse the X-Consul-Index
++	index, err := strconv.ParseUint(header.Get("X-Consul-Index"), 10, 64)
++	if err != nil {
++		return fmt.Errorf("Failed to parse X-Consul-Index: %v", err)
++	}
++	q.LastIndex = index
++
++	// Parse the X-Consul-LastContact
++	last, err := strconv.ParseUint(header.Get("X-Consul-LastContact"), 10, 64)
++	if err != nil {
++		return fmt.Errorf("Failed to parse X-Consul-LastContact: %v", err)
++	}
++	q.LastContact = time.Duration(last) * time.Millisecond
++
++	// Parse the X-Consul-KnownLeader
++	switch header.Get("X-Consul-KnownLeader") {
++	case "true":
++		q.KnownLeader = true
++	default:
++		q.KnownLeader = false
++	}
++
++	// Parse X-Consul-Translate-Addresses
++	switch header.Get("X-Consul-Translate-Addresses") {
++	case "true":
++		q.AddressTranslationEnabled = true
++	default:
++		q.AddressTranslationEnabled = false
++	}
++
++	return nil
++}
++
++// decodeBody is used to JSON decode a body
++func decodeBody(resp *http.Response, out interface{}) error {
++	dec := json.NewDecoder(resp.Body)
++	return dec.Decode(out)
++}
++
++// encodeBody is used to encode a request body
++func encodeBody(obj interface{}) (io.Reader, error) {
++	buf := bytes.NewBuffer(nil)
++	enc := json.NewEncoder(buf)
++	if err := enc.Encode(obj); err != nil {
++		return nil, err
++	}
++	return buf, nil
++}
++
++// requireOK is used to wrap doRequest and check for a 200
++func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *http.Response, error) {
++	if e != nil {
++		if resp != nil {
++			resp.Body.Close()
++		}
++		return d, nil, e
++	}
++	if resp.StatusCode != 200 {
++		var buf bytes.Buffer
++		io.Copy(&buf, resp.Body)
++		resp.Body.Close()
++		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
++	}
++	return d, resp, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/catalog.go b/vendor/github.com/hashicorp/consul/api/catalog.go
+new file mode 100644
+index 00000000..337772ec
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/catalog.go
+@@ -0,0 +1,186 @@
++package api
++
++type Node struct {
++	Node            string
++	Address         string
++	TaggedAddresses map[string]string
++}
++
++type CatalogService struct {
++	Node                     string
++	Address                  string
++	TaggedAddresses          map[string]string
++	ServiceID                string
++	ServiceName              string
++	ServiceAddress           string
++	ServiceTags              []string
++	ServicePort              int
++	ServiceEnableTagOverride bool
++}
++
++type CatalogNode struct {
++	Node     *Node
++	Services map[string]*AgentService
++}
++
++type CatalogRegistration struct {
++	Node            string
++	Address         string
++	TaggedAddresses map[string]string
++	Datacenter      string
++	Service         *AgentService
++	Check           *AgentCheck
++}
++
++type CatalogDeregistration struct {
++	Node       string
++	Address    string
++	Datacenter string
++	ServiceID  string
++	CheckID    string
++}
++
++// Catalog can be used to query the Catalog endpoints
++type Catalog struct {
++	c *Client
++}
++
++// Catalog returns a handle to the catalog endpoints
++func (c *Client) Catalog() *Catalog {
++	return &Catalog{c}
++}
++
++func (c *Catalog) Register(reg *CatalogRegistration, q *WriteOptions) (*WriteMeta, error) {
++	r := c.c.newRequest("PUT", "/v1/catalog/register")
++	r.setWriteOptions(q)
++	r.obj = reg
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	resp.Body.Close()
++
++	wm := &WriteMeta{}
++	wm.RequestTime = rtt
++
++	return wm, nil
++}
++
++func (c *Catalog) Deregister(dereg *CatalogDeregistration, q *WriteOptions) (*WriteMeta, error) {
++	r := c.c.newRequest("PUT", "/v1/catalog/deregister")
++	r.setWriteOptions(q)
++	r.obj = dereg
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	resp.Body.Close()
++
++	wm := &WriteMeta{}
++	wm.RequestTime = rtt
++
++	return wm, nil
++}
++
++// Datacenters is used to query for all the known datacenters
++func (c *Catalog) Datacenters() ([]string, error) {
++	r := c.c.newRequest("GET", "/v1/catalog/datacenters")
++	_, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out []string
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// Nodes is used to query all the known nodes
++func (c *Catalog) Nodes(q *QueryOptions) ([]*Node, *QueryMeta, error) {
++	r := c.c.newRequest("GET", "/v1/catalog/nodes")
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*Node
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Services is used to query for all known services
++func (c *Catalog) Services(q *QueryOptions) (map[string][]string, *QueryMeta, error) {
++	r := c.c.newRequest("GET", "/v1/catalog/services")
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out map[string][]string
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Service is used to query catalog entries for a given service
++func (c *Catalog) Service(service, tag string, q *QueryOptions) ([]*CatalogService, *QueryMeta, error) {
++	r := c.c.newRequest("GET", "/v1/catalog/service/"+service)
++	r.setQueryOptions(q)
++	if tag != "" {
++		r.params.Set("tag", tag)
++	}
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*CatalogService
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Node is used to query for service information about a single node
++func (c *Catalog) Node(node string, q *QueryOptions) (*CatalogNode, *QueryMeta, error) {
++	r := c.c.newRequest("GET", "/v1/catalog/node/"+node)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out *CatalogNode
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/coordinate.go b/vendor/github.com/hashicorp/consul/api/coordinate.go
+new file mode 100644
+index 00000000..fdff2075
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/coordinate.go
+@@ -0,0 +1,66 @@
++package api
++
++import (
++	"github.com/hashicorp/serf/coordinate"
++)
++
++// CoordinateEntry represents a node and its associated network coordinate.
++type CoordinateEntry struct {
++	Node  string
++	Coord *coordinate.Coordinate
++}
++
++// CoordinateDatacenterMap represents a datacenter and its associated WAN
++// nodes and their associates coordinates.
++type CoordinateDatacenterMap struct {
++	Datacenter  string
++	Coordinates []CoordinateEntry
++}
++
++// Coordinate can be used to query the coordinate endpoints
++type Coordinate struct {
++	c *Client
++}
++
++// Coordinate returns a handle to the coordinate endpoints
++func (c *Client) Coordinate() *Coordinate {
++	return &Coordinate{c}
++}
++
++// Datacenters is used to return the coordinates of all the servers in the WAN
++// pool.
++func (c *Coordinate) Datacenters() ([]*CoordinateDatacenterMap, error) {
++	r := c.c.newRequest("GET", "/v1/coordinate/datacenters")
++	_, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out []*CoordinateDatacenterMap
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return out, nil
++}
++
++// Nodes is used to return the coordinates of all the nodes in the LAN pool.
++func (c *Coordinate) Nodes(q *QueryOptions) ([]*CoordinateEntry, *QueryMeta, error) {
++	r := c.c.newRequest("GET", "/v1/coordinate/nodes")
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*CoordinateEntry
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/event.go b/vendor/github.com/hashicorp/consul/api/event.go
+new file mode 100644
+index 00000000..85b5b069
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/event.go
+@@ -0,0 +1,104 @@
++package api
++
++import (
++	"bytes"
++	"strconv"
++)
++
++// Event can be used to query the Event endpoints
++type Event struct {
++	c *Client
++}
++
++// UserEvent represents an event that was fired by the user
++type UserEvent struct {
++	ID            string
++	Name          string
++	Payload       []byte
++	NodeFilter    string
++	ServiceFilter string
++	TagFilter     string
++	Version       int
++	LTime         uint64
++}
++
++// Event returns a handle to the event endpoints
++func (c *Client) Event() *Event {
++	return &Event{c}
++}
++
++// Fire is used to fire a new user event. Only the Name, Payload and Filters
++// are respected. This returns the ID or an associated error. Cross DC requests
++// are supported.
++func (e *Event) Fire(params *UserEvent, q *WriteOptions) (string, *WriteMeta, error) {
++	r := e.c.newRequest("PUT", "/v1/event/fire/"+params.Name)
++	r.setWriteOptions(q)
++	if params.NodeFilter != "" {
++		r.params.Set("node", params.NodeFilter)
++	}
++	if params.ServiceFilter != "" {
++		r.params.Set("service", params.ServiceFilter)
++	}
++	if params.TagFilter != "" {
++		r.params.Set("tag", params.TagFilter)
++	}
++	if params.Payload != nil {
++		r.body = bytes.NewReader(params.Payload)
++	}
++
++	rtt, resp, err := requireOK(e.c.doRequest(r))
++	if err != nil {
++		return "", nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++	var out UserEvent
++	if err := decodeBody(resp, &out); err != nil {
++		return "", nil, err
++	}
++	return out.ID, wm, nil
++}
++
++// List is used to get the most recent events an agent has received.
++// This list can be optionally filtered by the name. This endpoint supports
++// quasi-blocking queries. The index is not monotonic, nor does it provide provide
++// LastContact or KnownLeader.
++func (e *Event) List(name string, q *QueryOptions) ([]*UserEvent, *QueryMeta, error) {
++	r := e.c.newRequest("GET", "/v1/event/list")
++	r.setQueryOptions(q)
++	if name != "" {
++		r.params.Set("name", name)
++	}
++	rtt, resp, err := requireOK(e.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var entries []*UserEvent
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
++
++// IDToIndex is a bit of a hack. This simulates the index generation to
++// convert an event ID into a WaitIndex.
++func (e *Event) IDToIndex(uuid string) uint64 {
++	lower := uuid[0:8] + uuid[9:13] + uuid[14:18]
++	upper := uuid[19:23] + uuid[24:36]
++	lowVal, err := strconv.ParseUint(lower, 16, 64)
++	if err != nil {
++		panic("Failed to convert " + lower)
++	}
++	highVal, err := strconv.ParseUint(upper, 16, 64)
++	if err != nil {
++		panic("Failed to convert " + upper)
++	}
++	return lowVal ^ highVal
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/health.go b/vendor/github.com/hashicorp/consul/api/health.go
+new file mode 100644
+index 00000000..74da949c
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/health.go
+@@ -0,0 +1,144 @@
++package api
++
++import (
++	"fmt"
++)
++
++const (
++	// HealthAny is special, and is used as a wild card,
++	// not as a specific state.
++	HealthAny      = "any"
++	HealthPassing  = "passing"
++	HealthWarning  = "warning"
++	HealthCritical = "critical"
++)
++
++// HealthCheck is used to represent a single check
++type HealthCheck struct {
++	Node        string
++	CheckID     string
++	Name        string
++	Status      string
++	Notes       string
++	Output      string
++	ServiceID   string
++	ServiceName string
++}
++
++// ServiceEntry is used for the health service endpoint
++type ServiceEntry struct {
++	Node    *Node
++	Service *AgentService
++	Checks  []*HealthCheck
++}
++
++// Health can be used to query the Health endpoints
++type Health struct {
++	c *Client
++}
++
++// Health returns a handle to the health endpoints
++func (c *Client) Health() *Health {
++	return &Health{c}
++}
++
++// Node is used to query for checks belonging to a given node
++func (h *Health) Node(node string, q *QueryOptions) ([]*HealthCheck, *QueryMeta, error) {
++	r := h.c.newRequest("GET", "/v1/health/node/"+node)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(h.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*HealthCheck
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Checks is used to return the checks associated with a service
++func (h *Health) Checks(service string, q *QueryOptions) ([]*HealthCheck, *QueryMeta, error) {
++	r := h.c.newRequest("GET", "/v1/health/checks/"+service)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(h.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*HealthCheck
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Service is used to query health information along with service info
++// for a given service. It can optionally do server-side filtering on a tag
++// or nodes with passing health checks only.
++func (h *Health) Service(service, tag string, passingOnly bool, q *QueryOptions) ([]*ServiceEntry, *QueryMeta, error) {
++	r := h.c.newRequest("GET", "/v1/health/service/"+service)
++	r.setQueryOptions(q)
++	if tag != "" {
++		r.params.Set("tag", tag)
++	}
++	if passingOnly {
++		r.params.Set(HealthPassing, "1")
++	}
++	rtt, resp, err := requireOK(h.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*ServiceEntry
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// State is used to retrieve all the checks in a given state.
++// The wildcard "any" state can also be used for all checks.
++func (h *Health) State(state string, q *QueryOptions) ([]*HealthCheck, *QueryMeta, error) {
++	switch state {
++	case HealthAny:
++	case HealthWarning:
++	case HealthCritical:
++	case HealthPassing:
++	default:
++		return nil, nil, fmt.Errorf("Unsupported state: %v", state)
++	}
++	r := h.c.newRequest("GET", "/v1/health/state/"+state)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(h.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	var out []*HealthCheck
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/kv.go b/vendor/github.com/hashicorp/consul/api/kv.go
+new file mode 100644
+index 00000000..5262243a
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/kv.go
+@@ -0,0 +1,419 @@
++package api
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"net/http"
++	"strconv"
++	"strings"
++)
++
++// KVPair is used to represent a single K/V entry
++type KVPair struct {
++	// Key is the name of the key. It is also part of the URL path when accessed
++	// via the API.
++	Key string
++
++	// CreateIndex holds the index corresponding the creation of this KVPair. This
++	// is a read-only field.
++	CreateIndex uint64
++
++	// ModifyIndex is used for the Check-And-Set operations and can also be fed
++	// back into the WaitIndex of the QueryOptions in order to perform blocking
++	// queries.
++	ModifyIndex uint64
++
++	// LockIndex holds the index corresponding to a lock on this key, if any. This
++	// is a read-only field.
++	LockIndex uint64
++
++	// Flags are any user-defined flags on the key. It is up to the implementer
++	// to check these values, since Consul does not treat them specially.
++	Flags uint64
++
++	// Value is the value for the key. This can be any value, but it will be
++	// base64 encoded upon transport.
++	Value []byte
++
++	// Session is a string representing the ID of the session. Any other
++	// interactions with this key over the same session must specify the same
++	// session ID.
++	Session string
++}
++
++// KVPairs is a list of KVPair objects
++type KVPairs []*KVPair
++
++// KVOp constants give possible operations available in a KVTxn.
++type KVOp string
++
++const (
++	KVSet          KVOp = "set"
++	KVDelete            = "delete"
++	KVDeleteCAS         = "delete-cas"
++	KVDeleteTree        = "delete-tree"
++	KVCAS               = "cas"
++	KVLock              = "lock"
++	KVUnlock            = "unlock"
++	KVGet               = "get"
++	KVGetTree           = "get-tree"
++	KVCheckSession      = "check-session"
++	KVCheckIndex        = "check-index"
++)
++
++// KVTxnOp defines a single operation inside a transaction.
++type KVTxnOp struct {
++	Verb    string
++	Key     string
++	Value   []byte
++	Flags   uint64
++	Index   uint64
++	Session string
++}
++
++// KVTxnOps defines a set of operations to be performed inside a single
++// transaction.
++type KVTxnOps []*KVTxnOp
++
++// KVTxnResponse has the outcome of a transaction.
++type KVTxnResponse struct {
++	Results []*KVPair
++	Errors  TxnErrors
++}
++
++// KV is used to manipulate the K/V API
++type KV struct {
++	c *Client
++}
++
++// KV is used to return a handle to the K/V apis
++func (c *Client) KV() *KV {
++	return &KV{c}
++}
++
++// Get is used to lookup a single key. The returned pointer
++// to the KVPair will be nil if the key does not exist.
++func (k *KV) Get(key string, q *QueryOptions) (*KVPair, *QueryMeta, error) {
++	resp, qm, err := k.getInternal(key, nil, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	if resp == nil {
++		return nil, qm, nil
++	}
++	defer resp.Body.Close()
++
++	var entries []*KVPair
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	if len(entries) > 0 {
++		return entries[0], qm, nil
++	}
++	return nil, qm, nil
++}
++
++// List is used to lookup all keys under a prefix
++func (k *KV) List(prefix string, q *QueryOptions) (KVPairs, *QueryMeta, error) {
++	resp, qm, err := k.getInternal(prefix, map[string]string{"recurse": ""}, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	if resp == nil {
++		return nil, qm, nil
++	}
++	defer resp.Body.Close()
++
++	var entries []*KVPair
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
++
++// Keys is used to list all the keys under a prefix. Optionally,
++// a separator can be used to limit the responses.
++func (k *KV) Keys(prefix, separator string, q *QueryOptions) ([]string, *QueryMeta, error) {
++	params := map[string]string{"keys": ""}
++	if separator != "" {
++		params["separator"] = separator
++	}
++	resp, qm, err := k.getInternal(prefix, params, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	if resp == nil {
++		return nil, qm, nil
++	}
++	defer resp.Body.Close()
++
++	var entries []string
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
++
++func (k *KV) getInternal(key string, params map[string]string, q *QueryOptions) (*http.Response, *QueryMeta, error) {
++	r := k.c.newRequest("GET", "/v1/kv/"+key)
++	r.setQueryOptions(q)
++	for param, val := range params {
++		r.params.Set(param, val)
++	}
++	rtt, resp, err := k.c.doRequest(r)
++	if err != nil {
++		return nil, nil, err
++	}
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	if resp.StatusCode == 404 {
++		resp.Body.Close()
++		return nil, qm, nil
++	} else if resp.StatusCode != 200 {
++		resp.Body.Close()
++		return nil, nil, fmt.Errorf("Unexpected response code: %d", resp.StatusCode)
++	}
++	return resp, qm, nil
++}
++
++// Put is used to write a new value. Only the
++// Key, Flags and Value is respected.
++func (k *KV) Put(p *KVPair, q *WriteOptions) (*WriteMeta, error) {
++	params := make(map[string]string, 1)
++	if p.Flags != 0 {
++		params["flags"] = strconv.FormatUint(p.Flags, 10)
++	}
++	_, wm, err := k.put(p.Key, params, p.Value, q)
++	return wm, err
++}
++
++// CAS is used for a Check-And-Set operation. The Key,
++// ModifyIndex, Flags and Value are respected. Returns true
++// on success or false on failures.
++func (k *KV) CAS(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
++	params := make(map[string]string, 2)
++	if p.Flags != 0 {
++		params["flags"] = strconv.FormatUint(p.Flags, 10)
++	}
++	params["cas"] = strconv.FormatUint(p.ModifyIndex, 10)
++	return k.put(p.Key, params, p.Value, q)
++}
++
++// Acquire is used for a lock acquisition operation. The Key,
++// Flags, Value and Session are respected. Returns true
++// on success or false on failures.
++func (k *KV) Acquire(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
++	params := make(map[string]string, 2)
++	if p.Flags != 0 {
++		params["flags"] = strconv.FormatUint(p.Flags, 10)
++	}
++	params["acquire"] = p.Session
++	return k.put(p.Key, params, p.Value, q)
++}
++
++// Release is used for a lock release operation. The Key,
++// Flags, Value and Session are respected. Returns true
++// on success or false on failures.
++func (k *KV) Release(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
++	params := make(map[string]string, 2)
++	if p.Flags != 0 {
++		params["flags"] = strconv.FormatUint(p.Flags, 10)
++	}
++	params["release"] = p.Session
++	return k.put(p.Key, params, p.Value, q)
++}
++
++func (k *KV) put(key string, params map[string]string, body []byte, q *WriteOptions) (bool, *WriteMeta, error) {
++	if len(key) > 0 && key[0] == '/' {
++		return false, nil, fmt.Errorf("Invalid key. Key must not begin with a '/': %s", key)
++	}
++
++	r := k.c.newRequest("PUT", "/v1/kv/"+key)
++	r.setWriteOptions(q)
++	for param, val := range params {
++		r.params.Set(param, val)
++	}
++	r.body = bytes.NewReader(body)
++	rtt, resp, err := requireOK(k.c.doRequest(r))
++	if err != nil {
++		return false, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &WriteMeta{}
++	qm.RequestTime = rtt
++
++	var buf bytes.Buffer
++	if _, err := io.Copy(&buf, resp.Body); err != nil {
++		return false, nil, fmt.Errorf("Failed to read response: %v", err)
++	}
++	res := strings.Contains(string(buf.Bytes()), "true")
++	return res, qm, nil
++}
++
++// Delete is used to delete a single key
++func (k *KV) Delete(key string, w *WriteOptions) (*WriteMeta, error) {
++	_, qm, err := k.deleteInternal(key, nil, w)
++	return qm, err
++}
++
++// DeleteCAS is used for a Delete Check-And-Set operation. The Key
++// and ModifyIndex are respected. Returns true on success or false on failures.
++func (k *KV) DeleteCAS(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
++	params := map[string]string{
++		"cas": strconv.FormatUint(p.ModifyIndex, 10),
++	}
++	return k.deleteInternal(p.Key, params, q)
++}
++
++// DeleteTree is used to delete all keys under a prefix
++func (k *KV) DeleteTree(prefix string, w *WriteOptions) (*WriteMeta, error) {
++	_, qm, err := k.deleteInternal(prefix, map[string]string{"recurse": ""}, w)
++	return qm, err
++}
++
++func (k *KV) deleteInternal(key string, params map[string]string, q *WriteOptions) (bool, *WriteMeta, error) {
++	r := k.c.newRequest("DELETE", "/v1/kv/"+key)
++	r.setWriteOptions(q)
++	for param, val := range params {
++		r.params.Set(param, val)
++	}
++	rtt, resp, err := requireOK(k.c.doRequest(r))
++	if err != nil {
++		return false, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &WriteMeta{}
++	qm.RequestTime = rtt
++
++	var buf bytes.Buffer
++	if _, err := io.Copy(&buf, resp.Body); err != nil {
++		return false, nil, fmt.Errorf("Failed to read response: %v", err)
++	}
++	res := strings.Contains(string(buf.Bytes()), "true")
++	return res, qm, nil
++}
++
++// TxnOp is the internal format we send to Consul. It's not specific to KV,
++// though currently only KV operations are supported.
++type TxnOp struct {
++	KV *KVTxnOp
++}
++
++// TxnOps is a list of transaction operations.
++type TxnOps []*TxnOp
++
++// TxnResult is the internal format we receive from Consul.
++type TxnResult struct {
++	KV *KVPair
++}
++
++// TxnResults is a list of TxnResult objects.
++type TxnResults []*TxnResult
++
++// TxnError is used to return information about an operation in a transaction.
++type TxnError struct {
++	OpIndex int
++	What    string
++}
++
++// TxnErrors is a list of TxnError objects.
++type TxnErrors []*TxnError
++
++// TxnResponse is the internal format we receive from Consul.
++type TxnResponse struct {
++	Results TxnResults
++	Errors  TxnErrors
++}
++
++// Txn is used to apply multiple KV operations in a single, atomic transaction.
++//
++// Note that Go will perform the required base64 encoding on the values
++// automatically because the type is a byte slice. Transactions are defined as a
++// list of operations to perform, using the KVOp constants and KVTxnOp structure
++// to define operations. If any operation fails, none of the changes are applied
++// to the state store. Note that this hides the internal raw transaction interface
++// and munges the input and output types into KV-specific ones for ease of use.
++// If there are more non-KV operations in the future we may break out a new
++// transaction API client, but it will be easy to keep this KV-specific variant
++// supported.
++//
++// Even though this is generally a write operation, we take a QueryOptions input
++// and return a QueryMeta output. If the transaction contains only read ops, then
++// Consul will fast-path it to a different endpoint internally which supports
++// consistency controls, but not blocking. If there are write operations then
++// the request will always be routed through raft and any consistency settings
++// will be ignored.
++//
++// Here's an example:
++//
++// ops := KVTxnOps{
++//     &KVTxnOp{
++//         Verb:    KVLock,
++//         Key:     "test/lock",
++//         Session: "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
++//         Value:   []byte("hello"),
++//     },
++//     &KVTxnOp{
++//         Verb:    KVGet,
++//         Key:     "another/key",
++//     },
++// }
++// ok, response, _, err := kv.Txn(&ops, nil)
++//
++// If there is a problem making the transaction request then an error will be
++// returned. Otherwise, the ok value will be true if the transaction succeeded
++// or false if it was rolled back. The response is a structured return value which
++// will have the outcome of the transaction. Its Results member will have entries
++// for each operation. Deleted keys will have a nil entry in the, and to save
++// space, the Value of each key in the Results will be nil unless the operation
++// is a KVGet. If the transaction was rolled back, the Errors member will have
++// entries referencing the index of the operation that failed along with an error
++// message.
++func (k *KV) Txn(txn KVTxnOps, q *QueryOptions) (bool, *KVTxnResponse, *QueryMeta, error) {
++	r := k.c.newRequest("PUT", "/v1/txn")
++	r.setQueryOptions(q)
++
++	// Convert into the internal format since this is an all-KV txn.
++	ops := make(TxnOps, 0, len(txn))
++	for _, kvOp := range txn {
++		ops = append(ops, &TxnOp{KV: kvOp})
++	}
++	r.obj = ops
++	rtt, resp, err := k.c.doRequest(r)
++	if err != nil {
++		return false, nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++
++	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict {
++		var txnResp TxnResponse
++		if err := decodeBody(resp, &txnResp); err != nil {
++			return false, nil, nil, err
++		}
++
++		// Convert from the internal format.
++		kvResp := KVTxnResponse{
++			Errors: txnResp.Errors,
++		}
++		for _, result := range txnResp.Results {
++			kvResp.Results = append(kvResp.Results, result.KV)
++		}
++		return resp.StatusCode == http.StatusOK, &kvResp, qm, nil
++	}
++
++	var buf bytes.Buffer
++	if _, err := io.Copy(&buf, resp.Body); err != nil {
++		return false, nil, nil, fmt.Errorf("Failed to read response: %v", err)
++	}
++	return false, nil, nil, fmt.Errorf("Failed request: %s", buf.String())
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/lock.go b/vendor/github.com/hashicorp/consul/api/lock.go
+new file mode 100644
+index 00000000..9f9845a4
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/lock.go
+@@ -0,0 +1,384 @@
++package api
++
++import (
++	"fmt"
++	"sync"
++	"time"
++)
++
++const (
++	// DefaultLockSessionName is the Session Name we assign if none is provided
++	DefaultLockSessionName = "Consul API Lock"
++
++	// DefaultLockSessionTTL is the default session TTL if no Session is provided
++	// when creating a new Lock. This is used because we do not have another
++	// other check to depend upon.
++	DefaultLockSessionTTL = "15s"
++
++	// DefaultLockWaitTime is how long we block for at a time to check if lock
++	// acquisition is possible. This affects the minimum time it takes to cancel
++	// a Lock acquisition.
++	DefaultLockWaitTime = 15 * time.Second
++
++	// DefaultLockRetryTime is how long we wait after a failed lock acquisition
++	// before attempting to do the lock again. This is so that once a lock-delay
++	// is in effect, we do not hot loop retrying the acquisition.
++	DefaultLockRetryTime = 5 * time.Second
++
++	// DefaultMonitorRetryTime is how long we wait after a failed monitor check
++	// of a lock (500 response code). This allows the monitor to ride out brief
++	// periods of unavailability, subject to the MonitorRetries setting in the
++	// lock options which is by default set to 0, disabling this feature. This
++	// affects locks and semaphores.
++	DefaultMonitorRetryTime = 2 * time.Second
++
++	// LockFlagValue is a magic flag we set to indicate a key
++	// is being used for a lock. It is used to detect a potential
++	// conflict with a semaphore.
++	LockFlagValue = 0x2ddccbc058a50c18
++)
++
++var (
++	// ErrLockHeld is returned if we attempt to double lock
++	ErrLockHeld = fmt.Errorf("Lock already held")
++
++	// ErrLockNotHeld is returned if we attempt to unlock a lock
++	// that we do not hold.
++	ErrLockNotHeld = fmt.Errorf("Lock not held")
++
++	// ErrLockInUse is returned if we attempt to destroy a lock
++	// that is in use.
++	ErrLockInUse = fmt.Errorf("Lock in use")
++
++	// ErrLockConflict is returned if the flags on a key
++	// used for a lock do not match expectation
++	ErrLockConflict = fmt.Errorf("Existing key does not match lock use")
++)
++
++// Lock is used to implement client-side leader election. It is follows the
++// algorithm as described here: https://www.consul.io/docs/guides/leader-election.html.
++type Lock struct {
++	c    *Client
++	opts *LockOptions
++
++	isHeld       bool
++	sessionRenew chan struct{}
++	lockSession  string
++	l            sync.Mutex
++}
++
++// LockOptions is used to parameterize the Lock behavior.
++type LockOptions struct {
++	Key              string        // Must be set and have write permissions
++	Value            []byte        // Optional, value to associate with the lock
++	Session          string        // Optional, created if not specified
++	SessionOpts      *SessionEntry // Optional, options to use when creating a session
++	SessionName      string        // Optional, defaults to DefaultLockSessionName (ignored if SessionOpts is given)
++	SessionTTL       string        // Optional, defaults to DefaultLockSessionTTL (ignored if SessionOpts is given)
++	MonitorRetries   int           // Optional, defaults to 0 which means no retries
++	MonitorRetryTime time.Duration // Optional, defaults to DefaultMonitorRetryTime
++	LockWaitTime     time.Duration // Optional, defaults to DefaultLockWaitTime
++	LockTryOnce      bool          // Optional, defaults to false which means try forever
++}
++
++// LockKey returns a handle to a lock struct which can be used
++// to acquire and release the mutex. The key used must have
++// write permissions.
++func (c *Client) LockKey(key string) (*Lock, error) {
++	opts := &LockOptions{
++		Key: key,
++	}
++	return c.LockOpts(opts)
++}
++
++// LockOpts returns a handle to a lock struct which can be used
++// to acquire and release the mutex. The key used must have
++// write permissions.
++func (c *Client) LockOpts(opts *LockOptions) (*Lock, error) {
++	if opts.Key == "" {
++		return nil, fmt.Errorf("missing key")
++	}
++	if opts.SessionName == "" {
++		opts.SessionName = DefaultLockSessionName
++	}
++	if opts.SessionTTL == "" {
++		opts.SessionTTL = DefaultLockSessionTTL
++	} else {
++		if _, err := time.ParseDuration(opts.SessionTTL); err != nil {
++			return nil, fmt.Errorf("invalid SessionTTL: %v", err)
++		}
++	}
++	if opts.MonitorRetryTime == 0 {
++		opts.MonitorRetryTime = DefaultMonitorRetryTime
++	}
++	if opts.LockWaitTime == 0 {
++		opts.LockWaitTime = DefaultLockWaitTime
++	}
++	l := &Lock{
++		c:    c,
++		opts: opts,
++	}
++	return l, nil
++}
++
++// Lock attempts to acquire the lock and blocks while doing so.
++// Providing a non-nil stopCh can be used to abort the lock attempt.
++// Returns a channel that is closed if our lock is lost or an error.
++// This channel could be closed at any time due to session invalidation,
++// communication errors, operator intervention, etc. It is NOT safe to
++// assume that the lock is held until Unlock() unless the Session is specifically
++// created without any associated health checks. By default Consul sessions
++// prefer liveness over safety and an application must be able to handle
++// the lock being lost.
++func (l *Lock) Lock(stopCh <-chan struct{}) (<-chan struct{}, error) {
++	// Hold the lock as we try to acquire
++	l.l.Lock()
++	defer l.l.Unlock()
++
++	// Check if we already hold the lock
++	if l.isHeld {
++		return nil, ErrLockHeld
++	}
++
++	// Check if we need to create a session first
++	l.lockSession = l.opts.Session
++	if l.lockSession == "" {
++		if s, err := l.createSession(); err != nil {
++			return nil, fmt.Errorf("failed to create session: %v", err)
++		} else {
++			l.sessionRenew = make(chan struct{})
++			l.lockSession = s
++			session := l.c.Session()
++			go session.RenewPeriodic(l.opts.SessionTTL, s, nil, l.sessionRenew)
++
++			// If we fail to acquire the lock, cleanup the session
++			defer func() {
++				if !l.isHeld {
++					close(l.sessionRenew)
++					l.sessionRenew = nil
++				}
++			}()
++		}
++	}
++
++	// Setup the query options
++	kv := l.c.KV()
++	qOpts := &QueryOptions{
++		WaitTime: l.opts.LockWaitTime,
++	}
++
++	start := time.Now()
++	attempts := 0
++WAIT:
++	// Check if we should quit
++	select {
++	case <-stopCh:
++		return nil, nil
++	default:
++	}
++
++	// Handle the one-shot mode.
++	if l.opts.LockTryOnce && attempts > 0 {
++		elapsed := time.Now().Sub(start)
++		if elapsed > qOpts.WaitTime {
++			return nil, nil
++		}
++
++		qOpts.WaitTime -= elapsed
++	}
++	attempts++
++
++	// Look for an existing lock, blocking until not taken
++	pair, meta, err := kv.Get(l.opts.Key, qOpts)
++	if err != nil {
++		return nil, fmt.Errorf("failed to read lock: %v", err)
++	}
++	if pair != nil && pair.Flags != LockFlagValue {
++		return nil, ErrLockConflict
++	}
++	locked := false
++	if pair != nil && pair.Session == l.lockSession {
++		goto HELD
++	}
++	if pair != nil && pair.Session != "" {
++		qOpts.WaitIndex = meta.LastIndex
++		goto WAIT
++	}
++
++	// Try to acquire the lock
++	pair = l.lockEntry(l.lockSession)
++	locked, _, err = kv.Acquire(pair, nil)
++	if err != nil {
++		return nil, fmt.Errorf("failed to acquire lock: %v", err)
++	}
++
++	// Handle the case of not getting the lock
++	if !locked {
++		// Determine why the lock failed
++		qOpts.WaitIndex = 0
++		pair, meta, err = kv.Get(l.opts.Key, qOpts)
++		if pair != nil && pair.Session != "" {
++			//If the session is not null, this means that a wait can safely happen
++			//using a long poll
++			qOpts.WaitIndex = meta.LastIndex
++			goto WAIT
++		} else {
++			// If the session is empty and the lock failed to acquire, then it means
++			// a lock-delay is in effect and a timed wait must be used
++			select {
++			case <-time.After(DefaultLockRetryTime):
++				goto WAIT
++			case <-stopCh:
++				return nil, nil
++			}
++		}
++	}
++
++HELD:
++	// Watch to ensure we maintain leadership
++	leaderCh := make(chan struct{})
++	go l.monitorLock(l.lockSession, leaderCh)
++
++	// Set that we own the lock
++	l.isHeld = true
++
++	// Locked! All done
++	return leaderCh, nil
++}
++
++// Unlock released the lock. It is an error to call this
++// if the lock is not currently held.
++func (l *Lock) Unlock() error {
++	// Hold the lock as we try to release
++	l.l.Lock()
++	defer l.l.Unlock()
++
++	// Ensure the lock is actually held
++	if !l.isHeld {
++		return ErrLockNotHeld
++	}
++
++	// Set that we no longer own the lock
++	l.isHeld = false
++
++	// Stop the session renew
++	if l.sessionRenew != nil {
++		defer func() {
++			close(l.sessionRenew)
++			l.sessionRenew = nil
++		}()
++	}
++
++	// Get the lock entry, and clear the lock session
++	lockEnt := l.lockEntry(l.lockSession)
++	l.lockSession = ""
++
++	// Release the lock explicitly
++	kv := l.c.KV()
++	_, _, err := kv.Release(lockEnt, nil)
++	if err != nil {
++		return fmt.Errorf("failed to release lock: %v", err)
++	}
++	return nil
++}
++
++// Destroy is used to cleanup the lock entry. It is not necessary
++// to invoke. It will fail if the lock is in use.
++func (l *Lock) Destroy() error {
++	// Hold the lock as we try to release
++	l.l.Lock()
++	defer l.l.Unlock()
++
++	// Check if we already hold the lock
++	if l.isHeld {
++		return ErrLockHeld
++	}
++
++	// Look for an existing lock
++	kv := l.c.KV()
++	pair, _, err := kv.Get(l.opts.Key, nil)
++	if err != nil {
++		return fmt.Errorf("failed to read lock: %v", err)
++	}
++
++	// Nothing to do if the lock does not exist
++	if pair == nil {
++		return nil
++	}
++
++	// Check for possible flag conflict
++	if pair.Flags != LockFlagValue {
++		return ErrLockConflict
++	}
++
++	// Check if it is in use
++	if pair.Session != "" {
++		return ErrLockInUse
++	}
++
++	// Attempt the delete
++	didRemove, _, err := kv.DeleteCAS(pair, nil)
++	if err != nil {
++		return fmt.Errorf("failed to remove lock: %v", err)
++	}
++	if !didRemove {
++		return ErrLockInUse
++	}
++	return nil
++}
++
++// createSession is used to create a new managed session
++func (l *Lock) createSession() (string, error) {
++	session := l.c.Session()
++	se := l.opts.SessionOpts
++	if se == nil {
++		se = &SessionEntry{
++			Name: l.opts.SessionName,
++			TTL:  l.opts.SessionTTL,
++		}
++	}
++	id, _, err := session.Create(se, nil)
++	if err != nil {
++		return "", err
++	}
++	return id, nil
++}
++
++// lockEntry returns a formatted KVPair for the lock
++func (l *Lock) lockEntry(session string) *KVPair {
++	return &KVPair{
++		Key:     l.opts.Key,
++		Value:   l.opts.Value,
++		Session: session,
++		Flags:   LockFlagValue,
++	}
++}
++
++// monitorLock is a long running routine to monitor a lock ownership
++// It closes the stopCh if we lose our leadership.
++func (l *Lock) monitorLock(session string, stopCh chan struct{}) {
++	defer close(stopCh)
++	kv := l.c.KV()
++	opts := &QueryOptions{RequireConsistent: true}
++WAIT:
++	retries := l.opts.MonitorRetries
++RETRY:
++	pair, meta, err := kv.Get(l.opts.Key, opts)
++	if err != nil {
++		// If configured we can try to ride out a brief Consul unavailability
++		// by doing retries. Note that we have to attempt the retry in a non-
++		// blocking fashion so that we have a clean place to reset the retry
++		// counter if service is restored.
++		if retries > 0 && IsServerError(err) {
++			time.Sleep(l.opts.MonitorRetryTime)
++			retries--
++			opts.WaitIndex = 0
++			goto RETRY
++		}
++		return
++	}
++	if pair != nil && pair.Session == session {
++		opts.WaitIndex = meta.LastIndex
++		goto WAIT
++	}
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/operator.go b/vendor/github.com/hashicorp/consul/api/operator.go
+new file mode 100644
+index 00000000..48d74f3c
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/operator.go
+@@ -0,0 +1,81 @@
++package api
++
++// Operator can be used to perform low-level operator tasks for Consul.
++type Operator struct {
++	c *Client
++}
++
++// Operator returns a handle to the operator endpoints.
++func (c *Client) Operator() *Operator {
++	return &Operator{c}
++}
++
++// RaftServer has information about a server in the Raft configuration.
++type RaftServer struct {
++	// ID is the unique ID for the server. These are currently the same
++	// as the address, but they will be changed to a real GUID in a future
++	// release of Consul.
++	ID string
++
++	// Node is the node name of the server, as known by Consul, or this
++	// will be set to "(unknown)" otherwise.
++	Node string
++
++	// Address is the IP:port of the server, used for Raft communications.
++	Address string
++
++	// Leader is true if this server is the current cluster leader.
++	Leader bool
++
++	// Voter is true if this server has a vote in the cluster. This might
++	// be false if the server is staging and still coming online, or if
++	// it's a non-voting server, which will be added in a future release of
++	// Consul.
++	Voter bool
++}
++
++// RaftConfigration is returned when querying for the current Raft configuration.
++type RaftConfiguration struct {
++	// Servers has the list of servers in the Raft configuration.
++	Servers []*RaftServer
++
++	// Index has the Raft index of this configuration.
++	Index uint64
++}
++
++// RaftGetConfiguration is used to query the current Raft peer set.
++func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, error) {
++	r := op.c.newRequest("GET", "/v1/operator/raft/configuration")
++	r.setQueryOptions(q)
++	_, resp, err := requireOK(op.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var out RaftConfiguration
++	if err := decodeBody(resp, &out); err != nil {
++		return nil, err
++	}
++	return &out, nil
++}
++
++// RaftRemovePeerByAddress is used to kick a stale peer (one that it in the Raft
++// quorum but no longer known to Serf or the catalog) by address in the form of
++// "IP:port".
++func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) error {
++	r := op.c.newRequest("DELETE", "/v1/operator/raft/peer")
++	r.setWriteOptions(q)
++
++	// TODO (slackpad) Currently we made address a query parameter. Once
++	// IDs are in place this will be DELETE /v1/operator/raft/peer/<id>.
++	r.params.Set("address", string(address))
++
++	_, resp, err := requireOK(op.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++
++	resp.Body.Close()
++	return nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/prepared_query.go b/vendor/github.com/hashicorp/consul/api/prepared_query.go
+new file mode 100644
+index 00000000..63e741e0
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/prepared_query.go
+@@ -0,0 +1,194 @@
++package api
++
++// QueryDatacenterOptions sets options about how we fail over if there are no
++// healthy nodes in the local datacenter.
++type QueryDatacenterOptions struct {
++	// NearestN is set to the number of remote datacenters to try, based on
++	// network coordinates.
++	NearestN int
++
++	// Datacenters is a fixed list of datacenters to try after NearestN. We
++	// never try a datacenter multiple times, so those are subtracted from
++	// this list before proceeding.
++	Datacenters []string
++}
++
++// QueryDNSOptions controls settings when query results are served over DNS.
++type QueryDNSOptions struct {
++	// TTL is the time to live for the served DNS results.
++	TTL string
++}
++
++// ServiceQuery is used to query for a set of healthy nodes offering a specific
++// service.
++type ServiceQuery struct {
++	// Service is the service to query.
++	Service string
++
++	// Near allows baking in the name of a node to automatically distance-
++	// sort from. The magic "_agent" value is supported, which sorts near
++	// the agent which initiated the request by default.
++	Near string
++
++	// Failover controls what we do if there are no healthy nodes in the
++	// local datacenter.
++	Failover QueryDatacenterOptions
++
++	// If OnlyPassing is true then we will only include nodes with passing
++	// health checks (critical AND warning checks will cause a node to be
++	// discarded)
++	OnlyPassing bool
++
++	// Tags are a set of required and/or disallowed tags. If a tag is in
++	// this list it must be present. If the tag is preceded with "!" then
++	// it is disallowed.
++	Tags []string
++}
++
++// QueryTemplate carries the arguments for creating a templated query.
++type QueryTemplate struct {
++	// Type specifies the type of the query template. Currently only
++	// "name_prefix_match" is supported. This field is required.
++	Type string
++
++	// Regexp allows specifying a regex pattern to match against the name
++	// of the query being executed.
++	Regexp string
++}
++
++// PrepatedQueryDefinition defines a complete prepared query.
++type PreparedQueryDefinition struct {
++	// ID is this UUID-based ID for the query, always generated by Consul.
++	ID string
++
++	// Name is an optional friendly name for the query supplied by the
++	// user. NOTE - if this feature is used then it will reduce the security
++	// of any read ACL associated with this query/service since this name
++	// can be used to locate nodes with supplying any ACL.
++	Name string
++
++	// Session is an optional session to tie this query's lifetime to. If
++	// this is omitted then the query will not expire.
++	Session string
++
++	// Token is the ACL token used when the query was created, and it is
++	// used when a query is subsequently executed. This token, or a token
++	// with management privileges, must be used to change the query later.
++	Token string
++
++	// Service defines a service query (leaving things open for other types
++	// later).
++	Service ServiceQuery
++
++	// DNS has options that control how the results of this query are
++	// served over DNS.
++	DNS QueryDNSOptions
++
++	// Template is used to pass through the arguments for creating a
++	// prepared query with an attached template. If a template is given,
++	// interpolations are possible in other struct fields.
++	Template QueryTemplate
++}
++
++// PreparedQueryExecuteResponse has the results of executing a query.
++type PreparedQueryExecuteResponse struct {
++	// Service is the service that was queried.
++	Service string
++
++	// Nodes has the nodes that were output by the query.
++	Nodes []ServiceEntry
++
++	// DNS has the options for serving these results over DNS.
++	DNS QueryDNSOptions
++
++	// Datacenter is the datacenter that these results came from.
++	Datacenter string
++
++	// Failovers is a count of how many times we had to query a remote
++	// datacenter.
++	Failovers int
++}
++
++// PreparedQuery can be used to query the prepared query endpoints.
++type PreparedQuery struct {
++	c *Client
++}
++
++// PreparedQuery returns a handle to the prepared query endpoints.
++func (c *Client) PreparedQuery() *PreparedQuery {
++	return &PreparedQuery{c}
++}
++
++// Create makes a new prepared query. The ID of the new query is returned.
++func (c *PreparedQuery) Create(query *PreparedQueryDefinition, q *WriteOptions) (string, *WriteMeta, error) {
++	r := c.c.newRequest("POST", "/v1/query")
++	r.setWriteOptions(q)
++	r.obj = query
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return "", nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{}
++	wm.RequestTime = rtt
++
++	var out struct{ ID string }
++	if err := decodeBody(resp, &out); err != nil {
++		return "", nil, err
++	}
++	return out.ID, wm, nil
++}
++
++// Update makes updates to an existing prepared query.
++func (c *PreparedQuery) Update(query *PreparedQueryDefinition, q *WriteOptions) (*WriteMeta, error) {
++	return c.c.write("/v1/query/"+query.ID, query, nil, q)
++}
++
++// List is used to fetch all the prepared queries (always requires a management
++// token).
++func (c *PreparedQuery) List(q *QueryOptions) ([]*PreparedQueryDefinition, *QueryMeta, error) {
++	var out []*PreparedQueryDefinition
++	qm, err := c.c.query("/v1/query", &out, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Get is used to fetch a specific prepared query.
++func (c *PreparedQuery) Get(queryID string, q *QueryOptions) ([]*PreparedQueryDefinition, *QueryMeta, error) {
++	var out []*PreparedQueryDefinition
++	qm, err := c.c.query("/v1/query/"+queryID, &out, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
++
++// Delete is used to delete a specific prepared query.
++func (c *PreparedQuery) Delete(queryID string, q *QueryOptions) (*QueryMeta, error) {
++	r := c.c.newRequest("DELETE", "/v1/query/"+queryID)
++	r.setQueryOptions(q)
++	rtt, resp, err := requireOK(c.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++	return qm, nil
++}
++
++// Execute is used to execute a specific prepared query. You can execute using
++// a query ID or name.
++func (c *PreparedQuery) Execute(queryIDOrName string, q *QueryOptions) (*PreparedQueryExecuteResponse, *QueryMeta, error) {
++	var out *PreparedQueryExecuteResponse
++	qm, err := c.c.query("/v1/query/"+queryIDOrName+"/execute", &out, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	return out, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/raw.go b/vendor/github.com/hashicorp/consul/api/raw.go
+new file mode 100644
+index 00000000..745a208c
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/raw.go
+@@ -0,0 +1,24 @@
++package api
++
++// Raw can be used to do raw queries against custom endpoints
++type Raw struct {
++	c *Client
++}
++
++// Raw returns a handle to query endpoints
++func (c *Client) Raw() *Raw {
++	return &Raw{c}
++}
++
++// Query is used to do a GET request against an endpoint
++// and deserialize the response into an interface using
++// standard Consul conventions.
++func (raw *Raw) Query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
++	return raw.c.query(endpoint, out, q)
++}
++
++// Write is used to do a PUT request against an endpoint
++// and serialize/deserialized using the standard Consul conventions.
++func (raw *Raw) Write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
++	return raw.c.write(endpoint, in, out, q)
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/semaphore.go b/vendor/github.com/hashicorp/consul/api/semaphore.go
+new file mode 100644
+index 00000000..e6645ac1
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/semaphore.go
+@@ -0,0 +1,512 @@
++package api
++
++import (
++	"encoding/json"
++	"fmt"
++	"path"
++	"sync"
++	"time"
++)
++
++const (
++	// DefaultSemaphoreSessionName is the Session Name we assign if none is provided
++	DefaultSemaphoreSessionName = "Consul API Semaphore"
++
++	// DefaultSemaphoreSessionTTL is the default session TTL if no Session is provided
++	// when creating a new Semaphore. This is used because we do not have another
++	// other check to depend upon.
++	DefaultSemaphoreSessionTTL = "15s"
++
++	// DefaultSemaphoreWaitTime is how long we block for at a time to check if semaphore
++	// acquisition is possible. This affects the minimum time it takes to cancel
++	// a Semaphore acquisition.
++	DefaultSemaphoreWaitTime = 15 * time.Second
++
++	// DefaultSemaphoreKey is the key used within the prefix to
++	// use for coordination between all the contenders.
++	DefaultSemaphoreKey = ".lock"
++
++	// SemaphoreFlagValue is a magic flag we set to indicate a key
++	// is being used for a semaphore. It is used to detect a potential
++	// conflict with a lock.
++	SemaphoreFlagValue = 0xe0f69a2baa414de0
++)
++
++var (
++	// ErrSemaphoreHeld is returned if we attempt to double lock
++	ErrSemaphoreHeld = fmt.Errorf("Semaphore already held")
++
++	// ErrSemaphoreNotHeld is returned if we attempt to unlock a semaphore
++	// that we do not hold.
++	ErrSemaphoreNotHeld = fmt.Errorf("Semaphore not held")
++
++	// ErrSemaphoreInUse is returned if we attempt to destroy a semaphore
++	// that is in use.
++	ErrSemaphoreInUse = fmt.Errorf("Semaphore in use")
++
++	// ErrSemaphoreConflict is returned if the flags on a key
++	// used for a semaphore do not match expectation
++	ErrSemaphoreConflict = fmt.Errorf("Existing key does not match semaphore use")
++)
++
++// Semaphore is used to implement a distributed semaphore
++// using the Consul KV primitives.
++type Semaphore struct {
++	c    *Client
++	opts *SemaphoreOptions
++
++	isHeld       bool
++	sessionRenew chan struct{}
++	lockSession  string
++	l            sync.Mutex
++}
++
++// SemaphoreOptions is used to parameterize the Semaphore
++type SemaphoreOptions struct {
++	Prefix            string        // Must be set and have write permissions
++	Limit             int           // Must be set, and be positive
++	Value             []byte        // Optional, value to associate with the contender entry
++	Session           string        // Optional, created if not specified
++	SessionName       string        // Optional, defaults to DefaultLockSessionName
++	SessionTTL        string        // Optional, defaults to DefaultLockSessionTTL
++	MonitorRetries    int           // Optional, defaults to 0 which means no retries
++	MonitorRetryTime  time.Duration // Optional, defaults to DefaultMonitorRetryTime
++	SemaphoreWaitTime time.Duration // Optional, defaults to DefaultSemaphoreWaitTime
++	SemaphoreTryOnce  bool          // Optional, defaults to false which means try forever
++}
++
++// semaphoreLock is written under the DefaultSemaphoreKey and
++// is used to coordinate between all the contenders.
++type semaphoreLock struct {
++	// Limit is the integer limit of holders. This is used to
++	// verify that all the holders agree on the value.
++	Limit int
++
++	// Holders is a list of all the semaphore holders.
++	// It maps the session ID to true. It is used as a set effectively.
++	Holders map[string]bool
++}
++
++// SemaphorePrefix is used to created a Semaphore which will operate
++// at the given KV prefix and uses the given limit for the semaphore.
++// The prefix must have write privileges, and the limit must be agreed
++// upon by all contenders.
++func (c *Client) SemaphorePrefix(prefix string, limit int) (*Semaphore, error) {
++	opts := &SemaphoreOptions{
++		Prefix: prefix,
++		Limit:  limit,
++	}
++	return c.SemaphoreOpts(opts)
++}
++
++// SemaphoreOpts is used to create a Semaphore with the given options.
++// The prefix must have write privileges, and the limit must be agreed
++// upon by all contenders. If a Session is not provided, one will be created.
++func (c *Client) SemaphoreOpts(opts *SemaphoreOptions) (*Semaphore, error) {
++	if opts.Prefix == "" {
++		return nil, fmt.Errorf("missing prefix")
++	}
++	if opts.Limit <= 0 {
++		return nil, fmt.Errorf("semaphore limit must be positive")
++	}
++	if opts.SessionName == "" {
++		opts.SessionName = DefaultSemaphoreSessionName
++	}
++	if opts.SessionTTL == "" {
++		opts.SessionTTL = DefaultSemaphoreSessionTTL
++	} else {
++		if _, err := time.ParseDuration(opts.SessionTTL); err != nil {
++			return nil, fmt.Errorf("invalid SessionTTL: %v", err)
++		}
++	}
++	if opts.MonitorRetryTime == 0 {
++		opts.MonitorRetryTime = DefaultMonitorRetryTime
++	}
++	if opts.SemaphoreWaitTime == 0 {
++		opts.SemaphoreWaitTime = DefaultSemaphoreWaitTime
++	}
++	s := &Semaphore{
++		c:    c,
++		opts: opts,
++	}
++	return s, nil
++}
++
++// Acquire attempts to reserve a slot in the semaphore, blocking until
++// success, interrupted via the stopCh or an error is encountered.
++// Providing a non-nil stopCh can be used to abort the attempt.
++// On success, a channel is returned that represents our slot.
++// This channel could be closed at any time due to session invalidation,
++// communication errors, operator intervention, etc. It is NOT safe to
++// assume that the slot is held until Release() unless the Session is specifically
++// created without any associated health checks. By default Consul sessions
++// prefer liveness over safety and an application must be able to handle
++// the session being lost.
++func (s *Semaphore) Acquire(stopCh <-chan struct{}) (<-chan struct{}, error) {
++	// Hold the lock as we try to acquire
++	s.l.Lock()
++	defer s.l.Unlock()
++
++	// Check if we already hold the semaphore
++	if s.isHeld {
++		return nil, ErrSemaphoreHeld
++	}
++
++	// Check if we need to create a session first
++	s.lockSession = s.opts.Session
++	if s.lockSession == "" {
++		if sess, err := s.createSession(); err != nil {
++			return nil, fmt.Errorf("failed to create session: %v", err)
++		} else {
++			s.sessionRenew = make(chan struct{})
++			s.lockSession = sess
++			session := s.c.Session()
++			go session.RenewPeriodic(s.opts.SessionTTL, sess, nil, s.sessionRenew)
++
++			// If we fail to acquire the lock, cleanup the session
++			defer func() {
++				if !s.isHeld {
++					close(s.sessionRenew)
++					s.sessionRenew = nil
++				}
++			}()
++		}
++	}
++
++	// Create the contender entry
++	kv := s.c.KV()
++	made, _, err := kv.Acquire(s.contenderEntry(s.lockSession), nil)
++	if err != nil || !made {
++		return nil, fmt.Errorf("failed to make contender entry: %v", err)
++	}
++
++	// Setup the query options
++	qOpts := &QueryOptions{
++		WaitTime: s.opts.SemaphoreWaitTime,
++	}
++
++	start := time.Now()
++	attempts := 0
++WAIT:
++	// Check if we should quit
++	select {
++	case <-stopCh:
++		return nil, nil
++	default:
++	}
++
++	// Handle the one-shot mode.
++	if s.opts.SemaphoreTryOnce && attempts > 0 {
++		elapsed := time.Now().Sub(start)
++		if elapsed > qOpts.WaitTime {
++			return nil, nil
++		}
++
++		qOpts.WaitTime -= elapsed
++	}
++	attempts++
++
++	// Read the prefix
++	pairs, meta, err := kv.List(s.opts.Prefix, qOpts)
++	if err != nil {
++		return nil, fmt.Errorf("failed to read prefix: %v", err)
++	}
++
++	// Decode the lock
++	lockPair := s.findLock(pairs)
++	if lockPair.Flags != SemaphoreFlagValue {
++		return nil, ErrSemaphoreConflict
++	}
++	lock, err := s.decodeLock(lockPair)
++	if err != nil {
++		return nil, err
++	}
++
++	// Verify we agree with the limit
++	if lock.Limit != s.opts.Limit {
++		return nil, fmt.Errorf("semaphore limit conflict (lock: %d, local: %d)",
++			lock.Limit, s.opts.Limit)
++	}
++
++	// Prune the dead holders
++	s.pruneDeadHolders(lock, pairs)
++
++	// Check if the lock is held
++	if len(lock.Holders) >= lock.Limit {
++		qOpts.WaitIndex = meta.LastIndex
++		goto WAIT
++	}
++
++	// Create a new lock with us as a holder
++	lock.Holders[s.lockSession] = true
++	newLock, err := s.encodeLock(lock, lockPair.ModifyIndex)
++	if err != nil {
++		return nil, err
++	}
++
++	// Attempt the acquisition
++	didSet, _, err := kv.CAS(newLock, nil)
++	if err != nil {
++		return nil, fmt.Errorf("failed to update lock: %v", err)
++	}
++	if !didSet {
++		// Update failed, could have been a race with another contender,
++		// retry the operation
++		goto WAIT
++	}
++
++	// Watch to ensure we maintain ownership of the slot
++	lockCh := make(chan struct{})
++	go s.monitorLock(s.lockSession, lockCh)
++
++	// Set that we own the lock
++	s.isHeld = true
++
++	// Acquired! All done
++	return lockCh, nil
++}
++
++// Release is used to voluntarily give up our semaphore slot. It is
++// an error to call this if the semaphore has not been acquired.
++func (s *Semaphore) Release() error {
++	// Hold the lock as we try to release
++	s.l.Lock()
++	defer s.l.Unlock()
++
++	// Ensure the lock is actually held
++	if !s.isHeld {
++		return ErrSemaphoreNotHeld
++	}
++
++	// Set that we no longer own the lock
++	s.isHeld = false
++
++	// Stop the session renew
++	if s.sessionRenew != nil {
++		defer func() {
++			close(s.sessionRenew)
++			s.sessionRenew = nil
++		}()
++	}
++
++	// Get and clear the lock session
++	lockSession := s.lockSession
++	s.lockSession = ""
++
++	// Remove ourselves as a lock holder
++	kv := s.c.KV()
++	key := path.Join(s.opts.Prefix, DefaultSemaphoreKey)
++READ:
++	pair, _, err := kv.Get(key, nil)
++	if err != nil {
++		return err
++	}
++	if pair == nil {
++		pair = &KVPair{}
++	}
++	lock, err := s.decodeLock(pair)
++	if err != nil {
++		return err
++	}
++
++	// Create a new lock without us as a holder
++	if _, ok := lock.Holders[lockSession]; ok {
++		delete(lock.Holders, lockSession)
++		newLock, err := s.encodeLock(lock, pair.ModifyIndex)
++		if err != nil {
++			return err
++		}
++
++		// Swap the locks
++		didSet, _, err := kv.CAS(newLock, nil)
++		if err != nil {
++			return fmt.Errorf("failed to update lock: %v", err)
++		}
++		if !didSet {
++			goto READ
++		}
++	}
++
++	// Destroy the contender entry
++	contenderKey := path.Join(s.opts.Prefix, lockSession)
++	if _, err := kv.Delete(contenderKey, nil); err != nil {
++		return err
++	}
++	return nil
++}
++
++// Destroy is used to cleanup the semaphore entry. It is not necessary
++// to invoke. It will fail if the semaphore is in use.
++func (s *Semaphore) Destroy() error {
++	// Hold the lock as we try to acquire
++	s.l.Lock()
++	defer s.l.Unlock()
++
++	// Check if we already hold the semaphore
++	if s.isHeld {
++		return ErrSemaphoreHeld
++	}
++
++	// List for the semaphore
++	kv := s.c.KV()
++	pairs, _, err := kv.List(s.opts.Prefix, nil)
++	if err != nil {
++		return fmt.Errorf("failed to read prefix: %v", err)
++	}
++
++	// Find the lock pair, bail if it doesn't exist
++	lockPair := s.findLock(pairs)
++	if lockPair.ModifyIndex == 0 {
++		return nil
++	}
++	if lockPair.Flags != SemaphoreFlagValue {
++		return ErrSemaphoreConflict
++	}
++
++	// Decode the lock
++	lock, err := s.decodeLock(lockPair)
++	if err != nil {
++		return err
++	}
++
++	// Prune the dead holders
++	s.pruneDeadHolders(lock, pairs)
++
++	// Check if there are any holders
++	if len(lock.Holders) > 0 {
++		return ErrSemaphoreInUse
++	}
++
++	// Attempt the delete
++	didRemove, _, err := kv.DeleteCAS(lockPair, nil)
++	if err != nil {
++		return fmt.Errorf("failed to remove semaphore: %v", err)
++	}
++	if !didRemove {
++		return ErrSemaphoreInUse
++	}
++	return nil
++}
++
++// createSession is used to create a new managed session
++func (s *Semaphore) createSession() (string, error) {
++	session := s.c.Session()
++	se := &SessionEntry{
++		Name:     s.opts.SessionName,
++		TTL:      s.opts.SessionTTL,
++		Behavior: SessionBehaviorDelete,
++	}
++	id, _, err := session.Create(se, nil)
++	if err != nil {
++		return "", err
++	}
++	return id, nil
++}
++
++// contenderEntry returns a formatted KVPair for the contender
++func (s *Semaphore) contenderEntry(session string) *KVPair {
++	return &KVPair{
++		Key:     path.Join(s.opts.Prefix, session),
++		Value:   s.opts.Value,
++		Session: session,
++		Flags:   SemaphoreFlagValue,
++	}
++}
++
++// findLock is used to find the KV Pair which is used for coordination
++func (s *Semaphore) findLock(pairs KVPairs) *KVPair {
++	key := path.Join(s.opts.Prefix, DefaultSemaphoreKey)
++	for _, pair := range pairs {
++		if pair.Key == key {
++			return pair
++		}
++	}
++	return &KVPair{Flags: SemaphoreFlagValue}
++}
++
++// decodeLock is used to decode a semaphoreLock from an
++// entry in Consul
++func (s *Semaphore) decodeLock(pair *KVPair) (*semaphoreLock, error) {
++	// Handle if there is no lock
++	if pair == nil || pair.Value == nil {
++		return &semaphoreLock{
++			Limit:   s.opts.Limit,
++			Holders: make(map[string]bool),
++		}, nil
++	}
++
++	l := &semaphoreLock{}
++	if err := json.Unmarshal(pair.Value, l); err != nil {
++		return nil, fmt.Errorf("lock decoding failed: %v", err)
++	}
++	return l, nil
++}
++
++// encodeLock is used to encode a semaphoreLock into a KVPair
++// that can be PUT
++func (s *Semaphore) encodeLock(l *semaphoreLock, oldIndex uint64) (*KVPair, error) {
++	enc, err := json.Marshal(l)
++	if err != nil {
++		return nil, fmt.Errorf("lock encoding failed: %v", err)
++	}
++	pair := &KVPair{
++		Key:         path.Join(s.opts.Prefix, DefaultSemaphoreKey),
++		Value:       enc,
++		Flags:       SemaphoreFlagValue,
++		ModifyIndex: oldIndex,
++	}
++	return pair, nil
++}
++
++// pruneDeadHolders is used to remove all the dead lock holders
++func (s *Semaphore) pruneDeadHolders(lock *semaphoreLock, pairs KVPairs) {
++	// Gather all the live holders
++	alive := make(map[string]struct{}, len(pairs))
++	for _, pair := range pairs {
++		if pair.Session != "" {
++			alive[pair.Session] = struct{}{}
++		}
++	}
++
++	// Remove any holders that are dead
++	for holder := range lock.Holders {
++		if _, ok := alive[holder]; !ok {
++			delete(lock.Holders, holder)
++		}
++	}
++}
++
++// monitorLock is a long running routine to monitor a semaphore ownership
++// It closes the stopCh if we lose our slot.
++func (s *Semaphore) monitorLock(session string, stopCh chan struct{}) {
++	defer close(stopCh)
++	kv := s.c.KV()
++	opts := &QueryOptions{RequireConsistent: true}
++WAIT:
++	retries := s.opts.MonitorRetries
++RETRY:
++	pairs, meta, err := kv.List(s.opts.Prefix, opts)
++	if err != nil {
++		// If configured we can try to ride out a brief Consul unavailability
++		// by doing retries. Note that we have to attempt the retry in a non-
++		// blocking fashion so that we have a clean place to reset the retry
++		// counter if service is restored.
++		if retries > 0 && IsServerError(err) {
++			time.Sleep(s.opts.MonitorRetryTime)
++			retries--
++			opts.WaitIndex = 0
++			goto RETRY
++		}
++		return
++	}
++	lockPair := s.findLock(pairs)
++	lock, err := s.decodeLock(lockPair)
++	if err != nil {
++		return
++	}
++	s.pruneDeadHolders(lock, pairs)
++	if _, ok := lock.Holders[session]; ok {
++		opts.WaitIndex = meta.LastIndex
++		goto WAIT
++	}
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/session.go b/vendor/github.com/hashicorp/consul/api/session.go
+new file mode 100644
+index 00000000..36e99a38
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/session.go
+@@ -0,0 +1,217 @@
++package api
++
++import (
++	"errors"
++	"fmt"
++	"time"
++)
++
++const (
++	// SessionBehaviorRelease is the default behavior and causes
++	// all associated locks to be released on session invalidation.
++	SessionBehaviorRelease = "release"
++
++	// SessionBehaviorDelete is new in Consul 0.5 and changes the
++	// behavior to delete all associated locks on session invalidation.
++	// It can be used in a way similar to Ephemeral Nodes in ZooKeeper.
++	SessionBehaviorDelete = "delete"
++)
++
++var ErrSessionExpired = errors.New("session expired")
++
++// SessionEntry represents a session in consul
++type SessionEntry struct {
++	CreateIndex uint64
++	ID          string
++	Name        string
++	Node        string
++	Checks      []string
++	LockDelay   time.Duration
++	Behavior    string
++	TTL         string
++}
++
++// Session can be used to query the Session endpoints
++type Session struct {
++	c *Client
++}
++
++// Session returns a handle to the session endpoints
++func (c *Client) Session() *Session {
++	return &Session{c}
++}
++
++// CreateNoChecks is like Create but is used specifically to create
++// a session with no associated health checks.
++func (s *Session) CreateNoChecks(se *SessionEntry, q *WriteOptions) (string, *WriteMeta, error) {
++	body := make(map[string]interface{})
++	body["Checks"] = []string{}
++	if se != nil {
++		if se.Name != "" {
++			body["Name"] = se.Name
++		}
++		if se.Node != "" {
++			body["Node"] = se.Node
++		}
++		if se.LockDelay != 0 {
++			body["LockDelay"] = durToMsec(se.LockDelay)
++		}
++		if se.Behavior != "" {
++			body["Behavior"] = se.Behavior
++		}
++		if se.TTL != "" {
++			body["TTL"] = se.TTL
++		}
++	}
++	return s.create(body, q)
++
++}
++
++// Create makes a new session. Providing a session entry can
++// customize the session. It can also be nil to use defaults.
++func (s *Session) Create(se *SessionEntry, q *WriteOptions) (string, *WriteMeta, error) {
++	var obj interface{}
++	if se != nil {
++		body := make(map[string]interface{})
++		obj = body
++		if se.Name != "" {
++			body["Name"] = se.Name
++		}
++		if se.Node != "" {
++			body["Node"] = se.Node
++		}
++		if se.LockDelay != 0 {
++			body["LockDelay"] = durToMsec(se.LockDelay)
++		}
++		if len(se.Checks) > 0 {
++			body["Checks"] = se.Checks
++		}
++		if se.Behavior != "" {
++			body["Behavior"] = se.Behavior
++		}
++		if se.TTL != "" {
++			body["TTL"] = se.TTL
++		}
++	}
++	return s.create(obj, q)
++}
++
++func (s *Session) create(obj interface{}, q *WriteOptions) (string, *WriteMeta, error) {
++	var out struct{ ID string }
++	wm, err := s.c.write("/v1/session/create", obj, &out, q)
++	if err != nil {
++		return "", nil, err
++	}
++	return out.ID, wm, nil
++}
++
++// Destroy invalidates a given session
++func (s *Session) Destroy(id string, q *WriteOptions) (*WriteMeta, error) {
++	wm, err := s.c.write("/v1/session/destroy/"+id, nil, nil, q)
++	if err != nil {
++		return nil, err
++	}
++	return wm, nil
++}
++
++// Renew renews the TTL on a given session
++func (s *Session) Renew(id string, q *WriteOptions) (*SessionEntry, *WriteMeta, error) {
++	r := s.c.newRequest("PUT", "/v1/session/renew/"+id)
++	r.setWriteOptions(q)
++	rtt, resp, err := s.c.doRequest(r)
++	if err != nil {
++		return nil, nil, err
++	}
++	defer resp.Body.Close()
++
++	wm := &WriteMeta{RequestTime: rtt}
++
++	if resp.StatusCode == 404 {
++		return nil, wm, nil
++	} else if resp.StatusCode != 200 {
++		return nil, nil, fmt.Errorf("Unexpected response code: %d", resp.StatusCode)
++	}
++
++	var entries []*SessionEntry
++	if err := decodeBody(resp, &entries); err != nil {
++		return nil, nil, fmt.Errorf("Failed to read response: %v", err)
++	}
++	if len(entries) > 0 {
++		return entries[0], wm, nil
++	}
++	return nil, wm, nil
++}
++
++// RenewPeriodic is used to periodically invoke Session.Renew on a
++// session until a doneCh is closed. This is meant to be used in a long running
++// goroutine to ensure a session stays valid.
++func (s *Session) RenewPeriodic(initialTTL string, id string, q *WriteOptions, doneCh chan struct{}) error {
++	ttl, err := time.ParseDuration(initialTTL)
++	if err != nil {
++		return err
++	}
++
++	waitDur := ttl / 2
++	lastRenewTime := time.Now()
++	var lastErr error
++	for {
++		if time.Since(lastRenewTime) > ttl {
++			return lastErr
++		}
++		select {
++		case <-time.After(waitDur):
++			entry, _, err := s.Renew(id, q)
++			if err != nil {
++				waitDur = time.Second
++				lastErr = err
++				continue
++			}
++			if entry == nil {
++				return ErrSessionExpired
++			}
++
++			// Handle the server updating the TTL
++			ttl, _ = time.ParseDuration(entry.TTL)
++			waitDur = ttl / 2
++			lastRenewTime = time.Now()
++
++		case <-doneCh:
++			// Attempt a session destroy
++			s.Destroy(id, q)
++			return nil
++		}
++	}
++}
++
++// Info looks up a single session
++func (s *Session) Info(id string, q *QueryOptions) (*SessionEntry, *QueryMeta, error) {
++	var entries []*SessionEntry
++	qm, err := s.c.query("/v1/session/info/"+id, &entries, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	if len(entries) > 0 {
++		return entries[0], qm, nil
++	}
++	return nil, qm, nil
++}
++
++// List gets sessions for a node
++func (s *Session) Node(node string, q *QueryOptions) ([]*SessionEntry, *QueryMeta, error) {
++	var entries []*SessionEntry
++	qm, err := s.c.query("/v1/session/node/"+node, &entries, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
++
++// List gets all active sessions
++func (s *Session) List(q *QueryOptions) ([]*SessionEntry, *QueryMeta, error) {
++	var entries []*SessionEntry
++	qm, err := s.c.query("/v1/session/list", &entries, q)
++	if err != nil {
++		return nil, nil, err
++	}
++	return entries, qm, nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/snapshot.go b/vendor/github.com/hashicorp/consul/api/snapshot.go
+new file mode 100644
+index 00000000..e902377d
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/snapshot.go
+@@ -0,0 +1,47 @@
++package api
++
++import (
++	"io"
++)
++
++// Snapshot can be used to query the /v1/snapshot endpoint to take snapshots of
++// Consul's internal state and restore snapshots for disaster recovery.
++type Snapshot struct {
++	c *Client
++}
++
++// Snapshot returns a handle that exposes the snapshot endpoints.
++func (c *Client) Snapshot() *Snapshot {
++	return &Snapshot{c}
++}
++
++// Save requests a new snapshot and provides an io.ReadCloser with the snapshot
++// data to save. If this doesn't return an error, then it's the responsibility
++// of the caller to close it. Only a subset of the QueryOptions are supported:
++// Datacenter, AllowStale, and Token.
++func (s *Snapshot) Save(q *QueryOptions) (io.ReadCloser, *QueryMeta, error) {
++	r := s.c.newRequest("GET", "/v1/snapshot")
++	r.setQueryOptions(q)
++
++	rtt, resp, err := requireOK(s.c.doRequest(r))
++	if err != nil {
++		return nil, nil, err
++	}
++
++	qm := &QueryMeta{}
++	parseQueryMeta(resp, qm)
++	qm.RequestTime = rtt
++	return resp.Body, qm, nil
++}
++
++// Restore streams in an existing snapshot and attempts to restore it.
++func (s *Snapshot) Restore(q *WriteOptions, in io.Reader) error {
++	r := s.c.newRequest("PUT", "/v1/snapshot")
++	r.body = in
++	r.setWriteOptions(q)
++	_, _, err := requireOK(s.c.doRequest(r))
++	if err != nil {
++		return err
++	}
++	return nil
++}
+diff --git a/vendor/github.com/hashicorp/consul/api/status.go b/vendor/github.com/hashicorp/consul/api/status.go
+new file mode 100644
+index 00000000..74ef61a6
+--- /dev/null
++++ b/vendor/github.com/hashicorp/consul/api/status.go
+@@ -0,0 +1,43 @@
++package api
++
++// Status can be used to query the Status endpoints
++type Status struct {
++	c *Client
++}
++
++// Status returns a handle to the status endpoints
++func (c *Client) Status() *Status {
++	return &Status{c}
++}
++
++// Leader is used to query for a known leader
++func (s *Status) Leader() (string, error) {
++	r := s.c.newRequest("GET", "/v1/status/leader")
++	_, resp, err := requireOK(s.c.doRequest(r))
++	if err != nil {
++		return "", err
++	}
++	defer resp.Body.Close()
++
++	var leader string
++	if err := decodeBody(resp, &leader); err != nil {
++		return "", err
++	}
++	return leader, nil
++}
++
++// Peers is used to query for a known raft peers
++func (s *Status) Peers() ([]string, error) {
++	r := s.c.newRequest("GET", "/v1/status/peers")
++	_, resp, err := requireOK(s.c.doRequest(r))
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	var peers []string
++	if err := decodeBody(resp, &peers); err != nil {
++		return nil, err
++	}
++	return peers, nil
++}

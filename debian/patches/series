@@ -4,3 +4,4 @@
 04-Disable_flaky_tests.patch
 05-Bug#818417-AWS_SDK_changes.patch
 06-Disable_kubernetes.patch
+07-Revendor_consul.patch
