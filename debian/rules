@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 # -*- Mode: makefile -*-
+include /usr/share/dpkg/pkg-info.mk
 
 export DH_VERBOSE=1
 export DH_GOPKG := github.com/prometheus/prometheus
@@ -15,19 +16,14 @@ METAPKG := github.com/prometheus/common
 
 # Taken and modified from the project's Makefile.
 
-DEBVERS    ?= $(shell dpkg-parsechangelog -SVersion)
-VERSION    ?= $(shell echo '$(DEBVERS)' | sed 's/^[[:digit:]]*://; s/[-].*//')
-DEBPKGNAME ?= $(shell dpkg-parsechangelog -SSource)
-DEBDATE    ?= $(shell dpkg-parsechangelog -SDate)
-REV        := $(DEBVERS)
 BRANCH     := debian/sid
 USER       := pkg-go-maintainers@lists.alioth.debian.org
-HOSTNAME   := debian
-BUILD_DATE := $(shell date --utc --date='$(DEBDATE)' +%Y%m%d-%H:%M:%S)
+BUILD_DATE := $(shell date --utc --date='@$(SOURCE_DATE_EPOCH)' \
+    +%Y%m%d-%H:%M:%S)
 GO_VERSION := $(shell go version | sed 's/go version \(\S*\).*/\1/')
 BUILDFLAGS := -ldflags \
-  " -X $(METAPKG)/version.Version=$(VERSION)\
-    -X $(METAPKG)/version.Revision=$(REV)\
+  " -X $(METAPKG)/version.Version=$(DEB_VERSION_UPSTREAM)\
+    -X $(METAPKG)/version.Revision=$(DEB_VERSION)\
     -X $(METAPKG)/version.Branch=$(BRANCH)\
     -X $(METAPKG)/version.BuildUser=$(USER)\
     -X $(METAPKG)/version.BuildDate=$(BUILD_DATE)\
