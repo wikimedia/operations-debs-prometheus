@@ -3,7 +3,6 @@
 include /usr/share/dpkg/pkg-info.mk
 
 export DH_VERBOSE=1
-export DH_GOPKG := github.com/prometheus/prometheus
 # Include test fixtures.
 export DH_GOLANG_INSTALL_EXTRA := discovery/file/fixtures \
     storage/local/fixtures config/testdata promql/testdata retrieval/testdata \

@@ -1,3 +1,7 @@
+Description: Add PATH_PREFIX to redirectToMigratedURL
+ Old grafana versions use this format, and it breaks with prometheus instances
+ not mounted in the root directory.
+
 --- a/web/ui/static/js/graph.js
 +++ b/web/ui/static/js/graph.js
 @@ -927,7 +927,7 @@
