@@ -10,7 +10,7 @@ export DH_GOLANG_INSTALL_EXTRA := discovery/file/fixtures \
 # Do not build examples.
 export DH_GOLANG_EXCLUDES := documentation vendor
 
-BUILDDIR := build
+BUILDDIR := $(CURDIR)/build
 METAPKG := github.com/prometheus/common
 
 # Taken and modified from the project's Makefile.
