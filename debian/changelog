@@ -1,6 +1,7 @@
 prometheus (1.7.1+ds-3) UNRELEASED; urgency=medium
 
   * Add patch to work with latest azure-go-autorest package.
+  * Move adduser to normal Depends.
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 04 Sep 2017 23:09:33 +0000
 

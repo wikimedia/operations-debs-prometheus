@@ -4,8 +4,7 @@ Uploaders: Martín Ferrari <tincho@debian.org>,
 Section: net
 Testsuite: autopkgtest-pkg-go
 Priority: extra
-Build-Depends: adduser,
-               debhelper (>= 9.0.0),
+Build-Depends: debhelper (>= 9.0.0),
                dh-golang (>= 1.17~),
                dh-systemd,
                golang-github-asaskevich-govalidator-dev,
@@ -47,7 +46,8 @@ XS-Go-Import-Path: github.com/prometheus/prometheus
 
 Package: prometheus
 Architecture: any
-Depends: daemon | systemd-sysv,
+Depends: adduser,
+         daemon | systemd-sysv,
          libjs-bootstrap,
          libjs-eonasdan-bootstrap-datetimepicker,
          libjs-jquery (>= 1.11.3~),
