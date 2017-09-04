@@ -4,4 +4,4 @@
 04-Disable_flaky_tests.patch
 05-Bug818417-AWS_SDK_changes.patch
 06-Disable_kubernetes.patch
-#07-Fix-build-with-azure-go-autorest-8.0.0.patch
+07-Fix-build-with-azure-go-autorest-8.0.0.patch
