@@ -1,3 +1,4 @@
+Description: Disable kubernetes SD, until dependencies are more reasonable.
 --- a/config/config.go
 +++ b/config/config.go
 @@ -133,9 +133,6 @@

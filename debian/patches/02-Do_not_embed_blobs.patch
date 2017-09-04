@@ -1,4 +1,5 @@
-#+	file, err := ioutil.ReadFile(fmt.Sprintf(h.options.LocalAssets+"/templates/%s.html", name))
+Description: Avoid embedding blobs into the prometheus binary, instead use
+ files installed on disk.
 --- a/web/web.go
 +++ b/web/web.go
 @@ -14,7 +14,6 @@

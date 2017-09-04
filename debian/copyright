@@ -1,7 +1,7 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: github.com/prometheus/prometheus
 Source: https://github.com/prometheus/prometheus
-Files-Excluded: vendor/*/
+Files-Excluded: vendor/*
 
 Files: *
 Copyright: 2012-2015 The Prometheus Authors
@@ -23,7 +23,7 @@ Comment: Dependency originally vendored, removed in unstable, but re-vendored
 
 Files: web/ui/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
-License: MIT
+License: Expat
 Comment: Although not documented upstream, this file corresponds with commit
  90736ca5c97e603af0c0c1c823cb340860926077 in
  https://github.com/madapaja/jquery.selection/
@@ -38,7 +38,7 @@ Comment: The minified files were replaced by the original sources from
 
 Files: web/ui/static/vendor/fuzzy/*
 Copyright: 2015 Matt York
-License: MIT
+License: Expat
 Comment: Embedded copy with some local changes by Or Cohen <orc@fewbytes.com>
 
 License: Apache-2.0
@@ -57,7 +57,7 @@ License: Apache-2.0
  On Debian systems, the full text of the Apache License version 2 can be found
  in the file `/usr/share/common-licenses/Apache-2.0'.
 
-License: MIT
+License: Expat
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
  in the Software without restriction, including without limitation the rights

@@ -1,3 +1,14 @@
+prometheus (1.7.1+ds-2) unstable; urgency=medium
+
+  * Update versioned dependency on -common.
+  * Remove now unneeded lintian overrides.
+  * Replace dpkg-parsechangelog with /usr/share/dpkg/pkg-info.mk
+  * debian/control: Update Standards-Version (no changes).
+  * debian/rules: Replace DH_GOPKG with XS-Go-Import-Path.
+  * Automatic fixes to control and copyright from cme.
+
+ -- Martín Ferrari <tincho@debian.org>  Tue, 29 Aug 2017 00:17:30 +0000
+
 prometheus (1.7.1+ds-1~bpo9+2) stretch-backports; urgency=medium
 
   * Rebuild for stretch-backports.
