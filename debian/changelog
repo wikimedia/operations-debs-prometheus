@@ -3,6 +3,7 @@ prometheus (1.7.1+ds-2~bpo9+1) UNRELEASED; urgency=medium
   * Rebuild for stretch-backports.
   * Move adduser to normal Depends.
   * debian/control: Remove all non-direct dependencies.
+  * debain-control: Tighten dependency con -common.
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 04 Sep 2017 23:28:20 +0000
 
