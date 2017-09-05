@@ -1,10 +1,10 @@
-prometheus (1.7.1+ds-3) UNRELEASED; urgency=medium
+prometheus (1.7.1+ds-3) unstable; urgency=medium
 
   * Add patch to work with latest azure-go-autorest package.
   * Move adduser to normal Depends.
   * debian/control: Remove all non-direct dependencies.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 04 Sep 2017 23:09:33 +0000
+ -- Martín Ferrari <tincho@debian.org>  Tue, 05 Sep 2017 01:46:43 +0000
 
 prometheus (1.7.1+ds-2) unstable; urgency=medium
 
