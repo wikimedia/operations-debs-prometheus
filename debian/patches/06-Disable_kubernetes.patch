@@ -1,7 +1,7 @@
 Description: Disable kubernetes SD, until dependencies are more reasonable.
 --- a/config/config.go
 +++ b/config/config.go
-@@ -133,9 +133,6 @@
+@@ -135,9 +135,6 @@
  		RefreshInterval: model.Duration(30 * time.Second),
  	}
  
@@ -11,7 +11,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// DefaultGCESDConfig is the default EC2 SD configuration.
  	DefaultGCESDConfig = GCESDConfig{
  		Port:            80,
-@@ -262,12 +259,6 @@
+@@ -283,12 +280,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *ServiceDiscoveryConfig) {
@@ -24,7 +24,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		for _, mcfg := range cfg.MarathonSDConfigs {
  			mcfg.BearerTokenFile = join(mcfg.BearerTokenFile)
  			mcfg.TLSConfig.CAFile = join(mcfg.TLSConfig.CAFile)
-@@ -464,8 +455,6 @@
+@@ -490,8 +481,6 @@
  	NerveSDConfigs []*NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*MarathonSDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -33,7 +33,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*GCESDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
-@@ -979,72 +968,6 @@
+@@ -1005,95 +994,6 @@
  	return nil
  }
  
@@ -42,10 +42,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -
 -// The valid options for KubernetesRole.
 -const (
--	KubernetesRoleNode     = "node"
--	KubernetesRolePod      = "pod"
--	KubernetesRoleService  = "service"
--	KubernetesRoleEndpoint = "endpoints"
+-	KubernetesRoleNode     KubernetesRole = "node"
+-	KubernetesRolePod      KubernetesRole = "pod"
+-	KubernetesRoleService  KubernetesRole = "service"
+-	KubernetesRoleEndpoint KubernetesRole = "endpoints"
+-	KubernetesRoleIngress  KubernetesRole = "ingress"
 -)
 -
 -// UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -54,7 +55,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -		return err
 -	}
 -	switch *c {
--	case KubernetesRoleNode, KubernetesRolePod, KubernetesRoleService, KubernetesRoleEndpoint:
+-	case KubernetesRoleNode, KubernetesRolePod, KubernetesRoleService, KubernetesRoleEndpoint, KubernetesRoleIngress:
 -		return nil
 -	default:
 -		return fmt.Errorf("Unknown Kubernetes SD role %q", *c)
@@ -103,12 +104,34 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -	return nil
 -}
 -
- // KubernetesNamespaceDiscovery is the configuration for discovering
- // Kubernetes namespaces.
- type KubernetesNamespaceDiscovery struct {
+-// KubernetesNamespaceDiscovery is the configuration for discovering
+-// Kubernetes namespaces.
+-type KubernetesNamespaceDiscovery struct {
+-	Names []string `yaml:"names"`
+-	// Catches all undefined fields and must be empty after parsing.
+-	XXX map[string]interface{} `yaml:",inline"`
+-}
+-
+-// UnmarshalYAML implements the yaml.Unmarshaler interface.
+-func (c *KubernetesNamespaceDiscovery) UnmarshalYAML(unmarshal func(interface{}) error) error {
+-	*c = KubernetesNamespaceDiscovery{}
+-	type plain KubernetesNamespaceDiscovery
+-	err := unmarshal((*plain)(c))
+-	if err != nil {
+-		return err
+-	}
+-	if err := checkOverflow(c.XXX, "namespaces"); err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+ // GCESDConfig is the configuration for GCE based service discovery.
+ type GCESDConfig struct {
+ 	// Project: The Google Cloud Project ID
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -291,52 +291,6 @@
+@@ -293,52 +293,6 @@
  			},
  		},
  		{
@@ -161,16 +184,16 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -542,7 +496,7 @@
- 	s := c.String()
- 	secretRe := regexp.MustCompile("<secret>")
- 	matches := secretRe.FindAllStringIndex(s, -1)
--	if len(matches) != 6 || strings.Contains(s, "mysecret") {
-+	if len(matches) != 5 || strings.Contains(s, "mysecret") {
- 		t.Fatalf("config's String method reveals authentication credentials.")
- 	}
+@@ -558,7 +512,7 @@
+ 	yamlConfig := string(config)
  
-@@ -616,18 +570,6 @@
+ 	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
+-	if len(matches) != 6 || strings.Contains(yamlConfig, "mysecret") {
++	if len(matches) != 5 || strings.Contains(yamlConfig, "mysecret") {
+ 		t.Fatalf("yaml marshal reveals authentication credentials.")
+ 	}
+ }
+@@ -654,18 +608,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -189,7 +212,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "Marathon SD config must contain at least one Marathon server",
  	}, {
-@@ -723,7 +665,3 @@
+@@ -767,7 +709,3 @@
  	}
  }
  
@@ -199,7 +222,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -}
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -137,25 +137,6 @@
+@@ -136,25 +136,6 @@
  
    bearer_token: mysecret
  
@@ -351,7 +374,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	}
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -111,11 +111,6 @@
+@@ -147,12 +147,6 @@
  			return nil, err
  		}
  
@@ -360,6 +383,29 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -				return nil, err
 -			}
 -		}
- 	}
+-
+ 		for _, filesd := range scfg.ServiceDiscoveryConfig.FileSDConfigs {
+ 			for _, file := range filesd.Files {
+ 				files, err := filepath.Glob(file)
+--- a/discovery/kubernetes/ingress.go
++++ b/discovery/kubernetes/ingress.go
+@@ -11,6 +11,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
  
- 	return ruleFiles, nil
++// +build ignore
++
+ package kubernetes
+ 
+ import (
+--- a/discovery/kubernetes/ingress_test.go
++++ b/discovery/kubernetes/ingress_test.go
+@@ -11,6 +11,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++// +build ignore
++
+ package kubernetes
+ 
+ import (

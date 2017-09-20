@@ -10,15 +10,15 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	"encoding/json"
  	"fmt"
  	"io"
-@@ -51,7 +50,6 @@
- 	"github.com/prometheus/prometheus/template"
+@@ -60,7 +59,6 @@
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
+ 	api_v2 "github.com/prometheus/prometheus/web/api/v2"
 -	"github.com/prometheus/prometheus/web/ui"
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -121,7 +119,7 @@
+@@ -132,7 +130,7 @@
  	ExternalURL          *url.URL
  	RoutePrefix          string
  	MetricsPath          string
@@ -27,17 +27,17 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -195,7 +193,7 @@
+@@ -215,7 +213,7 @@
  
- 	router.Get("/consoles/*filepath", instrf("consoles", h.consoles))
+ 	router.Get("/consoles/*filepath", readyf(instrf("consoles", h.consoles)))
  
--	router.Get("/static/*filepath", instrf("static", serveStaticAsset))
+-	router.Get("/static/*filepath", readyf(instrf("static", serveStaticAsset)))
 +	router.Get("/static/*filepath", instrf("static", route.FileServe(filepath.Join(o.LocalAssets, "/static"))))
  
  	if o.UserAssetsPath != "" {
- 		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
-@@ -217,28 +215,6 @@
- 	return h
+ 		router.Get("/user/*filepath", readyf(instrf("user", route.FileServe(o.UserAssetsPath))))
+@@ -296,28 +294,6 @@
+ 	}
  }
  
 -func serveStaticAsset(w http.ResponseWriter, req *http.Request) {
@@ -62,10 +62,10 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
 -	http.ServeContent(w, req, info.Name(), info.ModTime(), bytes.NewReader(file))
 -}
 -
- // ListenError returns the receive-only channel that signals errors while starting the web server.
- func (h *Handler) ListenError() <-chan error {
- 	return h.listenErrCh
-@@ -505,11 +481,11 @@
+ // Ready sets Handler to be ready.
+ func (h *Handler) Ready() {
+ 	atomic.StoreUint32(&h.ready, 1)
+@@ -673,11 +649,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
@@ -118,20 +118,18 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css?v={{ buildVersion }}">
  
      <script>
---- a/cmd/prometheus/config.go
-+++ b/cmd/prometheus/config.go
-@@ -132,6 +132,11 @@
- 		"Path under which to expose metrics.",
- 	)
- 	cfg.fs.StringVar(
-+		&cfg.web.LocalAssets, "web.local-assets",
-+		"/usr/share/prometheus/web/",
-+		"Path to static assets/templates directory.",
-+	)
-+	cfg.fs.StringVar(
- 		&cfg.web.UserAssetsPath, "web.user-assets", "",
- 		"Path to static asset directory, available at /user.",
- 	)
+--- a/cmd/prometheus/main.go
++++ b/cmd/prometheus/main.go
+@@ -129,6 +129,9 @@
+ 		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
+ 		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
+ 
++	a.Flag("web.local-assets", "Path to static asset/templates directory.").
++		Default("/usr/share/prometheus/web/").StringVar(&cfg.web.LocalAssets)
++
+ 	a.Flag("web.user-assets", "Path to static asset directory, available at /user.").
+ 		PlaceHolder("<path>").StringVar(&cfg.web.UserAssetsPath)
+ 
 --- a/web/ui/templates/graph.html
 +++ b/web/ui/templates/graph.html
 @@ -1,20 +1,19 @@

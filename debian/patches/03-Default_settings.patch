@@ -1,37 +1,29 @@
 Description: Add default settings adapted for Debian.
---- a/cmd/prometheus/config.go
-+++ b/cmd/prometheus/config.go
-@@ -102,7 +102,8 @@
- 		"Print version information.",
- 	)
- 	cfg.fs.StringVar(
--		&cfg.configFile, "config.file", "prometheus.yml",
-+		&cfg.configFile, "config.file",
-+                "/etc/prometheus/prometheus.yml",
- 		"Prometheus configuration file name.",
- 	)
+--- a/cmd/prometheus/main.go
++++ b/cmd/prometheus/main.go
+@@ -109,7 +109,7 @@
+ 		Default("logger:stderr").StringVar(&cfg.logFormat)
  
-@@ -145,17 +146,20 @@
- 		"Enable remote service shutdown.",
- 	)
- 	cfg.fs.StringVar(
--		&cfg.web.ConsoleTemplatesPath, "web.console.templates", "consoles",
-+		&cfg.web.ConsoleTemplatesPath, "web.console.templates",
-+                "/etc/prometheus/consoles",
- 		"Path to the console template directory, available at /consoles.",
- 	)
- 	cfg.fs.StringVar(
--		&cfg.web.ConsoleLibrariesPath, "web.console.libraries", "console_libraries",
-+		&cfg.web.ConsoleLibrariesPath, "web.console.libraries",
-+                "/etc/prometheus/console_libraries",
- 		"Path to the console library directory.",
- 	)
+ 	a.Flag("config.file", "Prometheus configuration file path.").
+-		Default("prometheus.yml").StringVar(&cfg.configFile)
++		Default("/etc/prometheus/prometheus.yml").StringVar(&cfg.configFile)
  
- 	// Storage.
- 	cfg.fs.StringVar(
--		&cfg.storage.PersistenceStoragePath, "storage.local.path", "data",
-+		&cfg.storage.PersistenceStoragePath, "storage.local.path",
-+                "/var/lib/prometheus/metrics",
- 		"Base path for metrics storage.",
- 	)
- 	cfg.fs.Uint64Var(
+ 	a.Flag("web.listen-address", "Address to listen on for UI, API, and telemtry.").
+ 		Default("0.0.0.0:9090").StringVar(&cfg.web.ListenAddress)
+@@ -142,13 +142,13 @@
+ 		Default("false").BoolVar(&cfg.web.EnableAdminAPI)
+ 
+ 	a.Flag("web.console.templates", "Path to the console template directory, available at /consoles.").
+-		Default("consoles").StringVar(&cfg.web.ConsoleTemplatesPath)
++		Default("/etc/prometheus/consoles").StringVar(&cfg.web.ConsoleTemplatesPath)
+ 
+ 	a.Flag("web.console.libraries", "Path to the console library directory.").
+-		Default("console_libraries").StringVar(&cfg.web.ConsoleLibrariesPath)
++		Default("/etc/prometheus/console_libraries").StringVar(&cfg.web.ConsoleLibrariesPath)
+ 
+ 	a.Flag("storage.tsdb.path", "Base path for metrics storage.").
+-		Default("data/").StringVar(&cfg.localStoragePath)
++		Default("/var/lib/prometheus/metrics/").StringVar(&cfg.localStoragePath)
+ 
+ 	a.Flag("storage.tsdb.min-block-duration", "Minimum duration of a data block before being persisted.").
+ 		Default("2h").SetValue(&cfg.tsdb.MinBlockDuration)
