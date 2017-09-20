@@ -19,11 +19,11 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/prometheus/storage/metric"
+	"github.com/prometheus/prometheus/pkg/labels"
 )
 
-func mustNewLabelMatcher(mt metric.MatchType, name model.LabelName, val model.LabelValue) *metric.LabelMatcher {
-	m, err := metric.NewLabelMatcher(mt, name, val)
+func mustNewLabelMatcher(mt labels.MatchType, name, val string) *labels.Matcher {
+	m, err := labels.NewMatcher(mt, name, val)
 	if err != nil {
 		panic(err)
 	}
@@ -33,42 +33,42 @@ func mustNewLabelMatcher(mt metric.MatchType, name model.LabelName, val model.La
 func TestAddExternalLabels(t *testing.T) {
 	tests := []struct {
 		el          model.LabelSet
-		inMatchers  metric.LabelMatchers
-		outMatchers metric.LabelMatchers
+		inMatchers  []*labels.Matcher
+		outMatchers []*labels.Matcher
 		added       model.LabelSet
 	}{
 		{
 			el: model.LabelSet{},
-			inMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
+			inMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
 			},
-			outMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
+			outMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
 			},
 			added: model.LabelSet{},
 		},
 		{
 			el: model.LabelSet{"region": "europe", "dc": "berlin-01"},
-			inMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
+			inMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
 			},
-			outMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
-				mustNewLabelMatcher(metric.Equal, "region", "europe"),
-				mustNewLabelMatcher(metric.Equal, "dc", "berlin-01"),
+			outMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
+				mustNewLabelMatcher(labels.MatchEqual, "region", "europe"),
+				mustNewLabelMatcher(labels.MatchEqual, "dc", "berlin-01"),
 			},
 			added: model.LabelSet{"region": "europe", "dc": "berlin-01"},
 		},
 		{
 			el: model.LabelSet{"region": "europe", "dc": "berlin-01"},
-			inMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
-				mustNewLabelMatcher(metric.Equal, "dc", "munich-02"),
+			inMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
+				mustNewLabelMatcher(labels.MatchEqual, "dc", "munich-02"),
 			},
-			outMatchers: metric.LabelMatchers{
-				mustNewLabelMatcher(metric.Equal, "job", "api-server"),
-				mustNewLabelMatcher(metric.Equal, "region", "europe"),
-				mustNewLabelMatcher(metric.Equal, "dc", "munich-02"),
+			outMatchers: []*labels.Matcher{
+				mustNewLabelMatcher(labels.MatchEqual, "job", "api-server"),
+				mustNewLabelMatcher(labels.MatchEqual, "region", "europe"),
+				mustNewLabelMatcher(labels.MatchEqual, "dc", "munich-02"),
 			},
 			added: model.LabelSet{"region": "europe"},
 		},

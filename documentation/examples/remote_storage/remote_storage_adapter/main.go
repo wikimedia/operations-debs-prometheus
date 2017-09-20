@@ -36,7 +36,7 @@ import (
 	"github.com/prometheus/prometheus/documentation/examples/remote_storage/remote_storage_adapter/graphite"
 	"github.com/prometheus/prometheus/documentation/examples/remote_storage/remote_storage_adapter/influxdb"
 	"github.com/prometheus/prometheus/documentation/examples/remote_storage/remote_storage_adapter/opentsdb"
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 type config struct {
@@ -146,7 +146,7 @@ type writer interface {
 }
 
 type reader interface {
-	Read(req *remote.ReadRequest) (*remote.ReadResponse, error)
+	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
 	Name() string
 }
 
@@ -179,6 +179,7 @@ func buildClients(cfg *config) ([]writer, []reader) {
 		writers = append(writers, c)
 		readers = append(readers, c)
 	}
+	log.Info("Starting up...")
 	return writers, readers
 }
 
@@ -186,18 +187,21 @@ func serve(addr string, writers []writer, readers []reader) error {
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
 		compressed, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			log.Errorln("Read error:", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		reqBuf, err := snappy.Decode(nil, compressed)
 		if err != nil {
+			log.Errorln("Decode error:", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var req remote.WriteRequest
+		var req prompb.WriteRequest
 		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			log.Errorln("Unmarshal error:", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -219,18 +223,21 @@ func serve(addr string, writers []writer, readers []reader) error {
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
 		compressed, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			log.Errorln("Read error:", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		reqBuf, err := snappy.Decode(nil, compressed)
 		if err != nil {
+			log.Errorln("Decode error:", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var req remote.ReadRequest
+		var req prompb.ReadRequest
 		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			log.Errorln("Unmarshal error:", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -242,7 +249,7 @@ func serve(addr string, writers []writer, readers []reader) error {
 		}
 		reader := readers[0]
 
-		var resp *remote.ReadResponse
+		var resp *prompb.ReadResponse
 		resp, err = reader.Read(&req)
 		if err != nil {
 			log.With("query", req).With("storage", reader.Name()).With("err", err).Warnf("Error executing query")
@@ -269,7 +276,7 @@ func serve(addr string, writers []writer, readers []reader) error {
 	return http.ListenAndServe(addr, nil)
 }
 
-func protoToSamples(req *remote.WriteRequest) model.Samples {
+func protoToSamples(req *prompb.WriteRequest) model.Samples {
 	var samples model.Samples
 	for _, ts := range req.Timeseries {
 		metric := make(model.Metric, len(ts.Labels))
@@ -281,7 +288,7 @@ func protoToSamples(req *remote.WriteRequest) model.Samples {
 			samples = append(samples, &model.Sample{
 				Metric:    metric,
 				Value:     model.SampleValue(s.Value),
-				Timestamp: model.Time(s.TimestampMs),
+				Timestamp: model.Time(s.Timestamp),
 			})
 		}
 	}
