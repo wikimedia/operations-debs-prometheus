@@ -1,6 +1,7 @@
 prometheus (1.7.1+ds-4) UNRELEASED; urgency=medium
 
   * debian/watch: More robust rules; accept more pre-releases.
+  * Update default config.
 
  -- Martín Ferrari <tincho@debian.org>  Wed, 20 Sep 2017 09:27:14 +0000
 
