@@ -1,4 +1,4 @@
-prometheus (1.7.2+ds-1) UNRELEASED; urgency=medium
+prometheus (1.7.2+ds-1) unstable; urgency=medium
 
   * New upstream release.
   * Refresh patches.
@@ -8,7 +8,7 @@ prometheus (1.7.2+ds-1) UNRELEASED; urgency=medium
   * Increase compat to 10; remove dh-systemd dep.
   * Replace new JS vendored dependency with sources.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 02 Oct 2017 11:57:41 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 02 Oct 2017 13:15:32 +0000
 
 prometheus (1.7.1+ds-3) unstable; urgency=medium
 
