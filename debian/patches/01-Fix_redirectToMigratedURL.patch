@@ -4,7 +4,7 @@ Description: Add PATH_PREFIX to redirectToMigratedURL
 
 --- a/web/ui/static/js/graph.js
 +++ b/web/ui/static/js/graph.js
-@@ -927,7 +927,7 @@
+@@ -971,7 +971,7 @@
      });
    });
    var query = $.param(queryObject);

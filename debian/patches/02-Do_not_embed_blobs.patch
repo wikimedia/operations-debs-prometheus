@@ -134,7 +134,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	)
 --- a/web/ui/templates/graph.html
 +++ b/web/ui/templates/graph.html
-@@ -1,20 +1,19 @@
+@@ -1,21 +1,20 @@
  {{define "head"}}
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css?v={{ buildVersion }}">
  
@@ -147,11 +147,12 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js?v={{ buildVersion }}"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/moment/moment.min.js?v={{ buildVersion }}"></script>
--    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
--    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/d3/d3.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/moment/moment.min.js?v={{ buildVersion }}"></script>
+     <script src="{{ pathPrefix }}/static/vendor/moment/moment-timezone-with-data.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js?v={{ buildVersion }}"></script>
      <script src="{{ pathPrefix }}/static/vendor/fuzzy/fuzzy.js?v={{ buildVersion }}"></script>

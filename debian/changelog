@@ -1,6 +1,7 @@
 prometheus (1.7.2+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Refresh patches.
   * debian/watch: More robust rules; accept more pre-releases.
   * Update default config.
   * Stop using pristine-tar.
