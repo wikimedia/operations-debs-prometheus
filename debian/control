@@ -4,9 +4,8 @@ Uploaders: Martín Ferrari <tincho@debian.org>,
 Section: net
 Testsuite: autopkgtest-pkg-go
 Priority: extra
-Build-Depends: debhelper (>= 9.0.0),
+Build-Depends: debhelper (>= 10~),
                dh-golang (>= 1.17~),
-               dh-systemd,
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev,
                golang-github-azure-azure-sdk-for-go-dev,

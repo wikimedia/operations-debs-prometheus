@@ -5,6 +5,7 @@ prometheus (1.7.2+ds-1) UNRELEASED; urgency=medium
   * debian/watch: More robust rules; accept more pre-releases.
   * Update default config.
   * Stop using pristine-tar.
+  * Increase compat to 10; remove dh-systemd dep.
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 02 Oct 2017 11:57:41 +0000
 
