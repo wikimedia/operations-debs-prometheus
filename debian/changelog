@@ -6,6 +6,7 @@ prometheus (1.7.2+ds-1) UNRELEASED; urgency=medium
   * Update default config.
   * Stop using pristine-tar.
   * Increase compat to 10; remove dh-systemd dep.
+  * Replace new JS vendored dependency with sources.
 
  -- Martín Ferrari <tincho@debian.org>  Mon, 02 Oct 2017 11:57:41 +0000
 

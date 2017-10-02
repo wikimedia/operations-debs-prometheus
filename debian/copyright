@@ -22,6 +22,12 @@ Comment: Although not documented upstream, this file corresponds with commit
  90736ca5c97e603af0c0c1c823cb340860926077 in
  https://github.com/madapaja/jquery.selection/
 
+Files: web/ui/static/vendor/moment/moment-timezone-with-data.js
+Copyright: 2016-2017 JS Foundation and other contributors
+License: Expat
+Comment: The minified files were replaced by the original sources from
+ https://github.com/moment/moment-timezone/ relese 0.5.13.
+
 Files: web/ui/static/vendor/bootstrap3-typeahead/*
 Copyright: 2014 Bass Jobsen @bassjobsen
 License: Apache-2.0

@@ -1,0 +1,2 @@
+# THe source is a concatenation of tz datafiles, which have long lines.
+prometheus source: source-is-missing web/ui/static/vendor/moment/moment-timezone-with-data.js line length is 782 characters (>512)
