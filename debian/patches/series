@@ -1,7 +1,6 @@
-01-Fix_redirectToMigratedURL.patch
 02-Do_not_embed_blobs.patch
 03-Default_settings.patch
 04-Disable_flaky_tests.patch
-05-Bug818417-AWS_SDK_changes.patch
+#05-Bug818417-AWS_SDK_changes.patch
 06-Disable_kubernetes.patch
 07-Fix-build-with-azure-go-autorest-8.0.0.patch
