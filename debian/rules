@@ -35,6 +35,12 @@ else
 TESTFLAGS  := -timeout 20m
 endif
 
+ifeq ($(DEB_HOST_ARCH_CPU),i386)
+# The golang-go compilerin i386 emits an invalid FMOVD instruction when
+# optimizations are not disabled. Bug #877541.
+BUILDFLAGS += -gcflags=-N
+endif
+
 %:
 	dh $@ --buildsystem=golang --with=golang,systemd \
             --builddirectory=$(BUILDDIR)
