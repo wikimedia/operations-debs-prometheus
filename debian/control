@@ -3,8 +3,8 @@ Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org
 Uploaders: Martín Ferrari <tincho@debian.org>,
 Section: net
 Testsuite: autopkgtest-pkg-go
-Priority: extra
-Build-Depends: debhelper (>= 10~),
+Priority: optional
+Build-Depends: debhelper (>= 10),
                dh-golang (>= 1.17~),
                golang-github-asaskevich-govalidator-dev,
                golang-github-aws-aws-sdk-go-dev (>= 1.4),
@@ -31,7 +31,7 @@ Build-Depends: debhelper (>= 10~),
                golang-golang-x-time-dev,
                golang-google-api-dev,
                golang-gopkg-yaml.v2-dev,
-Standards-Version: 4.1.0
+Standards-Version: 4.1.1
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git
 Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git
 Homepage: https://prometheus.io/
