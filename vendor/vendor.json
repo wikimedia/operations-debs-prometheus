@@ -65,12 +65,6 @@
 			"revisionTime": "2017-05-15T10:45:16Z"
 		},
 		{
-			"checksumSHA1": "ddYc7mKe3g1x1UUKBrGR4vArJs8=",
-			"path": "github.com/asaskevich/govalidator",
-			"revision": "065ea97278837088c52c0cd0d963473f61b2d98c",
-			"revisionTime": "2017-05-13T08:31:01Z"
-		},
-		{
 			"checksumSHA1": "WNfR3yhLjRC5/uccgju/bwrdsxQ=",
 			"path": "github.com/aws/aws-sdk-go/aws",
 			"revision": "707203bc55114ed114446bf57949c5c211d8b7c0",
@@ -384,6 +378,12 @@
 			"revisionTime": "2017-06-07T03:48:29Z"
 		},
 		{
+			"checksumSHA1": "SKxDWZElN5KwYPPf4QSs9pR0jKg=",
+			"path": "github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors",
+			"revision": "caf34a65f60295108141f62929245943bd00f237",
+			"revisionTime": "2017-06-07T03:48:29Z"
+		},
+		{
 			"checksumSHA1": "vTyXSR+Znw7/o/70UBOWG0F09r8=",
 			"path": "github.com/gophercloud/gophercloud/openstack/compute/v2/flavors",
 			"revision": "caf34a65f60295108141f62929245943bd00f237",
@@ -444,10 +444,10 @@
 			"revisionTime": "2017-06-07T03:48:29Z"
 		},
 		{
-			"checksumSHA1": "LclVLJYrBi03PBjsVPpgoMbUDQ8=",
+			"checksumSHA1": "/DReHn5j0caPm3thgFD9DmOmibQ=",
 			"path": "github.com/hashicorp/consul/api",
-			"revision": "daacc4be8bee214e3fc4b32a6dd385f5ef1b4c36",
-			"revisionTime": "2016-10-28T04:06:46Z"
+			"revision": "23ce10f8891369f4c7758474c7c808f4e0262701",
+			"revisionTime": "2017-01-12T01:29:24Z"
 		},
 		{
 			"checksumSHA1": "Uzyon2091lmwacNsl1hCytjhHtg=",
