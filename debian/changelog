@@ -1,3 +1,9 @@
+prometheus (1.8.1+ds-3) UNRELEASED; urgency=medium
+
+  * Revert "Workaround for FTBFS in i386 until #877541 is solved."
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 03 Nov 2017 00:02:34 +0000
+
 prometheus (1.8.1+ds-2) unstable; urgency=medium
 
   * Replace gogo/protobuf dependency with golang equivalent.
