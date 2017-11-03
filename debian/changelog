@@ -1,10 +1,10 @@
-prometheus (1.8.1+ds-2~bpo9+1) UNRELEASED; urgency=medium
+prometheus (1.8.1+ds-2~bpo9+1) stretch-backports; urgency=medium
 
-  * Revert "Workaround for FTBFS in i386 until #877541 is solved."
   * Rebuild for stretch-backports.
+  * Revert "Workaround for FTBFS in i386 until #877541 is solved."
   * Update dependency on Azure SDK.
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 03 Nov 2017 00:30:37 +0000
+ -- Martín Ferrari <tincho@debian.org>  Fri, 03 Nov 2017 01:13:07 +0000
 
 prometheus (1.8.1+ds-2) unstable; urgency=medium
 
