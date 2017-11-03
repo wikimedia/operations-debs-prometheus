@@ -980,6 +980,28 @@ func testValueAtOrBeforeTime(t *testing.T, encoding chunk.Encoding) {
 	if expected.Value != actual.Value {
 		t.Errorf("3.2. Got %v; want %v", actual.Value, expected.Value)
 	}
+
+	// #4 Query alternatingly exactly on and just between timestamps.
+	// Exposes issue #2965.
+	for i, expected := range samples {
+		i *= 2
+		actual := it.ValueAtOrBeforeTime(expected.Timestamp)
+		if expected.Timestamp != actual.Timestamp {
+			t.Errorf("4.%d. Got %v; want %v", i, actual.Timestamp, expected.Timestamp)
+		}
+		if expected.Value != actual.Value {
+			t.Errorf("4.%d. Got %v; want %v", i, actual.Value, expected.Value)
+		}
+
+		i++
+		actual = it.ValueAtOrBeforeTime(expected.Timestamp + 1)
+		if expected.Timestamp != actual.Timestamp {
+			t.Errorf("4.%d. Got %v; want %v", i, actual.Timestamp, expected.Timestamp)
+		}
+		if expected.Value != actual.Value {
+			t.Errorf("4.%d. Got %v; want %v", i, actual.Value, expected.Value)
+		}
+	}
 }
 
 func TestValueAtTimeChunkType0(t *testing.T) {
@@ -1398,7 +1420,7 @@ func testEvictAndPurgeSeries(t *testing.T, encoding chunk.Encoding) {
 	// Unarchive metrics.
 	s.getOrCreateSeries(fp, model.Metric{})
 
-	series, ok = s.fpToSeries.get(fp)
+	_, ok = s.fpToSeries.get(fp)
 	if !ok {
 		t.Fatal("could not find series")
 	}

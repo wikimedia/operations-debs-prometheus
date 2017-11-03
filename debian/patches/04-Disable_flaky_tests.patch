@@ -9,7 +9,7 @@ Description: Disable_flaky_tests
  	now := model.Now()
  	insertStart := now.Add(-2 * time.Hour)
  
-@@ -1436,6 +1437,7 @@
+@@ -1458,6 +1459,7 @@
  }
  
  func testEvictAndLoadChunkDescs(t *testing.T, encoding chunk.Encoding) {

@@ -15,11 +15,11 @@ Files: debian/*
 Copyright: 2015 Martín Ferrari <tincho@tincho.org>
 License: Apache-2.0
 
-Files: debian/patches/07-Revendor_consul.patch
+Files: vendor/github.com/hashicorp/consul/*
 Copyright: 2013-2016 HashiCorp
 License: MPL-2.0
-Comment: Dependency originally vendored, removed in unstable, but re-vendored
- for backports.
+Comment: Newer version of the API required that is not yet present in the
+ Debian package.
 
 Files: web/ui/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
@@ -27,6 +27,12 @@ License: Expat
 Comment: Although not documented upstream, this file corresponds with commit
  90736ca5c97e603af0c0c1c823cb340860926077 in
  https://github.com/madapaja/jquery.selection/
+
+Files: web/ui/static/vendor/moment/moment-timezone-with-data.js
+Copyright: 2016-2017 JS Foundation and other contributors
+License: Expat
+Comment: The minified files were replaced by the original sources from
+ https://github.com/moment/moment-timezone/ relese 0.5.13.
 
 Files: web/ui/static/vendor/bootstrap3-typeahead/*
 Copyright: 2014 Bass Jobsen @bassjobsen
