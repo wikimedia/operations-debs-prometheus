@@ -17,7 +17,7 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "SdSd7pyjONWWTHc5XE3AhglLo34=",
+			"checksumSHA1": "5rPfda8jFccr3A6heL+JAmi9K9g=",
 			"origin": "k8s.io/client-go/1.5/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
@@ -191,7 +191,7 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "QQpKbWuqvhmxVr/hfEYdWzzcXRM=",
+			"checksumSHA1": "BBdmpnzrqkQreDoEKnzONUJ0y54=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/cases",
 			"path": "golang.org/x/text/cases",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
@@ -205,7 +205,7 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "mQ6PCGHY7K0oPjKbYD8wsTjm/P8=",
+			"checksumSHA1": "vqWvYo3+DgSYJHYSf+glLnpoIaU=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/language",
 			"path": "golang.org/x/text/language",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
@@ -226,7 +226,7 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "FcK7VslktIAWj5jnWVnU2SesBq0=",
+			"checksumSHA1": "+kC30oPJx+pgfPjB/jo+wcOD1cQ=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/secure/precis",
 			"path": "golang.org/x/text/secure/precis",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
@@ -240,21 +240,21 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "nWJ9R1+Xw41f/mM3b7BYtv77CfI=",
+			"checksumSHA1": "FwEUTPAGLq8a3L00M4SzCyjvYug=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/unicode/bidi",
 			"path": "golang.org/x/text/unicode/bidi",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "BAZ96wCGUj6HdY9sG60Yw09KWA4=",
+			"checksumSHA1": "pbcYgE8mW2Y0JNWFcoO/yRM6Mp8=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/unicode/norm",
 			"path": "golang.org/x/text/unicode/norm",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-			"checksumSHA1": "AZMILKWqLP99UilLgbGZ+uzIVrM=",
+			"checksumSHA1": "6Ygn2vOUdhtnfc5QhnqF6evMgvY=",
 			"origin": "k8s.io/client-go/1.5/vendor/golang.org/x/text/width",
 			"path": "golang.org/x/text/width",
 			"revision": "c589d0c9f0d81640c518354c7bcae77d99820aa3",
