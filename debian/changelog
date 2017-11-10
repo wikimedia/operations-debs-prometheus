@@ -1,3 +1,9 @@
+prometheus (1.8.1+ds+k8s-1) unstable; urgency=medium
+
+  * Re-enable k8s discovery, to be used internally at WMF.
+
+ -- Filippo Giunchedi <filippo@wikimedia.org>  Fri, 10 Nov 2017 08:34:34 +0000
+
 prometheus (1.8.1+ds-3) UNRELEASED; urgency=medium
 
   * Revert "Workaround for FTBFS in i386 until #877541 is solved."
