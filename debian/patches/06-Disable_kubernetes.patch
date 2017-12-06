@@ -11,7 +11,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// DefaultGCESDConfig is the default EC2 SD configuration.
  	DefaultGCESDConfig = GCESDConfig{
  		Port:            80,
-@@ -283,12 +280,6 @@
+@@ -284,12 +281,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *ServiceDiscoveryConfig) {
@@ -24,7 +24,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		for _, mcfg := range cfg.MarathonSDConfigs {
  			mcfg.BearerTokenFile = join(mcfg.BearerTokenFile)
  			mcfg.TLSConfig.CAFile = join(mcfg.TLSConfig.CAFile)
-@@ -490,8 +481,6 @@
+@@ -488,8 +479,6 @@
  	NerveSDConfigs []*NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*MarathonSDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -33,7 +33,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*GCESDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
-@@ -1005,95 +994,6 @@
+@@ -997,92 +986,6 @@
  	return nil
  }
  
@@ -120,10 +120,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -	if err != nil {
 -		return err
 -	}
--	if err := checkOverflow(c.XXX, "namespaces"); err != nil {
--		return err
--	}
--	return nil
+-	return checkOverflow(c.XXX, "namespaces")
 -}
 -
  // GCESDConfig is the configuration for GCE based service discovery.
@@ -131,7 +128,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// Project: The Google Cloud Project ID
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -293,52 +293,6 @@
+@@ -306,52 +306,6 @@
  			},
  		},
  		{
@@ -184,16 +181,16 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -558,7 +512,7 @@
+@@ -552,7 +506,7 @@
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
--	if len(matches) != 6 || strings.Contains(yamlConfig, "mysecret") {
-+	if len(matches) != 5 || strings.Contains(yamlConfig, "mysecret") {
- 		t.Fatalf("yaml marshal reveals authentication credentials.")
- 	}
+-	testutil.Assert(t, len(matches) == 6, "wrong number of secret matches found")
++	testutil.Assert(t, len(matches) == 5, "wrong number of secret matches found")
+ 	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
+ 		"yaml marshal reveals authentication credentials.")
  }
-@@ -654,18 +608,6 @@
+@@ -634,18 +588,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -212,7 +209,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "Marathon SD config must contain at least one Marathon server",
  	}, {
-@@ -767,7 +709,3 @@
+@@ -729,7 +671,3 @@
  	}
  }
  
@@ -222,7 +219,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -}
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -136,25 +136,6 @@
+@@ -142,25 +142,6 @@
  
    bearer_token: mysecret
  
@@ -349,7 +346,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/discovery/discovery.go
 +++ b/discovery/discovery.go
-@@ -26,7 +26,6 @@
+@@ -28,7 +28,6 @@
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -357,20 +354,20 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -80,14 +79,6 @@
+@@ -81,14 +80,6 @@
  		}
  		app("marathon", i, m)
  	}
 -	for i, c := range cfg.KubernetesSDConfigs {
--		k, err := kubernetes.New(logger, c)
+-		k, err := kubernetes.New(log.With(logger, "discovery", "k8s"), c)
 -		if err != nil {
--			logger.Errorf("Cannot create Kubernetes discovery: %s", err)
+-			level.Error(logger).Log("msg", "Cannot create Kubernetes discovery", "err", err)
 -			continue
 -		}
 -		app("kubernetes", i, k)
 -	}
  	for i, c := range cfg.ServersetSDConfigs {
- 		app("serverset", i, zookeeper.NewServersetDiscovery(c, logger))
+ 		app("serverset", i, zookeeper.NewServersetDiscovery(c, log.With(logger, "discovery", "zookeeper")))
  	}
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
@@ -409,3 +406,29 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
+--- a/cmd/prometheus/main.go
++++ b/cmd/prometheus/main.go
+@@ -36,7 +36,6 @@
+ 	"github.com/prometheus/common/model"
+ 	"github.com/prometheus/common/version"
+ 	"gopkg.in/alecthomas/kingpin.v2"
+-	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
+ 
+ 	"github.com/mwitkow/go-conntrack"
+ 	"github.com/prometheus/common/promlog"
+@@ -206,15 +205,6 @@
+ 
+ 	logger := promlog.New(cfg.logLevel)
+ 
+-	// XXX(fabxc): Kubernetes does background logging which we can only customize by modifying
+-	// a global variable.
+-	// Ultimately, here is the best place to set it.
+-	k8s_runtime.ErrorHandlers = []func(error){
+-		func(err error) {
+-			level.Error(log.With(logger, "component", "k8s_client_runtime")).Log("err", err)
+-		},
+-	}
+-
+ 	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
+ 	level.Info(logger).Log("build_context", version.BuildContext())
+ 	level.Info(logger).Log("host_details", Uname())

@@ -7,11 +7,9 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  discovery/azure/azure.go | 26 +++++++++++++++-----------
  1 file changed, 15 insertions(+), 11 deletions(-)
 
-diff --git a/discovery/azure/azure.go b/discovery/azure/azure.go
-index 4f96e5a..5e31ba2 100644
 --- a/discovery/azure/azure.go
 +++ b/discovery/azure/azure.go
-@@ -21,6 +21,8 @@ import (
+@@ -22,6 +22,8 @@
  
  	"github.com/Azure/azure-sdk-for-go/arm/compute"
  	"github.com/Azure/azure-sdk-for-go/arm/network"
@@ -19,8 +17,8 @@ index 4f96e5a..5e31ba2 100644
 +	"github.com/Azure/go-autorest/autorest/adal"
  	"github.com/Azure/go-autorest/autorest/azure"
  
- 	"github.com/prometheus/client_golang/prometheus"
-@@ -118,20 +120,22 @@ type azureClient struct {
+ 	"github.com/go-kit/kit/log"
+@@ -122,20 +124,22 @@
  // createAzureClient is a helper function for creating an Azure compute client to ARM.
  func createAzureClient(cfg config.AzureSDConfig) (azureClient, error) {
  	var c azureClient
@@ -47,7 +45,7 @@ index 4f96e5a..5e31ba2 100644
  
  	return c, nil
  }
-@@ -220,7 +224,7 @@ func (d *Discovery) refresh() (tg *config.TargetGroup, err error) {
+@@ -226,7 +230,7 @@
  			}
  
  			// Get the IP address information via separate call to the network provider.
@@ -56,13 +54,13 @@ index 4f96e5a..5e31ba2 100644
  				r, err := newAzureResourceFromID(*nic.ID, d.logger)
  				if err != nil {
  					ch <- target{labelSet: nil, err: err}
-@@ -238,17 +242,17 @@ func (d *Discovery) refresh() (tg *config.TargetGroup, err error) {
+@@ -244,17 +248,17 @@
  				// This information is available via another API call however the Go SDK does not
  				// yet support this. On deallocated machines, this value happens to be nil so it
  				// is a cheap and easy way to determine if a machine is allocated or not.
 -				if networkInterface.Properties.Primary == nil {
 +				if networkInterface.Primary == nil {
- 					d.logger.Debugf("Virtual machine %s is deallocated. Skipping during Azure SD.", *vm.Name)
+ 					level.Debug(d.logger).Log("msg", "Skipping deallocated virtual machine", "machine", *vm.Name)
  					ch <- target{}
  					return
  				}

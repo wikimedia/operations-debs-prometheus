@@ -7,10 +7,10 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  import (
 -	"bytes"
+ 	"context"
  	"encoding/json"
  	"fmt"
- 	"io"
-@@ -60,7 +59,6 @@
+@@ -62,7 +61,6 @@
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
  	api_v2 "github.com/prometheus/prometheus/web/api/v2"
@@ -18,7 +18,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -132,7 +130,7 @@
+@@ -137,7 +135,7 @@
  	ExternalURL          *url.URL
  	RoutePrefix          string
  	MetricsPath          string
@@ -27,33 +27,33 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -215,7 +213,7 @@
+@@ -225,7 +223,7 @@
  
  	router.Get("/consoles/*filepath", readyf(instrf("consoles", h.consoles)))
  
--	router.Get("/static/*filepath", readyf(instrf("static", serveStaticAsset)))
-+	router.Get("/static/*filepath", instrf("static", route.FileServe(filepath.Join(o.LocalAssets, "/static"))))
+-	router.Get("/static/*filepath", instrf("static", h.serveStaticAsset))
++	router.Get("/static/*filepath", instrf("user", route.FileServe(filepath.Join(o.LocalAssets, "/static"))))
  
  	if o.UserAssetsPath != "" {
- 		router.Get("/user/*filepath", readyf(instrf("user", route.FileServe(o.UserAssetsPath))))
-@@ -296,28 +294,6 @@
+ 		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
+@@ -312,28 +310,6 @@
  	}
  }
  
--func serveStaticAsset(w http.ResponseWriter, req *http.Request) {
+-func (h *Handler) serveStaticAsset(w http.ResponseWriter, req *http.Request) {
 -	fp := route.Param(req.Context(), "filepath")
 -	fp = filepath.Join("web/ui/static", fp)
 -
 -	info, err := ui.AssetInfo(fp)
 -	if err != nil {
--		log.With("file", fp).Warn("Could not get file info: ", err)
+-		level.Warn(h.logger).Log("msg", "Could not get file info", "err", err, "file", fp)
 -		w.WriteHeader(http.StatusNotFound)
 -		return
 -	}
 -	file, err := ui.Asset(fp)
 -	if err != nil {
 -		if err != io.EOF {
--			log.With("file", fp).Warn("Could not get file: ", err)
+-			level.Warn(h.logger).Log("msg", "Could not get file", "err", err, "file", fp)
 -		}
 -		w.WriteHeader(http.StatusNotFound)
 -		return
@@ -65,7 +65,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  // Ready sets Handler to be ready.
  func (h *Handler) Ready() {
  	atomic.StoreUint32(&h.ready, 1)
-@@ -673,11 +649,11 @@
+@@ -703,11 +679,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
@@ -120,7 +120,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <script>
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -129,6 +129,9 @@
+@@ -124,6 +124,9 @@
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  
@@ -132,7 +132,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
 --- a/web/ui/templates/graph.html
 +++ b/web/ui/templates/graph.html
-@@ -1,20 +1,19 @@
+@@ -1,21 +1,20 @@
  {{define "head"}}
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css?v={{ buildVersion }}">
  
@@ -145,11 +145,12 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/vendor/d3.layout.min.js?v={{ buildVersion }}"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/moment/moment.min.js?v={{ buildVersion }}"></script>
--    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
--    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/d3/d3.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/rickshaw/rickshaw.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/moment/moment.min.js?v={{ buildVersion }}"></script>
+     <script src="{{ pathPrefix }}/static/vendor/moment/moment-timezone-with-data.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
+-    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/eonasdan-bootstrap-datetimepicker/bootstrap-datetimepicker.min.js?v={{ buildVersion }}"></script>
 +    <script src="{{ pathPrefix }}/static/vendor/bootstrap3-typeahead/bootstrap3-typeahead.js?v={{ buildVersion }}"></script>
      <script src="{{ pathPrefix }}/static/vendor/fuzzy/fuzzy.js?v={{ buildVersion }}"></script>

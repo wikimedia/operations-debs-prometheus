@@ -1,4 +1,4 @@
-prometheus (2.0.0~beta4+ds-1) UNRELEASED; urgency=medium
+prometheus (2.0.0+ds-1) UNRELEASED; urgency=medium
 
   [ Martín Ferrari ]
   * New upstream release.
