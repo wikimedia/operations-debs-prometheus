@@ -14,6 +14,7 @@
 package notifier
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,9 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	old_ctx "golang.org/x/net/context"
 
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -65,7 +65,7 @@ func TestPostPath(t *testing.T) {
 }
 
 func TestHandlerNextBatch(t *testing.T) {
-	h := New(&Options{}, log.Base())
+	h := New(&Options{}, nil)
 
 	for i := range make([]struct{}, 2*maxBatchSize+1) {
 		h.queue = append(h.queue, &Alert{
@@ -152,7 +152,7 @@ func TestHandlerSendAll(t *testing.T) {
 	defer server1.Close()
 	defer server2.Close()
 
-	h := New(&Options{}, log.Base())
+	h := New(&Options{}, nil)
 	h.alertmanagers = append(h.alertmanagers, &alertmanagerSet{
 		ams: []alertmanager{
 			alertmanagerMock{
@@ -199,7 +199,7 @@ func TestCustomDo(t *testing.T) {
 
 	var received bool
 	h := New(&Options{
-		Do: func(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error) {
+		Do: func(ctx old_ctx.Context, client *http.Client, req *http.Request) (*http.Response, error) {
 			received = true
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
@@ -215,7 +215,7 @@ func TestCustomDo(t *testing.T) {
 				Body: ioutil.NopCloser(nil),
 			}, nil
 		},
-	}, log.Base())
+	}, nil)
 
 	h.sendOne(context.Background(), nil, testURL, []byte(testBody))
 
@@ -237,7 +237,7 @@ func TestExternalLabels(t *testing.T) {
 				Replacement:  "c",
 			},
 		},
-	}, log.Base())
+	}, nil)
 
 	// This alert should get the external label attached.
 	h.Send(&Alert{
@@ -277,7 +277,7 @@ func TestHandlerRelabel(t *testing.T) {
 				Replacement:  "renamed",
 			},
 		},
-	}, log.Base())
+	}, nil)
 
 	// This alert should be dropped due to the configuration
 	h.Send(&Alert{
@@ -324,7 +324,7 @@ func TestHandlerQueueing(t *testing.T) {
 	h := New(&Options{
 		QueueCapacity: 3 * maxBatchSize,
 	},
-		log.Base(),
+		nil,
 	)
 	h.alertmanagers = append(h.alertmanagers, &alertmanagerSet{
 		ams: []alertmanager{

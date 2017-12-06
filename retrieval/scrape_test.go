@@ -15,6 +15,7 @@ package retrieval
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,23 +29,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/timestamp"
 	"github.com/prometheus/prometheus/pkg/value"
 	"github.com/prometheus/prometheus/storage"
+	"github.com/prometheus/prometheus/util/testutil"
 )
 
 func TestNewScrapePool(t *testing.T) {
 	var (
 		app = &nopAppendable{}
 		cfg = &config.ScrapeConfig{}
-		sp  = newScrapePool(context.Background(), cfg, app, log.Base())
+		sp  = newScrapePool(context.Background(), cfg, app, nil)
 	)
 
 	if a, ok := sp.appendable.(*nopAppendable); !ok || a != app {
@@ -167,7 +167,7 @@ func TestScrapePoolReload(t *testing.T) {
 		targets:    map[uint64]*Target{},
 		loops:      map[uint64]loop{},
 		newLoop:    newLoop,
-		logger:     log.Base(),
+		logger:     nil,
 	}
 
 	// Reloading a scrape pool with a new scrape configuration must stop all scrape
@@ -231,7 +231,7 @@ func TestScrapePoolReload(t *testing.T) {
 func TestScrapePoolAppender(t *testing.T) {
 	cfg := &config.ScrapeConfig{}
 	app := &nopAppendable{}
-	sp := newScrapePool(context.Background(), cfg, app, log.Base())
+	sp := newScrapePool(context.Background(), cfg, app, nil)
 
 	wrapped := sp.appender()
 
@@ -500,7 +500,7 @@ func TestScrapeLoopRunCreatesStaleMarkersOnFailedScrape(t *testing.T) {
 		} else if numScrapes == 5 {
 			cancel()
 		}
-		return fmt.Errorf("Scrape failed.")
+		return fmt.Errorf("scrape failed")
 	}
 
 	go func() {
@@ -520,7 +520,7 @@ func TestScrapeLoopRunCreatesStaleMarkersOnFailedScrape(t *testing.T) {
 		t.Fatalf("Appended samples not as expected. Wanted: %d samples Got: %d", 22, len(appender.result))
 	}
 	if appender.result[0].v != 42.0 {
-		t.Fatalf("Appended first sample not as expected. Wanted: %f Got: %f", appender.result[0], 42)
+		t.Fatalf("Appended first sample not as expected. Wanted: %f Got: %f", appender.result[0].v, 42.0)
 	}
 	if !value.IsStaleNaN(appender.result[5].v) {
 		t.Fatalf("Appended second sample not as expected. Wanted: stale NaN Got: %x", math.Float64bits(appender.result[5].v))
@@ -559,7 +559,7 @@ func TestScrapeLoopRunCreatesStaleMarkersOnParseFailure(t *testing.T) {
 		} else if numScrapes == 3 {
 			cancel()
 		}
-		return fmt.Errorf("Scrape failed.")
+		return fmt.Errorf("scrape failed")
 	}
 
 	go func() {
@@ -579,7 +579,7 @@ func TestScrapeLoopRunCreatesStaleMarkersOnParseFailure(t *testing.T) {
 		t.Fatalf("Appended samples not as expected. Wanted: %d samples Got: %d", 22, len(appender.result))
 	}
 	if appender.result[0].v != 42.0 {
-		t.Fatalf("Appended first sample not as expected. Wanted: %f Got: %f", appender.result[0], 42)
+		t.Fatalf("Appended first sample not as expected. Wanted: %f Got: %f", appender.result[0].v, 42.0)
 	}
 	if !value.IsStaleNaN(appender.result[5].v) {
 		t.Fatalf("Appended second sample not as expected. Wanted: stale NaN Got: %x", math.Float64bits(appender.result[5].v))
@@ -623,6 +623,54 @@ func TestScrapeLoopAppend(t *testing.T) {
 	}
 	if !reflect.DeepEqual(want, app.result) {
 		t.Fatalf("Appended samples not as expected. Wanted: %+v Got: %+v", want, app.result)
+	}
+}
+
+func TestScrapeLoop_ChangingMetricString(t *testing.T) {
+	// This is a regression test for the scrape loop cache not properly maintaining
+	// IDs when the string representation of a metric changes across a scrape. Thus
+	// we use a real storage appender here.
+	s := testutil.NewStorage(t)
+	defer s.Close()
+
+	app, err := s.Appender()
+	if err != nil {
+		t.Error(err)
+	}
+	capp := &collectResultAppender{next: app}
+
+	sl := newScrapeLoop(context.Background(),
+		nil, nil, nil,
+		nopMutator,
+		nopMutator,
+		func() storage.Appender { return capp },
+	)
+
+	now := time.Now()
+	_, _, err = sl.append([]byte(`metric_a{a="1",b="1"} 1`), now)
+	if err != nil {
+		t.Fatalf("Unexpected append error: %s", err)
+	}
+	_, _, err = sl.append([]byte(`metric_a{b="1",a="1"} 2`), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Unexpected append error: %s", err)
+	}
+
+	// DeepEqual will report NaNs as being different, so replace with a different value.
+	want := []sample{
+		{
+			metric: labels.FromStrings("__name__", "metric_a", "a", "1", "b", "1"),
+			t:      timestamp.FromTime(now),
+			v:      1,
+		},
+		{
+			metric: labels.FromStrings("__name__", "metric_a", "a", "1", "b", "1"),
+			t:      timestamp.FromTime(now.Add(time.Minute)),
+			v:      2,
+		},
+	}
+	if !reflect.DeepEqual(want, capp.result) {
+		t.Fatalf("Appended samples not as expected. Wanted: %+v Got: %+v", want, capp.result)
 	}
 }
 
@@ -847,11 +895,14 @@ func TestTargetScraperScrapeOK(t *testing.T) {
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			accept := r.Header.Get("Accept")
+			if !strings.HasPrefix(accept, "text/plain;") {
+				t.Errorf("Expected Accept header to prefer text/plain, got %q", accept)
+			}
+
 			timeout := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds")
 			if timeout != expectedTimeout {
-				t.Errorf("Scrape timeout did not match expected timeout")
-				t.Errorf("Expected: %v", expectedTimeout)
-				t.Fatalf("Got: %v", timeout)
+				t.Errorf("Expected scrape timeout header %q, got %q", expectedTimeout, timeout)
 			}
 
 			w.Header().Set("Content-Type", `text/plain; version=0.0.4`)

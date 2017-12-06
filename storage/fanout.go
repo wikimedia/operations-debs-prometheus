@@ -9,54 +9,80 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package remote
+// limitations under the License.
 
 package storage
 
 import (
 	"container/heap"
+	"context"
 	"strings"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/pkg/labels"
 )
 
 type fanout struct {
+	logger log.Logger
+
 	primary     Storage
 	secondaries []Storage
 }
 
 // NewFanout returns a new fan-out Storage, which proxies reads and writes
 // through to multiple underlying storages.
-func NewFanout(primary Storage, secondaries ...Storage) Storage {
+func NewFanout(logger log.Logger, primary Storage, secondaries ...Storage) Storage {
 	return &fanout{
+		logger:      logger,
 		primary:     primary,
 		secondaries: secondaries,
 	}
 }
 
-func (f *fanout) Querier(mint, maxt int64) (Querier, error) {
-	queriers := mergeQuerier{
-		queriers: make([]Querier, 0, 1+len(f.secondaries)),
+// StartTime implements the Storage interface.
+func (f *fanout) StartTime() (int64, error) {
+	// StartTime of a fanout should be the earliest StartTime of all its storages,
+	// both primary and secondaries.
+	firstTime, err := f.primary.StartTime()
+	if err != nil {
+		return int64(model.Latest), err
 	}
 
+	for _, storage := range f.secondaries {
+		t, err := storage.StartTime()
+		if err != nil {
+			return int64(model.Latest), err
+		}
+		if t < firstTime {
+			firstTime = t
+		}
+	}
+	return firstTime, nil
+}
+
+func (f *fanout) Querier(ctx context.Context, mint, maxt int64) (Querier, error) {
+	queriers := make([]Querier, 0, 1+len(f.secondaries))
+
 	// Add primary querier
-	querier, err := f.primary.Querier(mint, maxt)
+	querier, err := f.primary.Querier(ctx, mint, maxt)
 	if err != nil {
 		return nil, err
 	}
-	queriers.queriers = append(queriers.queriers, querier)
+	queriers = append(queriers, querier)
 
 	// Add secondary queriers
 	for _, storage := range f.secondaries {
-		querier, err := storage.Querier(mint, maxt)
+		querier, err := storage.Querier(ctx, mint, maxt)
 		if err != nil {
-			queriers.Close()
+			NewMergeQuerier(queriers).Close()
 			return nil, err
 		}
-		queriers.queriers = append(queriers.queriers, querier)
+		queriers = append(queriers, querier)
 	}
-	return &queriers, nil
+
+	return NewMergeQuerier(queriers), nil
 }
 
 func (f *fanout) Appender() (Appender, error) {
@@ -74,6 +100,7 @@ func (f *fanout) Appender() (Appender, error) {
 		secondaries = append(secondaries, appender)
 	}
 	return &fanoutAppender{
+		logger:      f.logger,
 		primary:     primary,
 		secondaries: secondaries,
 	}, nil
@@ -97,6 +124,8 @@ func (f *fanout) Close() error {
 
 // fanoutAppender implements Appender.
 type fanoutAppender struct {
+	logger log.Logger
+
 	primary     Appender
 	secondaries []Appender
 }
@@ -136,7 +165,7 @@ func (f *fanoutAppender) Commit() (err error) {
 			err = appender.Commit()
 		} else {
 			if rollbackErr := appender.Rollback(); rollbackErr != nil {
-				log.Errorf("Squashed rollback error on commit: %v", rollbackErr)
+				level.Error(f.logger).Log("msg", "Squashed rollback error on commit", "err", rollbackErr)
 			}
 		}
 	}
@@ -151,7 +180,7 @@ func (f *fanoutAppender) Rollback() (err error) {
 		if err == nil {
 			err = rollbackErr
 		} else if rollbackErr != nil {
-			log.Errorf("Squashed rollback error on rollback: %v", rollbackErr)
+			level.Error(f.logger).Log("msg", "Squashed rollback error on rollback", "err", rollbackErr)
 		}
 	}
 	return nil
@@ -163,9 +192,26 @@ type mergeQuerier struct {
 }
 
 // NewMergeQuerier returns a new Querier that merges results of input queriers.
+// NB NewMergeQuerier will return NoopQuerier if no queriers are passed to it,
+// and will filter NoopQueriers from its arguments, in order to reduce overhead
+// when only one querier is passed.
 func NewMergeQuerier(queriers []Querier) Querier {
-	return &mergeQuerier{
-		queriers: queriers,
+	filtered := make([]Querier, 0, len(queriers))
+	for _, querier := range queriers {
+		if querier != NoopQuerier() {
+			filtered = append(filtered, querier)
+		}
+	}
+
+	switch len(filtered) {
+	case 0:
+		return NoopQuerier()
+	case 1:
+		return filtered[0]
+	default:
+		return &mergeQuerier{
+			queriers: filtered,
+		}
 	}
 }
 
@@ -370,8 +416,7 @@ func (c *mergeIterator) Seek(t int64) bool {
 
 func (c *mergeIterator) At() (t int64, v float64) {
 	if len(c.h) == 0 {
-		log.Error("mergeIterator.At() called after .Next() returned false.")
-		return 0, 0
+		panic("mergeIterator.At() called after .Next() returned false.")
 	}
 
 	// TODO do I need to dedupe or just merge?

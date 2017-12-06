@@ -14,14 +14,13 @@
 package rules
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/url"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
-
-	"golang.org/x/net/context"
 
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/rulefmt"
@@ -123,8 +122,8 @@ func (rule RecordingRule) HTMLSnippet(pathPrefix string) template.HTML {
 	}
 
 	r := rulefmt.Rule{
-		Record: fmt.Sprintf(`<a href="%s">%s</a>`, pathPrefix+strutil.GraphLinkForExpression(rule.name), rule.name),
-		Expr:   fmt.Sprintf(`<a href="%s">%s</a>`, pathPrefix+strutil.GraphLinkForExpression(ruleExpr), template.HTMLEscapeString(ruleExpr)),
+		Record: fmt.Sprintf(`<a href="%s">%s</a>`, pathPrefix+strutil.TableLinkForExpression(rule.name), rule.name),
+		Expr:   fmt.Sprintf(`<a href="%s">%s</a>`, pathPrefix+strutil.TableLinkForExpression(ruleExpr), template.HTMLEscapeString(ruleExpr)),
 		Labels: labels,
 	}
 

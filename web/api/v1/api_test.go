@@ -14,6 +14,8 @@
 package v1
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,15 +27,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/golang/snappy"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
-	"golang.org/x/net/context"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/timestamp"
+	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/retrieval"
+	"github.com/prometheus/prometheus/storage/remote"
 )
 
 type targetRetrieverFunc func() []*retrieval.Target
@@ -104,6 +109,7 @@ func TestEndpoints(t *testing.T) {
 		alertmanagerRetriever: ar,
 		now:    func() time.Time { return now },
 		config: func() config.Config { return samplePrometheusCfg },
+		ready:  func(f http.HandlerFunc) http.HandlerFunc { return f },
 	}
 
 	start := time.Unix(0, 0)
@@ -475,6 +481,102 @@ func TestEndpoints(t *testing.T) {
 	}
 }
 
+func TestReadEndpoint(t *testing.T) {
+	suite, err := promql.NewTest(t, `
+		load 1m
+			test_metric1{foo="bar",baz="qux"} 1
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer suite.Close()
+
+	if err := suite.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	api := &API{
+		Queryable:   suite.Storage(),
+		QueryEngine: suite.QueryEngine(),
+		config: func() config.Config {
+			return config.Config{
+				GlobalConfig: config.GlobalConfig{
+					ExternalLabels: model.LabelSet{
+						"baz": "a",
+						"b":   "c",
+						"d":   "e",
+					},
+				},
+			}
+		},
+	}
+
+	// Encode the request.
+	matcher1, err := labels.NewMatcher(labels.MatchEqual, "__name__", "test_metric1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	matcher2, err := labels.NewMatcher(labels.MatchEqual, "d", "e")
+	if err != nil {
+		t.Fatal(err)
+	}
+	query, err := remote.ToQuery(0, 1, []*labels.Matcher{matcher1, matcher2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &prompb.ReadRequest{Queries: []*prompb.Query{query}}
+	data, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compressed := snappy.Encode(nil, data)
+	request, err := http.NewRequest("POST", "", bytes.NewBuffer(compressed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	api.remoteRead(recorder, request)
+
+	// Decode the response.
+	compressed, err = ioutil.ReadAll(recorder.Result().Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uncompressed, err := snappy.Decode(nil, compressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var resp prompb.ReadResponse
+	err = proto.Unmarshal(uncompressed, &resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(resp.Results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(resp.Results))
+	}
+
+	result := resp.Results[0]
+	expected := &prompb.QueryResult{
+		Timeseries: []*prompb.TimeSeries{
+			{
+				Labels: []*prompb.Label{
+					{Name: "__name__", Value: "test_metric1"},
+					{Name: "b", Value: "c"},
+					{Name: "baz", Value: "qux"},
+					{Name: "d", Value: "e"},
+					{Name: "foo", Value: "bar"},
+				},
+				Samples: []*prompb.Sample{{Value: 1, Timestamp: 0}},
+			},
+		},
+	}
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("Expected response \n%v\n but got \n%v\n", result, expected)
+	}
+}
+
 func TestRespondSuccess(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		respond(w, "test")
@@ -658,7 +760,7 @@ func TestParseDuration(t *testing.T) {
 
 func TestOptionsMethod(t *testing.T) {
 	r := route.New()
-	api := &API{}
+	api := &API{ready: func(f http.HandlerFunc) http.HandlerFunc { return f }}
 	api.Register(r)
 
 	s := httptest.NewServer(r)

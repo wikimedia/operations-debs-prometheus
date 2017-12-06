@@ -14,6 +14,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -30,8 +31,11 @@ var (
 // Storage ingests and manages samples, along with various indexes. All methods
 // are goroutine-safe. Storage implements storage.SampleAppender.
 type Storage interface {
+	// StartTime returns the oldest timestamp stored in the storage.
+	StartTime() (int64, error)
+
 	// Querier returns a new Querier on the storage.
-	Querier(mint, maxt int64) (Querier, error)
+	Querier(ctx context.Context, mint, maxt int64) (Querier, error)
 
 	// Appender returns a new appender against the storage.
 	Appender() (Appender, error)
