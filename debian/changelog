@@ -1,4 +1,4 @@
-prometheus (2.0.0+ds-1) UNRELEASED; urgency=medium
+prometheus (2.0.0+ds2-1) UNRELEASED; urgency=medium
 
   [ Martín Ferrari ]
   * New upstream release.
@@ -14,7 +14,7 @@ prometheus (2.0.0+ds-1) UNRELEASED; urgency=medium
     golang-github-nightlyone-lockfile-dev, golang-github-oklog-ulid-dev,
     golang-github-pkg-errors-dev, golang-gopkg-alecthomas-kingpin.v2-dev.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 20 Sep 2017 09:28:25 +0000
+ -- Martín Ferrari <tincho@debian.org>  Fri, 08 Dec 2017 00:24:18 +0000
 
 prometheus (1.7.1+ds-3) unstable; urgency=medium
 
