@@ -15,11 +15,12 @@ Build-Depends: debhelper (>= 9.0.0),
                golang-github-cockroachdb-cmux-dev,
                golang-github-dgryski-go-bits-dev,
                golang-github-fsnotify-fsnotify-dev,
+               golang-github-go-kit-kit-dev,
+               golang-github-go-logfmt-logfmt-dev,
+               golang-github-go-stack-stack-dev,
                golang-github-gogo-protobuf-dev,
                golang-github-golang-snappy-dev,
-               golang-github-go-logfmt-logfmt-dev,
                golang-github-gophercloud-gophercloud-dev,
-               golang-github-go-stack-stack-dev,
                golang-github-grpc-ecosystem-grpc-gateway-dev,
                golang-github-hashicorp-consul-dev,
                golang-github-miekg-dns-dev (>= 0.0~git20170501),
@@ -41,7 +42,7 @@ Build-Depends: debhelper (>= 9.0.0),
                golang-google-api-dev,
                golang-gopkg-alecthomas-kingpin.v2-dev,
                golang-gopkg-yaml.v2-dev,
-Standards-Version: 4.1.0
+Standards-Version: 4.1.2
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/prometheus.git
 Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/prometheus.git
 Homepage: https://prometheus.io/
