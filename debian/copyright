@@ -1,7 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: github.com/prometheus/prometheus
 Source: https://github.com/prometheus/prometheus
-Files-Excluded: vendor/*
 
 Files: *
 Copyright: 2012-2015 The Prometheus Authors
