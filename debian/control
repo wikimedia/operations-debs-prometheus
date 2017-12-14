@@ -3,10 +3,10 @@ Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org
 Uploaders: Martín Ferrari <tincho@debian.org>,
 Section: net
 Testsuite: autopkgtest-pkg-go
-Priority: extra
-Build-Depends: debhelper (>= 10~),
+Priority: optional
+Build-Depends: debhelper (>= 10),
                dh-golang (>= 1.17~),
-               golang-github-aws-aws-sdk-go-dev,
+               golang-github-aws-aws-sdk-go-dev (>= 1.4),
                golang-github-azure-azure-sdk-for-go-dev,
                golang-github-azure-go-autorest-dev (>= 8),
                golang-github-cespare-xxhash-dev,
