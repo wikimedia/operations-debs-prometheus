@@ -14,7 +14,7 @@ Files: debian/*
 Copyright: 2015 Martín Ferrari <tincho@tincho.org>
 License: Apache-2.0
 
-Files: debian/patches/01-Revendor_consul.patch
+Files: vendor/github.com/hashicorp/consul/*
 Copyright: 2013-2016 HashiCorp
 License: MPL-2.0
 Comment: Newer version of the API required that is not yet present in the
