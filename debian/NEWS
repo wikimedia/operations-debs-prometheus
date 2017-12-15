@@ -1,5 +1,7 @@
 prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
 
+  BREAKING CHANGES
+
   The data format in Prometheus 2.0 has completely changed and is not
   backwards compatible with 1.x. On installing this upgrade, the old database
   files are moved from /var/lib/prometheus/metrics to
@@ -8,6 +10,15 @@ prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
   There is no conversion tool; if you want to retain access to the old data,
   it is necessary to run a separate Prometheus 1.x instance on that data
   directory. (This package makes no provision to allow this.)
+
+
+  Command-line flags now take two slashes. For example `-web.listen-address` is
+  now `--web.listen-address`.
+
+
+  Rules are now stored in YAML files instead of using a domain-specific
+  language. The `promtool update rules` command can assist you in the
+  transition.
 
  -- Christoph Berg <christoph.berg@credativ.de>  Fri, 15 Dec 2017 15:49:51 +0100
 

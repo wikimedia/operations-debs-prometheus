@@ -36,7 +36,7 @@ ARGS=""
 config_check()
 {
     retcode=0
-    errors="$(/usr/bin/promtool check-config $CFGFILE 2>&1)" || retcode=$?
+    errors="$(/usr/bin/promtool check config $CFGFILE 2>&1)" || retcode=$?
     if [ $retcode -ne 0 ]; then
         log_failure_msg
         echo "Configuration test failed. Output of config test was:" >&2
