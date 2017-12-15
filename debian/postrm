@@ -6,7 +6,8 @@ set -e
 
 case "$1" in
   purge)
-        rm -rf /var/lib/prometheus/metrics /var/log/prometheus/prometheus.log \
+        rm -rf /var/lib/prometheus/metrics /var/lib/prometheus/metrics.old-version-1 \
+            /var/log/prometheus/prometheus.log \
             /var/run/prometheus/prometheus.pid
 	# We do NOT remove the system user.
 	;;

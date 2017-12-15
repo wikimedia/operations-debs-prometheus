@@ -1,0 +1,12 @@
+Template: prometheus/remove-version1-database
+Type: boolean
+Default: true
+_Description: Remove old Prometheus version 1 database files?
+ The data format in Prometheus 2.0 has completely changed and is not backwards
+ compatible with 1.x. On installing this upgrade, the old database files are
+ moved from /var/lib/prometheus/metrics to /var/lib/prometheus/metrics.old-version-1.
+ .
+ If you want to delete the old data instead of keeping it around, say Yes now.
+ .
+ There is no conversion tool; if you want to retain access to the old data, it
+ is necessary to run a separate Prometheus 1.x instance on that data directory.

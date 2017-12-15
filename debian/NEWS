@@ -1,3 +1,16 @@
+prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
+
+  The data format in Prometheus 2.0 has completely changed and is not
+  backwards compatible with 1.x. On installing this upgrade, the old database
+  files are moved from /var/lib/prometheus/metrics to
+  /var/lib/prometheus/metrics.old-version-1.
+
+  There is no conversion tool; if you want to retain access to the old data,
+  it is necessary to run a separate Prometheus 1.x instance on that data
+  directory. (This package makes no provision to allow this.)
+
+ -- Christoph Berg <christoph.berg@credativ.de>  Fri, 15 Dec 2017 15:49:51 +0100
+
 prometheus (1.5.0+ds-1) unstable; urgency=medium
 
   Differences from upstream:

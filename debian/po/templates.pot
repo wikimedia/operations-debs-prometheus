@@ -1,0 +1,50 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the prometheus package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: prometheus\n"
+"Report-Msgid-Bugs-To: prometheus@packages.debian.org\n"
+"POT-Creation-Date: 2017-12-15 15:20+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid "Remove old Prometheus version 1 database files?"
+msgstr ""
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"The data format in Prometheus 2.0 has completely changed and is not "
+"backwards compatible with 1.x. On installing this upgrade, the old database "
+"files are moved from /var/lib/prometheus/metrics to /var/lib/prometheus/"
+"metrics.old-version-1."
+msgstr ""
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"If you want to delete the old data instead of keeping it around, say Yes now."
+msgstr ""
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"There is no conversion tool; if you want to retain access to the old data, "
+"it is necessary to run a separate Prometheus 1.x instance on that data "
+"directory."
+msgstr ""

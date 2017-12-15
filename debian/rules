@@ -37,8 +37,10 @@ TESTFLAGS  := -timeout 20m
 endif
 
 %:
+	# stop the service before upgrading, so we can move the v1 database away
 	dh $@ --buildsystem=golang --with=golang,systemd \
-            --builddirectory=$(BUILDDIR)
+            --builddirectory=$(BUILDDIR) \
+            --no-restart-after-upgrade
 
 override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
