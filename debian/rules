@@ -42,6 +42,9 @@ endif
 
 override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
+	build/bin/prometheus --help-man > build/prometheus.1
+	build/bin/promtool --help-man > build/promtool.1
+	sed -i -e '/^  /d' build/prometheus.1 build/promtool.1 # remove build user/build date/go version headers (ugly in output and non-reproducible)
 
 override_dh_auto_test:
 	dh_auto_test -- $(TESTFLAGS)
