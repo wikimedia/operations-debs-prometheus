@@ -1,9 +1,21 @@
 prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
 
   [ Martín Ferrari ]
-  * New upstream release.
-  * debian/watch: More robust rules; accept more pre-releases.
+  * New upstream release, with many breaking changes.
+  * Remove new vendored dependencies.
+  * Replace new JS vendored dependency with sources.
+  * Revendor consul API.
   * Refresh patches.
+  * debian/rules: Add new test fixtures.
+  * Update cmdline help, init script, and add notice in NEWS.
+  * Update default config.
+  * Add missing licensing info.
+  * debian/watch: More robust rules; accept more pre-releases.
+  * Update overrides.
+  * Stop using pristine-tar.
+  * Increase compat to 10; remove dh-systemd dep.
+  * Update Standards-Version and Priority.
+  * debian/copyright: Remove now obsolete Files-Excluded. Closes #884081
 
   [ Christoph Berg ]
   * Add new B-D golang-github-cespare-xxhash-dev,
@@ -17,7 +29,7 @@ prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
     changed.
   * Build prometheus and promtool manpages from --help-man.
 
- -- Martín Ferrari <tincho@debian.org>  Thu, 14 Dec 2017 20:12:39 +0000
+ -- Martín Ferrari <tincho@debian.org>  Fri, 15 Dec 2017 17:53:21 +0000
 
 prometheus (1.8.1+ds-2) unstable; urgency=medium
 
