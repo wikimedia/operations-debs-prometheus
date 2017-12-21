@@ -30,7 +30,7 @@ ARGS=""
 #                             available at /consoles.
 #  --web.console.libraries="/etc/prometheus/console_libraries"
 #                             Path to the console library directory.
-#  --storage.tsdb.path="/var/lib/prometheus/metrics/"
+#  --storage.tsdb.path="/var/lib/prometheus/metrics2/"
 #                             Base path for metrics storage.
 #  --storage.tsdb.min-block-duration=2h
 #                             Minimum duration of a data block before being
