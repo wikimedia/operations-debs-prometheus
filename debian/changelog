@@ -15,9 +15,12 @@ prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
   * Stop using pristine-tar.
   * Increase compat to 10; remove dh-systemd dep.
   * Update Standards-Version and Priority.
-  * debian/copyright: Remove now obsolete Files-Excluded. Closes #884081
+  * debian/copyright: Remove now obsolete Files-Excluded. Closes: #884081
 
   [ Christoph Berg ]
+  * The database format changed, metrics data directory is now
+    /var/lib/prometheus/metrics2. On upgrade, a debconf prompt asks if the old
+    data directory /var/lib/prometheus/metrics should be removed.
   * Add new B-D golang-github-cespare-xxhash-dev,
     golang-github-cockroachdb-cmux-dev, golang-github-dgryski-go-bits-dev,
     golang-github-gogo-protobuf-dev, golang-github-go-logfmt-logfmt-dev,
@@ -25,8 +28,6 @@ prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
     golang-github-grpc-ecosystem-grpc-gateway-dev,
     golang-github-nightlyone-lockfile-dev, golang-github-oklog-ulid-dev,
     golang-github-pkg-errors-dev, golang-gopkg-alecthomas-kingpin.v2-dev.
-  * Move version 1 metrics database away on upgrade; the database format
-    changed.
   * Build prometheus and promtool manpages from --help-man.
 
  -- Martín Ferrari <tincho@debian.org>  Fri, 15 Dec 2017 17:53:21 +0000

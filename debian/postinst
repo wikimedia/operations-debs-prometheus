@@ -32,20 +32,15 @@ case "$1" in
 
     # Move version 1 database aside
     if dpkg --compare-versions "$2" lt-nl 2~ && test -f /var/lib/prometheus/metrics/VERSION && \
-        test "$(cat /var/lib/prometheus/metrics/VERSION)" = "1" && \
-        test ! -d /var/lib/prometheus/metrics.old-version-1; then
-            echo "Moving Prometheus 1 metrics database away"
-            mv -v /var/lib/prometheus/metrics /var/lib/prometheus/metrics.old-version-1
-        mkdir /var/lib/prometheus/metrics
-
+        test "$(cat /var/lib/prometheus/metrics/VERSION)" = "1" ; then
         db_get prometheus/remove-version1-database
         if test "$RET" = "true"; then
-            echo "Removing old Prometheus 1 metrics database"
-            rm -rf /var/lib/prometheus/metrics.old-version-1
+            echo "Removing old Prometheus 1 metrics database ..."
+            rm -rf /var/lib/prometheus/metrics
         fi
     fi
 
-    chown -R prometheus:prometheus /var/lib/prometheus/metrics || true
+    chown -R prometheus:prometheus /var/lib/prometheus/metrics2 || true
     chown -R prometheus:prometheus /var/log/prometheus || true
   ;;
 

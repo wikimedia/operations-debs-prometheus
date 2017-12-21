@@ -2,5 +2,5 @@ etc/prometheus
 etc/prometheus/console_libraries
 etc/prometheus/consoles
 usr/share/prometheus/web/static
-var/lib/prometheus/metrics
+var/lib/prometheus/metrics2
 var/log/prometheus
