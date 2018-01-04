@@ -1,4 +1,6 @@
-prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
+prometheus (2.0.0+ds3-1) unstable; urgency=medium
+
+  * Team upload.
 
   [ Martín Ferrari ]
   * New upstream release, with many breaking changes.
@@ -29,8 +31,9 @@ prometheus (2.0.0+ds3-1) UNRELEASED; urgency=medium
     golang-github-nightlyone-lockfile-dev, golang-github-oklog-ulid-dev,
     golang-github-pkg-errors-dev, golang-gopkg-alecthomas-kingpin.v2-dev.
   * Build prometheus and promtool manpages from --help-man.
+  * Ship NOTICE file as required by the Apache license.
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 15 Dec 2017 17:53:21 +0000
+ -- Christoph Berg <myon@debian.org>  Thu, 04 Jan 2018 19:22:17 +0100
 
 prometheus (1.8.1+ds-2) unstable; urgency=medium
 
