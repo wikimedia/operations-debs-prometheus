@@ -9,6 +9,4 @@ _description: Remove old Prometheus version 1 database files?
  There is no conversion tool; if you want to retain access to the old data,
  it is necessary to run a separate Prometheus 1.x instance on that data
  directory. (This package makes no provision to allow this.)
- .
- If you want to delete the old data instead of keeping it around, say Yes now.
 Default: true
