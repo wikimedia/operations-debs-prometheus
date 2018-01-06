@@ -48,7 +48,7 @@ config_check()
 do_start_prepare()
 {
     mkdir -p `dirname $PIDFILE` || true
-    chown -R $USER: /var/lib/prometheus/metrics
+    chown -R $USER: /var/lib/prometheus/metrics2
     chown -R $USER: `dirname $LOGFILE`
     chown -R $USER: `dirname $PIDFILE`
 }
