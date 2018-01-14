@@ -41,11 +41,18 @@ endif
 	dh $@ --buildsystem=golang --with=golang,systemd \
             --builddirectory=$(BUILDDIR)
 
+WHATIS1 := "prometheus \\- The Prometheus monitoring server"
+WHATIS2 := "promtool \\- Tooling for the Prometheus monitoring system"
+
 override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)
 	build/bin/prometheus --help-man > build/prometheus.1
 	build/bin/promtool --help-man > build/promtool.1
-	sed -i -e '/^  /d' build/prometheus.1 build/promtool.1 # remove build user/build date/go version headers (ugly in output and non-reproducible)
+	# Remove build user/build date/go version headers, which is ugly.
+	sed -i -e '/^  /d' build/prometheus.1 build/promtool.1
+	# Fix whatis entry.
+	sed -i '/^.SH "NAME"/,+1c.SH "NAME"\n'$(WHATIS1) build/prometheus.1
+	sed -i '/^.SH "NAME"/,+1c.SH "NAME"\n'$(WHATIS2) build/promtool.1
 
 override_dh_auto_test:
 	dh_auto_test -- $(TESTFLAGS)
