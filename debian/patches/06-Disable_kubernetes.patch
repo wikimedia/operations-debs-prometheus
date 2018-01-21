@@ -1,20 +1,10 @@
 Description: Disable kubernetes SD, until dependencies are more reasonable.
 --- a/config/config.go
 +++ b/config/config.go
-@@ -135,9 +135,6 @@
- 		RefreshInterval: model.Duration(30 * time.Second),
- 	}
- 
--	// DefaultKubernetesSDConfig is the default Kubernetes SD configuration
--	DefaultKubernetesSDConfig = KubernetesSDConfig{}
--
- 	// DefaultGCESDConfig is the default EC2 SD configuration.
- 	DefaultGCESDConfig = GCESDConfig{
- 		Port:            80,
-@@ -284,12 +281,6 @@
+@@ -169,12 +169,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
- 	sdPaths := func(cfg *ServiceDiscoveryConfig) {
+ 	sdPaths := func(cfg *sd_config.ServiceDiscoveryConfig) {
 -		for _, kcfg := range cfg.KubernetesSDConfigs {
 -			kcfg.BearerTokenFile = join(kcfg.BearerTokenFile)
 -			kcfg.TLSConfig.CAFile = join(kcfg.TLSConfig.CAFile)
@@ -24,202 +14,9 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		for _, mcfg := range cfg.MarathonSDConfigs {
  			mcfg.BearerTokenFile = join(mcfg.BearerTokenFile)
  			mcfg.TLSConfig.CAFile = join(mcfg.TLSConfig.CAFile)
-@@ -488,8 +479,6 @@
- 	NerveSDConfigs []*NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
- 	// MarathonSDConfigs is a list of Marathon service discovery configurations.
- 	MarathonSDConfigs []*MarathonSDConfig `yaml:"marathon_sd_configs,omitempty"`
--	// List of Kubernetes service discovery configurations.
--	KubernetesSDConfigs []*KubernetesSDConfig `yaml:"kubernetes_sd_configs,omitempty"`
- 	// List of GCE service discovery configurations.
- 	GCESDConfigs []*GCESDConfig `yaml:"gce_sd_configs,omitempty"`
- 	// List of EC2 service discovery configurations.
-@@ -997,92 +986,6 @@
- 	return nil
- }
- 
--// KubernetesRole is role of the service in Kubernetes.
--type KubernetesRole string
--
--// The valid options for KubernetesRole.
--const (
--	KubernetesRoleNode     KubernetesRole = "node"
--	KubernetesRolePod      KubernetesRole = "pod"
--	KubernetesRoleService  KubernetesRole = "service"
--	KubernetesRoleEndpoint KubernetesRole = "endpoints"
--	KubernetesRoleIngress  KubernetesRole = "ingress"
--)
--
--// UnmarshalYAML implements the yaml.Unmarshaler interface.
--func (c *KubernetesRole) UnmarshalYAML(unmarshal func(interface{}) error) error {
--	if err := unmarshal((*string)(c)); err != nil {
--		return err
--	}
--	switch *c {
--	case KubernetesRoleNode, KubernetesRolePod, KubernetesRoleService, KubernetesRoleEndpoint, KubernetesRoleIngress:
--		return nil
--	default:
--		return fmt.Errorf("Unknown Kubernetes SD role %q", *c)
--	}
--}
--
--// KubernetesSDConfig is the configuration for Kubernetes service discovery.
--type KubernetesSDConfig struct {
--	APIServer          URL                          `yaml:"api_server"`
--	Role               KubernetesRole               `yaml:"role"`
--	BasicAuth          *BasicAuth                   `yaml:"basic_auth,omitempty"`
--	BearerToken        Secret                       `yaml:"bearer_token,omitempty"`
--	BearerTokenFile    string                       `yaml:"bearer_token_file,omitempty"`
--	TLSConfig          TLSConfig                    `yaml:"tls_config,omitempty"`
--	NamespaceDiscovery KubernetesNamespaceDiscovery `yaml:"namespaces"`
--
--	// Catches all undefined fields and must be empty after parsing.
--	XXX map[string]interface{} `yaml:",inline"`
--}
--
--// UnmarshalYAML implements the yaml.Unmarshaler interface.
--func (c *KubernetesSDConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
--	*c = KubernetesSDConfig{}
--	type plain KubernetesSDConfig
--	err := unmarshal((*plain)(c))
--	if err != nil {
--		return err
--	}
--	if err := checkOverflow(c.XXX, "kubernetes_sd_config"); err != nil {
--		return err
--	}
--	if c.Role == "" {
--		return fmt.Errorf("role missing (one of: pod, service, endpoints, node)")
--	}
--	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
--		return fmt.Errorf("at most one of bearer_token & bearer_token_file must be configured")
--	}
--	if c.BasicAuth != nil && (len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0) {
--		return fmt.Errorf("at most one of basic_auth, bearer_token & bearer_token_file must be configured")
--	}
--	if c.APIServer.URL == nil &&
--		(c.BasicAuth != nil || c.BearerToken != "" || c.BearerTokenFile != "" ||
--			c.TLSConfig.CAFile != "" || c.TLSConfig.CertFile != "" || c.TLSConfig.KeyFile != "") {
--		return fmt.Errorf("to use custom authentication please provide the 'api_server' URL explicitly")
--	}
--	return nil
--}
--
--// KubernetesNamespaceDiscovery is the configuration for discovering
--// Kubernetes namespaces.
--type KubernetesNamespaceDiscovery struct {
--	Names []string `yaml:"names"`
--	// Catches all undefined fields and must be empty after parsing.
--	XXX map[string]interface{} `yaml:",inline"`
--}
--
--// UnmarshalYAML implements the yaml.Unmarshaler interface.
--func (c *KubernetesNamespaceDiscovery) UnmarshalYAML(unmarshal func(interface{}) error) error {
--	*c = KubernetesNamespaceDiscovery{}
--	type plain KubernetesNamespaceDiscovery
--	err := unmarshal((*plain)(c))
--	if err != nil {
--		return err
--	}
--	return checkOverflow(c.XXX, "namespaces")
--}
--
- // GCESDConfig is the configuration for GCE based service discovery.
- type GCESDConfig struct {
- 	// Project: The Google Cloud Project ID
---- a/config/config_test.go
-+++ b/config/config_test.go
-@@ -306,52 +306,6 @@
- 			},
- 		},
- 		{
--			JobName: "service-kubernetes",
--
--			ScrapeInterval: model.Duration(15 * time.Second),
--			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
--
--			MetricsPath: DefaultScrapeConfig.MetricsPath,
--			Scheme:      DefaultScrapeConfig.Scheme,
--
--			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
--				KubernetesSDConfigs: []*KubernetesSDConfig{
--					{
--						APIServer: kubernetesSDHostURL(),
--						Role:      KubernetesRoleEndpoint,
--						BasicAuth: &BasicAuth{
--							Username: "myusername",
--							Password: "mysecret",
--						},
--						NamespaceDiscovery: KubernetesNamespaceDiscovery{},
--					},
--				},
--			},
--		},
--		{
--			JobName: "service-kubernetes-namespaces",
--
--			ScrapeInterval: model.Duration(15 * time.Second),
--			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
--
--			MetricsPath: DefaultScrapeConfig.MetricsPath,
--			Scheme:      DefaultScrapeConfig.Scheme,
--
--			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
--				KubernetesSDConfigs: []*KubernetesSDConfig{
--					{
--						APIServer: kubernetesSDHostURL(),
--						Role:      KubernetesRoleEndpoint,
--						NamespaceDiscovery: KubernetesNamespaceDiscovery{
--							Names: []string{
--								"default",
--							},
--						},
--					},
--				},
--			},
--		},
--		{
- 			JobName: "service-marathon",
- 
- 			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -552,7 +506,7 @@
- 	yamlConfig := string(config)
- 
- 	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
--	testutil.Assert(t, len(matches) == 6, "wrong number of secret matches found")
-+	testutil.Assert(t, len(matches) == 5, "wrong number of secret matches found")
- 	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
- 		"yaml marshal reveals authentication credentials.")
- }
-@@ -634,18 +588,6 @@
- 		filename: "bearertoken_basicauth.bad.yml",
- 		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
- 	}, {
--		filename: "kubernetes_bearertoken.bad.yml",
--		errMsg:   "at most one of bearer_token & bearer_token_file must be configured",
--	}, {
--		filename: "kubernetes_role.bad.yml",
--		errMsg:   "role",
--	}, {
--		filename: "kubernetes_namespace_discovery.bad.yml",
--		errMsg:   "unknown fields in namespaces",
--	}, {
--		filename: "kubernetes_bearertoken_basicauth.bad.yml",
--		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
--	}, {
- 		filename: "marathon_no_servers.bad.yml",
- 		errMsg:   "Marathon SD config must contain at least one Marathon server",
- 	}, {
-@@ -729,7 +671,3 @@
- 	}
- }
- 
--func kubernetesSDHostURL() URL {
--	tURL, _ := url.Parse("https://localhost:1234")
--	return URL{URL: tURL}
--}
 --- a/config/testdata/conf.good.yml
 +++ b/config/testdata/conf.good.yml
-@@ -142,25 +142,6 @@
+@@ -144,25 +144,6 @@
  
    bearer_token: mysecret
  
@@ -344,34 +141,9 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/discovery.go
-+++ b/discovery/discovery.go
-@@ -28,7 +28,6 @@
- 	"github.com/prometheus/prometheus/discovery/ec2"
- 	"github.com/prometheus/prometheus/discovery/file"
- 	"github.com/prometheus/prometheus/discovery/gce"
--	"github.com/prometheus/prometheus/discovery/kubernetes"
- 	"github.com/prometheus/prometheus/discovery/marathon"
- 	"github.com/prometheus/prometheus/discovery/openstack"
- 	"github.com/prometheus/prometheus/discovery/triton"
-@@ -81,14 +80,6 @@
- 		}
- 		app("marathon", i, m)
- 	}
--	for i, c := range cfg.KubernetesSDConfigs {
--		k, err := kubernetes.New(log.With(logger, "discovery", "k8s"), c)
--		if err != nil {
--			level.Error(logger).Log("msg", "Cannot create Kubernetes discovery", "err", err)
--			continue
--		}
--		app("kubernetes", i, k)
--	}
- 	for i, c := range cfg.ServersetSDConfigs {
- 		app("serverset", i, zookeeper.NewServersetDiscovery(c, log.With(logger, "discovery", "zookeeper")))
- 	}
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -147,12 +147,6 @@
+@@ -148,12 +148,6 @@
  			return nil, err
  		}
  
@@ -408,7 +180,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -36,7 +36,6 @@
+@@ -40,7 +40,6 @@
  	"github.com/prometheus/common/model"
  	"github.com/prometheus/common/version"
  	"gopkg.in/alecthomas/kingpin.v2"
@@ -416,7 +188,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  
  	"github.com/mwitkow/go-conntrack"
  	"github.com/prometheus/common/promlog"
-@@ -206,15 +205,6 @@
+@@ -216,15 +215,6 @@
  
  	logger := promlog.New(cfg.logLevel)
  
@@ -432,3 +204,147 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
  	level.Info(logger).Log("build_context", version.BuildContext())
  	level.Info(logger).Log("host_details", Uname())
+--- a/discovery/config/config.go
++++ b/discovery/config/config.go
+@@ -20,7 +20,6 @@
+ 	"github.com/prometheus/prometheus/discovery/ec2"
+ 	"github.com/prometheus/prometheus/discovery/file"
+ 	"github.com/prometheus/prometheus/discovery/gce"
+-	"github.com/prometheus/prometheus/discovery/kubernetes"
+ 	"github.com/prometheus/prometheus/discovery/marathon"
+ 	"github.com/prometheus/prometheus/discovery/openstack"
+ 	"github.com/prometheus/prometheus/discovery/targetgroup"
+@@ -46,8 +45,6 @@
+ 	NerveSDConfigs []*zookeeper.NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
+ 	// MarathonSDConfigs is a list of Marathon service discovery configurations.
+ 	MarathonSDConfigs []*marathon.SDConfig `yaml:"marathon_sd_configs,omitempty"`
+-	// List of Kubernetes service discovery configurations.
+-	KubernetesSDConfigs []*kubernetes.SDConfig `yaml:"kubernetes_sd_configs,omitempty"`
+ 	// List of GCE service discovery configurations.
+ 	GCESDConfigs []*gce.SDConfig `yaml:"gce_sd_configs,omitempty"`
+ 	// List of EC2 service discovery configurations.
+--- a/discovery/manager.go
++++ b/discovery/manager.go
+@@ -30,7 +30,6 @@
+ 	"github.com/prometheus/prometheus/discovery/ec2"
+ 	"github.com/prometheus/prometheus/discovery/file"
+ 	"github.com/prometheus/prometheus/discovery/gce"
+-	"github.com/prometheus/prometheus/discovery/kubernetes"
+ 	"github.com/prometheus/prometheus/discovery/marathon"
+ 	"github.com/prometheus/prometheus/discovery/openstack"
+ 	"github.com/prometheus/prometheus/discovery/triton"
+@@ -208,14 +207,6 @@
+ 		}
+ 		app("marathon", i, t)
+ 	}
+-	for i, c := range cfg.KubernetesSDConfigs {
+-		k, err := kubernetes.New(log.With(m.logger, "discovery", "k8s"), c)
+-		if err != nil {
+-			level.Error(m.logger).Log("msg", "Cannot create Kubernetes discovery", "err", err)
+-			continue
+-		}
+-		app("kubernetes", i, k)
+-	}
+ 	for i, c := range cfg.ServersetSDConfigs {
+ 		app("serverset", i, zookeeper.NewServersetDiscovery(c, log.With(m.logger, "discovery", "zookeeper")))
+ 	}
+--- a/config/config_test.go
++++ b/config/config_test.go
+@@ -28,7 +28,6 @@
+ 	"github.com/prometheus/prometheus/discovery/dns"
+ 	"github.com/prometheus/prometheus/discovery/ec2"
+ 	"github.com/prometheus/prometheus/discovery/file"
+-	"github.com/prometheus/prometheus/discovery/kubernetes"
+ 	"github.com/prometheus/prometheus/discovery/marathon"
+ 	"github.com/prometheus/prometheus/discovery/targetgroup"
+ 	"github.com/prometheus/prometheus/discovery/triton"
+@@ -320,52 +319,6 @@
+ 			},
+ 		},
+ 		{
+-			JobName: "service-kubernetes",
+-
+-			ScrapeInterval: model.Duration(15 * time.Second),
+-			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+-
+-			MetricsPath: DefaultScrapeConfig.MetricsPath,
+-			Scheme:      DefaultScrapeConfig.Scheme,
+-
+-			ServiceDiscoveryConfig: sd_config.ServiceDiscoveryConfig{
+-				KubernetesSDConfigs: []*kubernetes.SDConfig{
+-					{
+-						APIServer: kubernetesSDHostURL(),
+-						Role:      kubernetes.RoleEndpoint,
+-						BasicAuth: &config_util.BasicAuth{
+-							Username: "myusername",
+-							Password: "mysecret",
+-						},
+-						NamespaceDiscovery: kubernetes.NamespaceDiscovery{},
+-					},
+-				},
+-			},
+-		},
+-		{
+-			JobName: "service-kubernetes-namespaces",
+-
+-			ScrapeInterval: model.Duration(15 * time.Second),
+-			ScrapeTimeout:  DefaultGlobalConfig.ScrapeTimeout,
+-
+-			MetricsPath: DefaultScrapeConfig.MetricsPath,
+-			Scheme:      DefaultScrapeConfig.Scheme,
+-
+-			ServiceDiscoveryConfig: sd_config.ServiceDiscoveryConfig{
+-				KubernetesSDConfigs: []*kubernetes.SDConfig{
+-					{
+-						APIServer: kubernetesSDHostURL(),
+-						Role:      kubernetes.RoleEndpoint,
+-						NamespaceDiscovery: kubernetes.NamespaceDiscovery{
+-							Names: []string{
+-								"default",
+-							},
+-						},
+-					},
+-				},
+-			},
+-		},
+-		{
+ 			JobName: "service-marathon",
+ 
+ 			ScrapeInterval: model.Duration(15 * time.Second),
+@@ -566,7 +519,7 @@
+ 	yamlConfig := string(config)
+ 
+ 	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
+-	testutil.Assert(t, len(matches) == 6, "wrong number of secret matches found")
++	testutil.Assert(t, len(matches) == 5, "wrong number of secret matches found")
+ 	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
+ 		"yaml marshal reveals authentication credentials.")
+ }
+@@ -648,18 +601,6 @@
+ 		filename: "bearertoken_basicauth.bad.yml",
+ 		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
+ 	}, {
+-		filename: "kubernetes_bearertoken.bad.yml",
+-		errMsg:   "at most one of bearer_token & bearer_token_file must be configured",
+-	}, {
+-		filename: "kubernetes_role.bad.yml",
+-		errMsg:   "role",
+-	}, {
+-		filename: "kubernetes_namespace_discovery.bad.yml",
+-		errMsg:   "unknown fields in namespaces",
+-	}, {
+-		filename: "kubernetes_bearertoken_basicauth.bad.yml",
+-		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
+-	}, {
+ 		filename: "marathon_no_servers.bad.yml",
+ 		errMsg:   "Marathon SD config must contain at least one Marathon server",
+ 	}, {
+@@ -741,8 +682,3 @@
+ 			"Expected %q to be %v", test.str, test.valid)
+ 	}
+ }
+-
+-func kubernetesSDHostURL() config_util.URL {
+-	tURL, _ := url.Parse("https://localhost:1234")
+-	return config_util.URL{URL: tURL}
+-}

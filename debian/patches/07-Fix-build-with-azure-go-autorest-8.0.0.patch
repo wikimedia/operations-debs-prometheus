@@ -18,9 +18,9 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	"github.com/Azure/go-autorest/autorest/azure"
  
  	"github.com/go-kit/kit/log"
-@@ -122,20 +124,22 @@
+@@ -155,20 +157,22 @@
  // createAzureClient is a helper function for creating an Azure compute client to ARM.
- func createAzureClient(cfg config.AzureSDConfig) (azureClient, error) {
+ func createAzureClient(cfg SDConfig) (azureClient, error) {
  	var c azureClient
 -	oauthConfig, err := azure.PublicCloud.OAuthConfigForTenant(cfg.TenantID)
 +	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint, cfg.TenantID)
@@ -45,7 +45,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  
  	return c, nil
  }
-@@ -226,7 +230,7 @@
+@@ -259,7 +263,7 @@
  			}
  
  			// Get the IP address information via separate call to the network provider.
@@ -54,7 +54,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  				r, err := newAzureResourceFromID(*nic.ID, d.logger)
  				if err != nil {
  					ch <- target{labelSet: nil, err: err}
-@@ -244,17 +248,17 @@
+@@ -277,17 +281,17 @@
  				// This information is available via another API call however the Go SDK does not
  				// yet support this. On deallocated machines, this value happens to be nil so it
  				// is a cheap and easy way to determine if a machine is allocated or not.
