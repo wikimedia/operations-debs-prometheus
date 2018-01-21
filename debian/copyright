@@ -24,6 +24,10 @@ Files: vendor/github.com/cockroachdb/cockroach/*
 Copyright: 2014 The Cockroach Authors
 License: Apache-2.0
 
+Files: vendor/github.com/oklog/oklog/*
+Copyright: 2016 The Oklog Authors
+License: Apache-2.0
+
 Files: web/ui/static/vendor/js/jquery.selection.js
 Copyright: 2010-2012 IWASAKI Koji (@madapaja).
 License: Expat
