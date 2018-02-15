@@ -1,3 +1,8 @@
+Description: Stop creating a tsdb lockfile by default.
+ Replace storage.tsdb.no-lockfile flag with storage.tsdb.use-lockfile, so the
+ default is not to create a lockfile, while still allowing people to request
+ the feature.
+
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
 @@ -164,8 +164,8 @@
