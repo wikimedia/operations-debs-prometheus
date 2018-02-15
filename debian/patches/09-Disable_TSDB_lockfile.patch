@@ -1,0 +1,35 @@
+--- a/cmd/prometheus/main.go
++++ b/cmd/prometheus/main.go
+@@ -164,8 +164,8 @@
+ 	a.Flag("storage.tsdb.retention", "How long to retain samples in the storage.").
+ 		Default("15d").SetValue(&cfg.tsdb.Retention)
+ 
+-	a.Flag("storage.tsdb.no-lockfile", "Do not create lockfile in data directory.").
+-		Default("false").BoolVar(&cfg.tsdb.NoLockfile)
++	a.Flag("storage.tsdb.use-lockfile", "Create a lockfile in data directory.").
++		Default("false").BoolVar(&cfg.tsdb.UseLockfile)
+ 
+ 	a.Flag("alertmanager.notification-queue-capacity", "The capacity of the queue for pending alert manager notifications.").
+ 		Default("10000").IntVar(&cfg.notifier.QueueCapacity)
+--- a/storage/tsdb/tsdb.go
++++ b/storage/tsdb/tsdb.go
+@@ -120,8 +120,8 @@
+ 	// Duration for how long to retain data.
+ 	Retention model.Duration
+ 
+-	// Disable creation and consideration of lockfile.
+-	NoLockfile bool
++	// Enable creation and consideration of lockfile.
++	UseLockfile bool
+ }
+ 
+ // Open returns a new storage backed by a TSDB database that is configured for Prometheus.
+@@ -144,7 +144,7 @@
+ 		WALFlushInterval:  10 * time.Second,
+ 		RetentionDuration: uint64(time.Duration(opts.Retention).Seconds() * 1000),
+ 		BlockRanges:       rngs,
+-		NoLockfile:        opts.NoLockfile,
++		NoLockfile:        !opts.UseLockfile,
+ 	})
+ 	if err != nil {
+ 		return nil, err

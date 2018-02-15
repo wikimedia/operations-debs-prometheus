@@ -40,8 +40,8 @@ ARGS=""
 #                             (Defaults to 10% of the retention period)
 #  --storage.tsdb.retention=15d
 #                             How long to retain samples in the storage.
-#  --storage.tsdb.no-lockfile
-#                             Do not create lockfile in data directory.
+#  --storage.tsdb.use-lockfile
+#                             Create a lockfile in data directory.
 #  --alertmanager.notification-queue-capacity=10000
 #                             The capacity of the queue for pending alert
 #                             manager notifications.
