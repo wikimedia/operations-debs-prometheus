@@ -1,3 +1,11 @@
+prometheus (2.2.0+ds-1) unstable; urgency=medium
+
+  NOTE: This release introduces improvements to the storage format and fixes a
+  regression introduced in 2.1. As a result Prometheus servers upgraded to 2.2
+  cannot be downgraded to a lower version anymore!
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 14 Mar 2018 14:30:00 +0000
+
 prometheus (2.0.0+ds3-1) unstable; urgency=medium
 
   BREAKING CHANGES
