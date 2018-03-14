@@ -188,7 +188,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  
  	"github.com/mwitkow/go-conntrack"
  	"github.com/prometheus/common/promlog"
-@@ -216,15 +215,6 @@
+@@ -211,15 +210,6 @@
  
  	logger := promlog.New(cfg.logLevel)
  
@@ -225,7 +225,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of EC2 service discovery configurations.
 --- a/discovery/manager.go
 +++ b/discovery/manager.go
-@@ -30,7 +30,6 @@
+@@ -31,7 +31,6 @@
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -233,7 +233,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -208,14 +207,6 @@
+@@ -232,14 +231,6 @@
  		}
  		app("marathon", i, t)
  	}
@@ -320,7 +320,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -648,18 +601,6 @@
+@@ -651,18 +604,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -339,7 +339,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "Marathon SD config must contain at least one Marathon server",
  	}, {
-@@ -741,8 +682,3 @@
+@@ -744,8 +685,3 @@
  			"Expected %q to be %v", test.str, test.valid)
  	}
  }

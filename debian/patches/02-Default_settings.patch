@@ -1,7 +1,7 @@
 Description: Add default settings adapted for Debian.
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -114,7 +114,7 @@
+@@ -111,7 +111,7 @@
  	a.HelpFlag.Short('h')
  
  	a.Flag("config.file", "Prometheus configuration file path.").
@@ -10,7 +10,7 @@ Description: Add default settings adapted for Debian.
  
  	a.Flag("web.listen-address", "Address to listen on for UI, API, and telemetry.").
  		Default("0.0.0.0:9090").StringVar(&cfg.web.ListenAddress)
-@@ -147,13 +147,13 @@
+@@ -144,13 +144,13 @@
  		Default("false").BoolVar(&cfg.web.EnableAdminAPI)
  
  	a.Flag("web.console.templates", "Path to the console template directory, available at /consoles.").
