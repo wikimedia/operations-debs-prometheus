@@ -45,6 +45,15 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  
  	return c, nil
  }
+@@ -251,7 +255,7 @@
+ 			labels := model.LabelSet{
+ 				azureLabelMachineID:            model.LabelValue(*vm.ID),
+ 				azureLabelMachineName:          model.LabelValue(*vm.Name),
+-				azureLabelMachineOSType:        model.LabelValue(vm.Properties.StorageProfile.OsDisk.OsType),
++				azureLabelMachineOSType:        model.LabelValue(vm.StorageProfile.OsDisk.OsType),
+ 				azureLabelMachineLocation:      model.LabelValue(*vm.Location),
+ 				azureLabelMachineResourceGroup: model.LabelValue(r.ResourceGroup),
+ 			}
 @@ -264,7 +268,7 @@
  			}
  
