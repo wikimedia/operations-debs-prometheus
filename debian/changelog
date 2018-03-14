@@ -1,4 +1,4 @@
-prometheus (2.2.0+ds-1) UNRELEASED; urgency=medium
+prometheus (2.2.0+ds-1) unstable; urgency=medium
 
   * New upstream release. Closes: #888153.
   * Add notice about DB changes.
@@ -7,7 +7,7 @@ prometheus (2.2.0+ds-1) UNRELEASED; urgency=medium
   * Update Azure patch for new breakage.
   * Inline unreleased method from the golang client lib.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 14 Mar 2018 18:18:26 +0000
+ -- Martín Ferrari <tincho@debian.org>  Wed, 14 Mar 2018 18:18:37 +0000
 
 prometheus (2.1.0+ds-1) unstable; urgency=medium
 
