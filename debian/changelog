@@ -1,3 +1,9 @@
+prometheus (2.2.0+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release. Closes: #888153.
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 14 Mar 2018 14:18:38 +0000
+
 prometheus (2.1.0+ds-1) unstable; urgency=medium
 
   * New upstream release.
