@@ -1,8 +1,11 @@
-prometheus (2.2.1+ds-1) UNRELEASED; urgency=high
+prometheus (2.2.1+ds-1) unstable; urgency=high
 
   * New upstream release, with critical fixes.
+  * Ignore fsnotify on mips64el, rely only on timeouts for file discovery on
+    that platform, and disable the tests.
+    https://github.com/fsnotify/fsnotify/issues/241
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 26 Mar 2018 04:04:09 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 26 Mar 2018 04:34:44 +0000
 
 prometheus (2.2.0+ds-1) unstable; urgency=medium
 
