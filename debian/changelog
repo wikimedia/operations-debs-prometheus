@@ -1,9 +1,9 @@
-prometheus (2.2.1+ds-2) UNRELEASED; urgency=high
+prometheus (2.2.1+ds-2) unstable; urgency=high
 
   * debian/control: Require latest TSDB version, that solves serious bugs
     in the DB.
 
- -- Martín Ferrari <tincho@debian.org>  Thu, 29 Mar 2018 09:17:20 +0000
+ -- Martín Ferrari <tincho@debian.org>  Thu, 29 Mar 2018 09:17:37 +0000
 
 prometheus (2.2.1+ds-1) unstable; urgency=high
 
