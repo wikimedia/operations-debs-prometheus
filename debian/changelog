@@ -1,3 +1,9 @@
+prometheus (2.2.1+ds-3) UNRELEASED; urgency=medium
+
+  * Point Vcs-* urls to salsa.debian.org.
+
+ -- Alexandre Viau <aviau@debian.org>  Mon, 02 Apr 2018 23:34:56 -0400
+
 prometheus (2.2.1+ds-2) unstable; urgency=high
 
   * debian/control: Require latest TSDB version, that solves serious bugs
