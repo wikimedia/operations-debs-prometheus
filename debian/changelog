@@ -28,6 +28,11 @@ prometheus (2.2.0+ds-1) unstable; urgency=medium
   * Refresh patches.
   * Update Azure patch for new breakage.
   * Inline unreleased method from the golang client lib.
+  * Stop creating a tsdb lockfile by default.
+    Replace storage.tsdb.no-lockfile flag with storage.tsdb.use-lockfile, so
+    the default is not to create a lockfile, while still allowing people to
+    request the feature.  Closes: #890501
+  * Rename patches, and remove unused AWS patch.
 
  -- Martín Ferrari <tincho@debian.org>  Wed, 14 Mar 2018 18:18:37 +0000
 
