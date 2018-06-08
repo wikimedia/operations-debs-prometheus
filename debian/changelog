@@ -1,8 +1,12 @@
-prometheus (2.2.1+ds-3) UNRELEASED; urgency=medium
+prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
 
+  [ Alexandre Viau ]
   * Point Vcs-* urls to salsa.debian.org.
 
- -- Alexandre Viau <aviau@debian.org>  Mon, 02 Apr 2018 23:34:56 -0400
+  [ Martín Ferrari ]
+  * New upstream version.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 08 Jun 2018 17:00:25 +0000
 
 prometheus (2.2.1+ds-2) unstable; urgency=high
 
