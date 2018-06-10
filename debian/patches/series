@@ -4,5 +4,4 @@
 04-Fix-build-with-azure-go-autorest-8.0.0.patch
 05-Fix-MainTest.patch
 06-Disable_TSDB_lockfile.patch
-07-Patch_client_API.patch
-08-Disable_fsnotify_mips64el.patch
+07-Disable_fsnotify_mips64el.patch
