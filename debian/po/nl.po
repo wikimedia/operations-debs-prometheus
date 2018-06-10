@@ -1,0 +1,54 @@
+# Dutch translation of prometheus debconf templates.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the prometheus package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Frans Spiesschaert <Frans.Spiesschaert@yucom.be>, 2018.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: prometheus 2.2.1+ds-2\n"
+"Report-Msgid-Bugs-To: prometheus@packages.debian.org\n"
+"POT-Creation-Date: 2018-01-04 21:07+0100\n"
+"PO-Revision-Date: 2018-05-08 15:32+0200\n"
+"Last-Translator: Frans Spiesschaert <Frans.Spiesschaert@yucom.be>\n"
+"Language-Team: Debian Dutch l10n Team <debian-l10n-dutch@lists.debian.org>\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Gtranslator 2.91.7\n"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid "Remove old Prometheus version 1 database files?"
+msgstr "De databasebestanden van de oude versie 1 van Prometheus verwijderen?"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"The data format in Prometheus 2.0 has completely changed and is not "
+"backwards compatible with 1.x. Prometheus 2 will create a new data directory "
+"in /var/lib/prometheus/metrics2. The old data in /var/lib/prometheus/metrics "
+"can not be read by the new version."
+msgstr ""
+"In Prometheus 2.0 werd de indeling van het databasebestand volledig "
+"veranderd en deze is niet neerwaarts compatibel met 1.x. Prometheus 2 zal "
+"een nieuwe gegevensmap aanmaken in /var/lib/prometheus/metrics2. De oude "
+"gegevens in /var/lib/prometheus/metrics kunnen door de nieuwe versie niet "
+"gelezen worden."
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"There is no conversion tool; if you want to retain access to the old data, "
+"it is necessary to run a separate Prometheus 1.x instance on that data "
+"directory. (This package makes no provision to allow this.)"
+msgstr ""
+"Er bestaat geen conversiegereedschap. Indien u toegang wilt blijven hebben "
+"tot de oude gegevens, dan moet u voor die map met gegevens een aparte versie "
+"van Prometheus 1.x gebruiken. (Dit pakket treft geen voorzieningen om dat "
+"mogelijk te maken.)"

@@ -1,0 +1,73 @@
+# prometheus po-debconf translation to Spanish.
+# Copyright (C) 2018 Software in the Public Interest
+# This file is distributed under the same license as the prometheus package.
+#
+# - Initial translation
+# Jonathan Bustillos <jathanblackred@openmailbox.com>, 2018.
+#
+# Traductores, si no conocen el formato PO, merece la pena leer la
+# documentación de gettext, especialmente las secciones dedicadas a este
+# formato, por ejemplo ejecutando:
+# info -n '(gettext)PO Files'
+# info -n '(gettext)Header Entry'
+#
+# Equipo de traducción al español, por favor lean antes de traducir
+# los siguientes documentos:
+#
+# - El proyecto de traducción de Debian al español
+# http://www.debian.org/intl/spanish/
+# especialmente las notas y normas de traducción en
+# http://www.debian.org/intl/spanish/notas
+#
+# - La guía de traducción de po's de debconf:
+# /usr/share/doc/po-debconf/README-trans
+# o http://www.debian.org/intl/l10n/po-debconf/README-trans
+msgid ""
+msgstr ""
+"Project-Id-Version: prometheus\n"
+"Report-Msgid-Bugs-To: prometheus@packages.debian.org\n"
+"POT-Creation-Date: 2018-01-04 21:07+0100\n"
+"PO-Revision-Date: 2018-05-27 10:38+0200\n"
+"Last-Translator: Jonathan Bustillos <jathanblackred@openmailbox.com>\n"
+"Language-Team: Debian Spanish <debian-l10n-spanish@lists.debian.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Gtranslator 2.91.7\n"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid "Remove old Prometheus version 1 database files?"
+msgstr ""
+"¿Desea eliminar los archivos antiguos de la base de datos de la versión 1 de "
+"Prometheus?"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"The data format in Prometheus 2.0 has completely changed and is not "
+"backwards compatible with 1.x. Prometheus 2 will create a new data directory "
+"in /var/lib/prometheus/metrics2. The old data in /var/lib/prometheus/metrics "
+"can not be read by the new version."
+msgstr ""
+"El formato de datos en Prometheus 2.0 ha cambiado completamente y no es "
+"retrocompatible con 1.x. Prometheus 2 creará un nuevo directorio de datos "
+"en /var/lib/prometheus/metrics2. Los datos antiguos en /var/lib/prometheus/"
+"metrics no pueden ser leídos por la nueva versión."
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"There is no conversion tool; if you want to retain access to the old data, "
+"it is necessary to run a separate Prometheus 1.x instance on that data "
+"directory. (This package makes no provision to allow this.)"
+msgstr ""
+"No hay una herramienta de conversión; si desea conservar el acceso a los "
+"datos antiguos, es necesario ejecutar una instancia de Prometheus 1.x por "
+"separado en ese directorio de datos. (Este paquete no incluye ninguna "
+"disposición para permitir esto)."
