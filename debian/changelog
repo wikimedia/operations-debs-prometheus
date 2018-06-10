@@ -5,8 +5,14 @@ prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
 
   [ Martín Ferrari ]
   * New upstream version.
+  * New dependency golang-github-json-iterator-go-dev.
+  * Refresh patches.
+  * Depend on version of fsnotify with new import path.
+  * Depend on latest common and client libs; remove now unneeded patch.
+  * Add debconf translations for es, fr, nl, pt, and ru.
+    Closes: #898186, #898299, #899024, #899230, #900713.
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 08 Jun 2018 17:00:25 +0000
+ -- Martín Ferrari <tincho@debian.org>  Sun, 10 Jun 2018 18:45:30 +0000
 
 prometheus (2.2.1+ds-2) unstable; urgency=high
 
