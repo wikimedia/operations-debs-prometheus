@@ -4,7 +4,7 @@ Description: The usage of this method requires an unreleased version of the
 
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -583,7 +583,8 @@
+@@ -598,7 +598,8 @@
  	defer func() {
  		if err == nil {
  			configSuccess.Set(1)

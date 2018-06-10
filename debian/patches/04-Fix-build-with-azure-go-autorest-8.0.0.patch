@@ -18,7 +18,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	"github.com/Azure/go-autorest/autorest/azure"
  
  	"github.com/go-kit/kit/log"
-@@ -159,20 +161,22 @@
+@@ -154,20 +156,22 @@
  // createAzureClient is a helper function for creating an Azure compute client to ARM.
  func createAzureClient(cfg SDConfig) (azureClient, error) {
  	var c azureClient
@@ -45,7 +45,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  
  	return c, nil
  }
-@@ -251,7 +255,7 @@
+@@ -246,7 +250,7 @@
  			labels := model.LabelSet{
  				azureLabelMachineID:            model.LabelValue(*vm.ID),
  				azureLabelMachineName:          model.LabelValue(*vm.Name),
@@ -54,7 +54,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  				azureLabelMachineLocation:      model.LabelValue(*vm.Location),
  				azureLabelMachineResourceGroup: model.LabelValue(r.ResourceGroup),
  			}
-@@ -264,7 +268,7 @@
+@@ -259,7 +263,7 @@
  			}
  
  			// Get the IP address information via separate call to the network provider.
@@ -63,7 +63,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  				r, err := newAzureResourceFromID(*nic.ID, d.logger)
  				if err != nil {
  					ch <- target{labelSet: nil, err: err}
-@@ -282,17 +286,17 @@
+@@ -277,17 +281,17 @@
  				// This information is available via another API call however the Go SDK does not
  				// yet support this. On deallocated machines, this value happens to be nil so it
  				// is a cheap and easy way to determine if a machine is allocated or not.

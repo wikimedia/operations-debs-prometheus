@@ -5,8 +5,8 @@ Description: Stop creating a tsdb lockfile by default.
 
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -161,8 +161,8 @@
- 	a.Flag("storage.tsdb.retention", "How long to retain samples in the storage.").
+@@ -160,8 +160,8 @@
+ 	a.Flag("storage.tsdb.retention", "How long to retain samples in storage.").
  		Default("15d").SetValue(&cfg.tsdb.Retention)
  
 -	a.Flag("storage.tsdb.no-lockfile", "Do not create lockfile in data directory.").
@@ -14,8 +14,8 @@ Description: Stop creating a tsdb lockfile by default.
 +	a.Flag("storage.tsdb.use-lockfile", "Create a lockfile in data directory.").
 +		Default("false").BoolVar(&cfg.tsdb.UseLockfile)
  
- 	a.Flag("alertmanager.notification-queue-capacity", "The capacity of the queue for pending alert manager notifications.").
- 		Default("10000").IntVar(&cfg.notifier.QueueCapacity)
+ 	a.Flag("storage.remote.flush-deadline", "How long to wait flushing sample on shutdown or config reload.").
+ 		Default("1m").PlaceHolder("<duration>").SetValue(&cfg.RemoteFlushDeadline)
 --- a/storage/tsdb/tsdb.go
 +++ b/storage/tsdb/tsdb.go
 @@ -120,8 +120,8 @@

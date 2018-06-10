@@ -10,7 +10,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	"context"
  	"encoding/json"
  	"fmt"
-@@ -63,7 +62,6 @@
+@@ -66,7 +65,6 @@
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
  	api_v2 "github.com/prometheus/prometheus/web/api/v2"
@@ -18,25 +18,25 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -138,7 +136,7 @@
+@@ -174,7 +172,7 @@
+ 	MaxConnections       int
  	ExternalURL          *url.URL
  	RoutePrefix          string
- 	MetricsPath          string
 -	UseLocalAssets       bool
 +	LocalAssets          string
  	UserAssetsPath       string
  	ConsoleTemplatesPath string
  	ConsoleLibrariesPath string
-@@ -230,7 +228,7 @@
+@@ -274,7 +272,7 @@
  
- 	router.Get("/consoles/*filepath", readyf(instrf("consoles", h.consoles)))
+ 	router.Get("/consoles/*filepath", readyf(h.consoles))
  
--	router.Get("/static/*filepath", instrf("static", h.serveStaticAsset))
-+	router.Get("/static/*filepath", instrf("user", route.FileServe(filepath.Join(o.LocalAssets, "/static"))))
+-	router.Get("/static/*filepath", h.serveStaticAsset)
++	router.Get("/static/*filepath", route.FileServe(filepath.Join(o.LocalAssets, "/static")))
  
  	if o.UserAssetsPath != "" {
- 		router.Get("/user/*filepath", instrf("user", route.FileServe(o.UserAssetsPath)))
-@@ -317,28 +315,6 @@
+ 		router.Get("/user/*filepath", route.FileServe(o.UserAssetsPath))
+@@ -361,28 +359,6 @@
  	}
  }
  
@@ -65,7 +65,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  // Ready sets Handler to be ready.
  func (h *Handler) Ready() {
  	atomic.StoreUint32(&h.ready, 1)
-@@ -748,11 +724,11 @@
+@@ -858,11 +834,11 @@
  }
  
  func (h *Handler) getTemplate(name string) (string, error) {
@@ -120,7 +120,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <script>
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -131,6 +131,9 @@
+@@ -130,6 +130,9 @@
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  
