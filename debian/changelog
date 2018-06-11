@@ -12,6 +12,7 @@ prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
   * Add debconf translations for es, fr, nl, pt, and ru.
     Closes: #898186, #898299, #899024, #899230, #900713.
   * debian/copyright: properly place repackaging comment.
+  * debian/control: Automated cme fixes.
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 10 Jun 2018 18:45:30 +0000
 
