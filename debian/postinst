@@ -40,8 +40,8 @@ case "$1" in
         fi
     fi
 
-    chown -R prometheus:prometheus /var/lib/prometheus/metrics2 || true
-    chown -R prometheus:prometheus /var/log/prometheus || true
+    chown prometheus:prometheus /var/lib/prometheus/metrics2 || true
+    chown prometheus:prometheus /var/log/prometheus || true
   ;;
 
   abort-upgrade|abort-remove|abort-deconfigure)

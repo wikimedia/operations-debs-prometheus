@@ -14,6 +14,7 @@ prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
   * debian/copyright: properly place repackaging comment.
   * debian/control: Automated cme fixes.
   * Update dh compat level to 11.
+  * debian/postinst: Stop changing permissions recursively.
 
  -- Martín Ferrari <tincho@debian.org>  Sun, 10 Jun 2018 18:45:30 +0000
 
