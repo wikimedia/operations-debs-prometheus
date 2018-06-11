@@ -38,8 +38,7 @@ endif
 
 %:
 	# stop the service before upgrading, so we can move the v1 database away
-	dh $@ --buildsystem=golang --with=golang,systemd \
-            --builddirectory=$(BUILDDIR)
+	dh $@ --buildsystem=golang --with=golang --builddirectory=$(BUILDDIR)
 
 WHATIS1 := "prometheus \\- The Prometheus monitoring server"
 WHATIS2 := "promtool \\- Tooling for the Prometheus monitoring system"
