@@ -1,4 +1,4 @@
-prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
+prometheus (2.3.0+ds-1) unstable; urgency=medium
 
   [ Alexandre Viau ]
   * Point Vcs-* urls to salsa.debian.org.
@@ -16,7 +16,7 @@ prometheus (2.3.0+ds-1) UNRELEASED; urgency=medium
   * Update dh compat level to 11.
   * debian/postinst: Stop changing permissions recursively.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 10 Jun 2018 18:45:30 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 11 Jun 2018 15:27:23 +0000
 
 prometheus (2.2.1+ds-2) unstable; urgency=high
 
