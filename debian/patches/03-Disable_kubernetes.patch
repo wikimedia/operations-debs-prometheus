@@ -258,7 +258,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -324,52 +323,6 @@
+@@ -325,52 +324,6 @@
  			},
  		},
  		{
@@ -311,7 +311,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -582,7 +535,7 @@
+@@ -586,7 +539,7 @@
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
@@ -320,7 +320,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -667,18 +620,6 @@
+@@ -671,18 +624,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -339,7 +339,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -785,8 +726,3 @@
+@@ -789,8 +730,3 @@
  			"Expected %q to be %v", test.str, test.valid)
  	}
  }
