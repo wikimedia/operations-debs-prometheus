@@ -40,7 +40,7 @@ Build-Depends: debhelper (>= 11),
                golang-gopkg-alecthomas-kingpin.v2-dev,
                golang-gopkg-yaml.v2-dev,
                po-debconf,
-Standards-Version: 4.1.4
+Standards-Version: 4.1.5
 Vcs-Browser: https://salsa.debian.org/go-team/packages/prometheus
 Vcs-Git: https://salsa.debian.org/go-team/packages/prometheus.git
 Homepage: https://prometheus.io/
