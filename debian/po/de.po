@@ -1,0 +1,50 @@
+# German translation of Debconf template for prometheus
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the prometheus package.
+# Helge Kreutzmann <debian@helgefjell.de>, 2018.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: prometheus 2.3.2+ds-1\n"
+"Report-Msgid-Bugs-To: prometheus@packages.debian.org\n"
+"POT-Creation-Date: 2018-01-04 21:07+0100\n"
+"PO-Revision-Date: 2018-08-18 13:32+0200\n"
+"Last-Translator: Helge Kreutzmann <debian@helgefjell.de>\n"
+"Language-Team: german <debian-l10n-german@lists.debian.org>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid "Remove old Prometheus version 1 database files?"
+msgstr "Alte Prometheus-Version-1-Datenbankdatei entfernen?"
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"The data format in Prometheus 2.0 has completely changed and is not "
+"backwards compatible with 1.x. Prometheus 2 will create a new data directory "
+"in /var/lib/prometheus/metrics2. The old data in /var/lib/prometheus/metrics "
+"can not be read by the new version."
+msgstr ""
+"Das Datenformat in Prometheus 2.0 wurde komplett geändert und ist nicht zu 1."
+"x rückwärtskompatibel. Prometheus wird ein neues Datenverzeichnis in /var/"
+"lib/prometheus/metrics2 erstellen. Die alten Daten in /var/lib/prometheus/"
+"metrics können von der neuen Version nicht gelesen werden."
+
+#. Type: boolean
+#. description
+#: ../prometheus.templates:1001
+msgid ""
+"There is no conversion tool; if you want to retain access to the old data, "
+"it is necessary to run a separate Prometheus 1.x instance on that data "
+"directory. (This package makes no provision to allow this.)"
+msgstr ""
+"Es gibt kein Konvertierungswerkzeug; falls Sie Zugriff auf die alten Daten "
+"behalten wollen, ist es notwendig, dass Sie eine separate Prometheus-1.x-"
+"Instanz auf diesem Datenverzeichnis betreiben. (Dieses Paket trifft keine "
+"Vorkehrungen, um das zu ermöglichen.)"
