@@ -1,4 +1,4 @@
-// Copyright 2017 The Prometheus Authors
+// Copyright 2018 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,26 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// +build openbsd
+
+package runtime
 
 import (
-	"log"
 	"syscall"
 )
 
-// Uname returns the uname of the host machine.
-func Uname() string {
-	buf := syscall.Utsname{}
-	err := syscall.Uname(&buf)
-	if err != nil {
-		log.Fatal("Error!")
-	}
-
-	str := "(" + charsToString(buf.Sysname[:])
-	str += " " + charsToString(buf.Release[:])
-	str += " " + charsToString(buf.Version[:])
-	str += " " + charsToString(buf.Machine[:])
-	str += " " + charsToString(buf.Nodename[:])
-	str += " " + charsToString(buf.Domainname[:]) + ")"
-	return str
+// VmLimits returns the soft and hard limits for virtual memory.
+func VmLimits() string {
+	return getLimits(syscall.RLIMIT_DATA, "b")
 }

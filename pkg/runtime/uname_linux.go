@@ -11,18 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build arm ppc64 ppc64le s390x
-// +build linux
+package runtime
 
-package main
+import (
+	"log"
+	"syscall"
+)
 
-func charsToString(ca []uint8) string {
-	s := make([]byte, 0, len(ca))
-	for _, c := range ca {
-		if byte(c) == 0 {
-			break
-		}
-		s = append(s, byte(c))
+// Uname returns the uname of the host machine.
+func Uname() string {
+	buf := syscall.Utsname{}
+	err := syscall.Uname(&buf)
+	if err != nil {
+		log.Fatal("Error!")
 	}
-	return string(s)
+
+	str := "(" + charsToString(buf.Sysname[:])
+	str += " " + charsToString(buf.Release[:])
+	str += " " + charsToString(buf.Version[:])
+	str += " " + charsToString(buf.Machine[:])
+	str += " " + charsToString(buf.Nodename[:])
+	str += " " + charsToString(buf.Domainname[:]) + ")"
+	return str
 }
