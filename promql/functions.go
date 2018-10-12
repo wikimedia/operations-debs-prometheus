@@ -232,10 +232,10 @@ func funcHoltWinters(vals []Value, args Expressions, enh *EvalNodeHelper) Vector
 
 	// Sanity check the input.
 	if sf <= 0 || sf >= 1 {
-		panic(fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1 goT: %f", sf))
+		panic(fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1, got: %f", sf))
 	}
 	if tf <= 0 || tf >= 1 {
-		panic(fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1 goT: %f", sf))
+		panic(fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf))
 	}
 
 	var l int
@@ -299,7 +299,7 @@ func funcClampMax(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	for _, el := range vec {
 		enh.out = append(enh.out, Sample{
 			Metric: enh.dropMetricName(el.Metric),
-			Point:  Point{V: math.Min(max, float64(el.V))},
+			Point:  Point{V: math.Min(max, el.V)},
 		})
 	}
 	return enh.out
@@ -312,7 +312,7 @@ func funcClampMin(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	for _, el := range vec {
 		enh.out = append(enh.out, Sample{
 			Metric: enh.dropMetricName(el.Metric),
-			Point:  Point{V: math.Max(min, float64(el.V))},
+			Point:  Point{V: math.Max(min, el.V)},
 		})
 	}
 	return enh.out
@@ -331,7 +331,7 @@ func funcRound(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	toNearestInverse := 1.0 / toNearest
 
 	for _, el := range vec {
-		v := math.Floor(float64(el.V)*toNearestInverse+0.5) / toNearestInverse
+		v := math.Floor(el.V*toNearestInverse+0.5) / toNearestInverse
 		enh.out = append(enh.out, Sample{
 			Metric: enh.dropMetricName(el.Metric),
 			Point:  Point{V: v},
@@ -371,11 +371,12 @@ func aggrOverTime(vals []Value, enh *EvalNodeHelper, aggrFn func([]Point) float6
 // === avg_over_time(Matrix ValueTypeMatrix) Vector ===
 func funcAvgOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	return aggrOverTime(vals, enh, func(values []Point) float64 {
-		var sum float64
+		var mean, count float64
 		for _, v := range values {
-			sum += v.V
+			count++
+			mean += (v.V - mean) / count
 		}
-		return sum / float64(len(values))
+		return mean
 	})
 }
 
@@ -392,7 +393,7 @@ func funcMaxOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) Vector
 	return aggrOverTime(vals, enh, func(values []Point) float64 {
 		max := math.Inf(-1)
 		for _, v := range values {
-			max = math.Max(max, float64(v.V))
+			max = math.Max(max, v.V)
 		}
 		return max
 	})
@@ -403,7 +404,7 @@ func funcMinOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) Vector
 	return aggrOverTime(vals, enh, func(values []Point) float64 {
 		min := math.Inf(1)
 		for _, v := range values {
-			min = math.Min(min, float64(v.V))
+			min = math.Min(min, v.V)
 		}
 		return min
 	})
@@ -444,28 +445,28 @@ func funcQuantileOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) V
 // === stddev_over_time(Matrix ValueTypeMatrix) Vector ===
 func funcStddevOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	return aggrOverTime(vals, enh, func(values []Point) float64 {
-		var sum, squaredSum, count float64
+		var aux, count, mean float64
 		for _, v := range values {
-			sum += v.V
-			squaredSum += v.V * v.V
 			count++
+			delta := v.V - mean
+			mean += delta / count
+			aux += delta * (v.V - mean)
 		}
-		avg := sum / count
-		return math.Sqrt(float64(squaredSum/count - avg*avg))
+		return math.Sqrt(aux / count)
 	})
 }
 
 // === stdvar_over_time(Matrix ValueTypeMatrix) Vector ===
 func funcStdvarOverTime(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 	return aggrOverTime(vals, enh, func(values []Point) float64 {
-		var sum, squaredSum, count float64
+		var aux, count, mean float64
 		for _, v := range values {
-			sum += v.V
-			squaredSum += v.V * v.V
 			count++
+			delta := v.V - mean
+			mean += delta / count
+			aux += delta * (v.V - mean)
 		}
-		avg := sum / count
-		return squaredSum/count - avg*avg
+		return aux / count
 	})
 }
 
@@ -698,7 +699,7 @@ func funcChanges(vals []Value, args Expressions, enh *EvalNodeHelper) Vector {
 		prev := samples.Points[0].V
 		for _, sample := range samples.Points[1:] {
 			current := sample.V
-			if current != prev && !(math.IsNaN(float64(current)) && math.IsNaN(float64(prev))) {
+			if current != prev && !(math.IsNaN(current) && math.IsNaN(prev)) {
 				changes++
 			}
 			prev = current
@@ -727,7 +728,7 @@ func funcLabelReplace(vals []Value, args Expressions, enh *EvalNodeHelper) Vecto
 		if err != nil {
 			panic(fmt.Errorf("invalid regular expression in label_replace(): %s", regexStr))
 		}
-		if !model.LabelNameRE.MatchString(string(dst)) {
+		if !model.LabelNameRE.MatchString(dst) {
 			panic(fmt.Errorf("invalid destination label name in label_replace(): %s", dst))
 		}
 		enh.dmn = make(map[uint64]labels.Labels, len(enh.out))
@@ -1217,7 +1218,7 @@ func (s vectorByValueHeap) Len() int {
 }
 
 func (s vectorByValueHeap) Less(i, j int) bool {
-	if math.IsNaN(float64(s[i].V)) {
+	if math.IsNaN(s[i].V) {
 		return true
 	}
 	return s[i].V < s[j].V
@@ -1246,7 +1247,7 @@ func (s vectorByReverseValueHeap) Len() int {
 }
 
 func (s vectorByReverseValueHeap) Less(i, j int) bool {
-	if math.IsNaN(float64(s[i].V)) {
+	if math.IsNaN(s[i].V) {
 		return true
 	}
 	return s[i].V > s[j].V

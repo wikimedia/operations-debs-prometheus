@@ -1,4 +1,4 @@
-// Copyright 2017 The Prometheus Authors
+// Copyright 2018 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,13 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !linux
+// +build openbsd
 
-package main
+package runtime
 
-import "runtime"
+import (
+	"syscall"
+)
 
-// Uname for any platform other than linux.
-func Uname() string {
-	return "(" + runtime.GOOS + ")"
+// VmLimits returns the soft and hard limits for virtual memory.
+func VmLimits() string {
+	return getLimits(syscall.RLIMIT_DATA, "b")
 }
