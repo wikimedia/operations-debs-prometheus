@@ -9,67 +9,13 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
 
 --- a/discovery/azure/azure.go
 +++ b/discovery/azure/azure.go
-@@ -22,6 +22,8 @@
- 
- 	"github.com/Azure/azure-sdk-for-go/arm/compute"
- 	"github.com/Azure/azure-sdk-for-go/arm/network"
-+	"github.com/Azure/go-autorest/autorest"
-+	"github.com/Azure/go-autorest/autorest/adal"
- 	"github.com/Azure/go-autorest/autorest/azure"
- 
- 	"github.com/go-kit/kit/log"
-@@ -154,20 +156,22 @@
- // createAzureClient is a helper function for creating an Azure compute client to ARM.
- func createAzureClient(cfg SDConfig) (azureClient, error) {
- 	var c azureClient
--	oauthConfig, err := azure.PublicCloud.OAuthConfigForTenant(cfg.TenantID)
-+	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint, cfg.TenantID)
- 	if err != nil {
- 		return azureClient{}, err
- 	}
--	spt, err := azure.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), azure.PublicCloud.ResourceManagerEndpoint)
-+	spt, err := adal.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), azure.PublicCloud.ResourceManagerEndpoint)
- 	if err != nil {
- 		return azureClient{}, err
- 	}
- 
-+	authorizer := autorest.NewBearerAuthorizer(spt)
-+
- 	c.vm = compute.NewVirtualMachinesClient(cfg.SubscriptionID)
--	c.vm.Authorizer = spt
-+	c.vm.Authorizer = authorizer
- 
- 	c.nic = network.NewInterfacesClient(cfg.SubscriptionID)
--	c.nic.Authorizer = spt
-+	c.nic.Authorizer = authorizer
- 
- 	return c, nil
- }
-@@ -246,7 +250,7 @@
- 			labels := model.LabelSet{
- 				azureLabelMachineID:            model.LabelValue(*vm.ID),
- 				azureLabelMachineName:          model.LabelValue(*vm.Name),
--				azureLabelMachineOSType:        model.LabelValue(vm.Properties.StorageProfile.OsDisk.OsType),
-+				azureLabelMachineOSType:        model.LabelValue(vm.StorageProfile.OsDisk.OsType),
- 				azureLabelMachineLocation:      model.LabelValue(*vm.Location),
- 				azureLabelMachineResourceGroup: model.LabelValue(r.ResourceGroup),
- 			}
-@@ -259,7 +263,7 @@
- 			}
- 
- 			// Get the IP address information via separate call to the network provider.
--			for _, nic := range *vm.Properties.NetworkProfile.NetworkInterfaces {
-+			for _, nic := range *vm.NetworkProfile.NetworkInterfaces {
- 				r, err := newAzureResourceFromID(*nic.ID, d.logger)
- 				if err != nil {
- 					ch <- target{labelSet: nil, err: err}
-@@ -277,17 +281,17 @@
+@@ -319,17 +319,17 @@
  				// This information is available via another API call however the Go SDK does not
  				// yet support this. On deallocated machines, this value happens to be nil so it
  				// is a cheap and easy way to determine if a machine is allocated or not.
 -				if networkInterface.Properties.Primary == nil {
 +				if networkInterface.Primary == nil {
- 					level.Debug(d.logger).Log("msg", "Skipping deallocated virtual machine", "machine", *vm.Name)
+ 					level.Debug(d.logger).Log("msg", "Skipping deallocated virtual machine", "machine", vm.Name)
  					ch <- target{}
  					return
  				}
@@ -87,3 +33,83 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  							labels[model.AddressLabel] = model.LabelValue(address)
  							ch <- target{labelSet: labels, err: nil}
  							return
+@@ -436,7 +436,7 @@
+ }
+ 
+ func mapFromVM(vm compute.VirtualMachine) virtualMachine {
+-	osType := string(vm.Properties.StorageProfile.OsDisk.OsType)
++	osType := string(vm.StorageProfile.OsDisk.OsType)
+ 	tags := map[string]*string{}
+ 
+ 	if vm.Tags != nil {
+@@ -451,12 +451,12 @@
+ 		OsType:         osType,
+ 		ScaleSet:       "",
+ 		Tags:           tags,
+-		NetworkProfile: *(vm.Properties.NetworkProfile),
++		NetworkProfile: *(vm.NetworkProfile),
+ 	}
+ }
+ 
+ func mapFromVMScaleSetVM(vm compute.VirtualMachineScaleSetVM, scaleSetName string) virtualMachine {
+-	osType := string(vm.Properties.StorageProfile.OsDisk.OsType)
++	osType := string(vm.StorageProfile.OsDisk.OsType)
+ 	tags := map[string]*string{}
+ 
+ 	if vm.Tags != nil {
+@@ -471,14 +471,15 @@
+ 		OsType:         osType,
+ 		ScaleSet:       scaleSetName,
+ 		Tags:           tags,
+-		NetworkProfile: *(vm.Properties.NetworkProfile),
++		NetworkProfile: *(vm.NetworkProfile),
+ 	}
+ }
+ 
+ func (client *azureClient) getNetworkInterfaceByID(networkInterfaceID string) (network.Interface, error) {
+ 	result := network.Interface{}
++	const APIVersion = "2017-03-01"
+ 	queryParameters := map[string]interface{}{
+-		"api-version": client.nic.APIVersion,
++		"api-version": APIVersion,
+ 	}
+ 
+ 	preparer := autorest.CreatePreparer(
+--- a/discovery/azure/azure_test.go
++++ b/discovery/azure/azure_test.go
+@@ -41,7 +41,7 @@
+ 		Type:       &vmType,
+ 		Location:   &location,
+ 		Tags:       nil,
+-		Properties: properties,
++		VirtualMachineProperties: properties,
+ 	}
+ 
+ 	expectedVM := virtualMachine{
+@@ -85,7 +85,7 @@
+ 		Type:       &vmType,
+ 		Location:   &location,
+ 		Tags:       &tags,
+-		Properties: properties,
++		VirtualMachineProperties: properties,
+ 	}
+ 
+ 	expectedVM := virtualMachine{
+@@ -126,7 +126,7 @@
+ 		Type:       &vmType,
+ 		Location:   &location,
+ 		Tags:       nil,
+-		Properties: properties,
++		VirtualMachineScaleSetVMProperties: properties,
+ 	}
+ 
+ 	scaleSet := "testSet"
+@@ -172,7 +172,7 @@
+ 		Type:       &vmType,
+ 		Location:   &location,
+ 		Tags:       &tags,
+-		Properties: properties,
++		VirtualMachineScaleSetVMProperties: properties,
+ 	}
+ 
+ 	scaleSet := "testSet"
