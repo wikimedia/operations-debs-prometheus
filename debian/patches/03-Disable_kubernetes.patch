@@ -143,7 +143,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -171,12 +171,6 @@
+@@ -205,12 +205,6 @@
  			return nil, err
  		}
  
@@ -180,15 +180,15 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -40,7 +40,6 @@
- 	"github.com/prometheus/common/model"
+@@ -41,7 +41,6 @@
  	"github.com/prometheus/common/version"
+ 	prom_runtime "github.com/prometheus/prometheus/pkg/runtime"
  	"gopkg.in/alecthomas/kingpin.v2"
 -	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
  
  	"github.com/mwitkow/go-conntrack"
  	"github.com/prometheus/common/promlog"
-@@ -213,15 +212,6 @@
+@@ -229,15 +228,6 @@
  
  	logger := promlog.New(cfg.logLevel)
  
@@ -203,7 +203,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -
  	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
  	level.Info(logger).Log("build_context", version.BuildContext())
- 	level.Info(logger).Log("host_details", Uname())
+ 	level.Info(logger).Log("host_details", prom_runtime.Uname())
 --- a/discovery/config/config.go
 +++ b/discovery/config/config.go
 @@ -20,7 +20,6 @@
@@ -225,7 +225,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of EC2 service discovery configurations.
 --- a/discovery/manager.go
 +++ b/discovery/manager.go
-@@ -31,7 +31,6 @@
+@@ -33,7 +33,6 @@
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -233,21 +233,18 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -239,14 +238,6 @@
- 		}
- 		app("marathon", i, t)
+@@ -297,11 +296,6 @@
+ 			return marathon.NewDiscovery(*c, log.With(m.logger, "discovery", "marathon"))
+ 		})
  	}
--	for i, c := range cfg.KubernetesSDConfigs {
--		k, err := kubernetes.New(log.With(m.logger, "discovery", "k8s"), c)
--		if err != nil {
--			level.Error(m.logger).Log("msg", "Cannot create Kubernetes discovery", "err", err)
--			continue
--		}
--		app("kubernetes", i, k)
+-	for _, c := range cfg.KubernetesSDConfigs {
+-		add(c, func() (Discoverer, error) {
+-			return kubernetes.New(log.With(m.logger, "discovery", "k8s"), c)
+-		})
 -	}
- 	for i, c := range cfg.ServersetSDConfigs {
- 		app("serverset", i, zookeeper.NewServersetDiscovery(c, log.With(m.logger, "discovery", "zookeeper")))
- 	}
+ 	for _, c := range cfg.ServersetSDConfigs {
+ 		add(c, func() (Discoverer, error) {
+ 			return zookeeper.NewServersetDiscovery(c, log.With(m.logger, "discovery", "zookeeper"))
 --- a/config/config_test.go
 +++ b/config/config_test.go
 @@ -28,7 +28,6 @@
@@ -311,7 +308,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -586,7 +539,7 @@
+@@ -587,7 +540,7 @@
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
@@ -320,7 +317,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -671,18 +624,6 @@
+@@ -672,18 +625,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -339,7 +336,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -789,8 +730,3 @@
+@@ -790,8 +731,3 @@
  			"Expected %q to be %v", test.str, test.valid)
  	}
  }

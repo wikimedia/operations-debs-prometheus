@@ -5,7 +5,7 @@ Description: Stop creating a tsdb lockfile by default.
 
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -160,8 +160,8 @@
+@@ -164,8 +164,8 @@
  	a.Flag("storage.tsdb.retention", "How long to retain samples in storage.").
  		Default("15d").SetValue(&cfg.tsdb.Retention)
  
