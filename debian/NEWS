@@ -1,3 +1,11 @@
+prometheus (2.4.3+ds-1) UNRELEASED; urgency=medium
+
+  This release includes multiple bugfixes and features. Further, the WAL
+  implementation has been re-written so the storage is not forwards compatible.
+  Prometheus 2.3 storage will work on 2.4 but not vice-versa.
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 12 Sep 2018 15:19:58 +0000
+
 prometheus (2.2.0+ds-1) unstable; urgency=medium
 
   NOTE: This release introduces improvements to the storage format and fixes a
