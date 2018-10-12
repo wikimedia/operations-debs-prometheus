@@ -5,3 +5,4 @@
 05-Fix-MainTest.patch
 06-Disable_TSDB_lockfile.patch
 07-Disable_fsnotify_mips64el.patch
+08-Disable_pprof.patch
