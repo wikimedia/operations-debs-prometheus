@@ -1,8 +1,15 @@
 prometheus (2.4.3+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Add German debconf translation. Closes: #905760.
+  * Refresh patches
+  * Update autorest patch.
+  * Disable pprof support until dependency is packaged.
+  * Fix test fixtures paths.
+  * Update Standards-Version with no changes.
+  * debian/control: Depend on current TSDB version.
 
- -- Martín Ferrari <tincho@debian.org>  Wed, 12 Sep 2018 15:19:20 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 15 Oct 2018 15:29:05 +0000
 
 prometheus (2.3.2+ds-1) unstable; urgency=medium
 
