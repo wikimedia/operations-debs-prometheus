@@ -1,4 +1,4 @@
-prometheus (2.4.3+ds-1) UNRELEASED; urgency=medium
+prometheus (2.4.3+ds-1) unstable; urgency=medium
 
   * New upstream release.
   * Add German debconf translation. Closes: #905760.
@@ -9,7 +9,7 @@ prometheus (2.4.3+ds-1) UNRELEASED; urgency=medium
   * Update Standards-Version with no changes.
   * debian/control: Depend on current TSDB version.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 15 Oct 2018 15:29:05 +0000
+ -- Martín Ferrari <tincho@debian.org>  Mon, 15 Oct 2018 15:37:24 +0000
 
 prometheus (2.3.2+ds-1) unstable; urgency=medium
 
