@@ -1,3 +1,4 @@
+Description: Disable pprof support until dependency is packaged.
 --- a/cmd/promtool/debug.go
 +++ b/cmd/promtool/debug.go
 @@ -11,6 +11,8 @@
