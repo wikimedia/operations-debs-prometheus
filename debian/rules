@@ -4,9 +4,9 @@ include /usr/share/dpkg/pkg-info.mk
 
 export DH_VERBOSE=1
 # Include test fixtures.
-export DH_GOLANG_INSTALL_EXTRA := discovery/file/fixtures \
-    promql/fuzz-data config/testdata util/httputil/testdata promql/testdata \
-    retrieval/testdata pkg/rulefmt/testdata
+export DH_GOLANG_INSTALL_EXTRA := promql/fuzz-data \
+    config/testdata discovery/file/fixtures pkg/rulefmt/testdata \
+    promql/testdata rules/fixtures scrape/testdata
 
 # Do not build examples.
 export DH_GOLANG_EXCLUDES := documentation vendor

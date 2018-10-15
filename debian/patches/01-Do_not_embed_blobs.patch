@@ -125,3 +125,13 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
      <script src="{{ pathPrefix }}/static/js/graph/index.js?v={{ buildVersion }}"></script>
  
+--- a/web/web_test.go
++++ b/web/web_test.go
+@@ -113,6 +113,7 @@
+ 			Path:   "/",
+ 		},
+ 		Version: &PrometheusVersion{},
++		LocalAssets:    "../../../../../../web/ui",
+ 	}
+ 
+ 	opts.Flags = map[string]string{}
