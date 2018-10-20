@@ -1,0 +1,18 @@
+Description: Fix test failing due to gRPC server not finishing promptly: it
+  times out at 20s, so let's wait 21.
+
+Forwarded: https://github.com/prometheus/prometheus/issues/4587
+Author: Martín Ferrari <tincho@debian.org>
+Last-Update: 2018-10-20
+
+--- a/cmd/prometheus/main_test.go
++++ b/cmd/prometheus/main_test.go
+@@ -82,7 +82,7 @@
+ 			select {
+ 			case stoppedErr = <-done:
+ 				break Loop
+-			case <-time.After(10 * time.Second):
++			case <-time.After(21 * time.Second):
+ 			}
+ 			break Loop
+ 		}
