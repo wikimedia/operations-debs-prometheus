@@ -1,3 +1,9 @@
+prometheus (2.4.3+ds-2) unstable; urgency=medium
+
+  * Fix test hanging due to connections kept open. Closes: #911434.
+
+ -- Martín Ferrari <tincho@debian.org>  Mon, 22 Oct 2018 04:09:52 +0000
+
 prometheus (2.4.3+ds-1) unstable; urgency=medium
 
   * New upstream release.
