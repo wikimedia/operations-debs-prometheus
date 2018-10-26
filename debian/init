@@ -51,6 +51,7 @@ do_start_prepare()
     chown -R $USER: /var/lib/prometheus/metrics2
     chown -R $USER: `dirname $LOGFILE`
     chown -R $USER: `dirname $PIDFILE`
+    ulimit -n 8192
 }
 
 do_start_cmd()
