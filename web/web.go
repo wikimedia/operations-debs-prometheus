@@ -156,18 +156,19 @@ type Options struct {
 	Version       *PrometheusVersion
 	Flags         map[string]string
 
-	ListenAddress        string
-	ReadTimeout          time.Duration
-	MaxConnections       int
-	ExternalURL          *url.URL
-	RoutePrefix          string
-	UseLocalAssets       bool
-	UserAssetsPath       string
-	ConsoleTemplatesPath string
-	ConsoleLibrariesPath string
-	EnableLifecycle      bool
-	EnableAdminAPI       bool
-	RemoteReadLimit      int
+	ListenAddress              string
+	ReadTimeout                time.Duration
+	MaxConnections             int
+	ExternalURL                *url.URL
+	RoutePrefix                string
+	UseLocalAssets             bool
+	UserAssetsPath             string
+	ConsoleTemplatesPath       string
+	ConsoleLibrariesPath       string
+	EnableLifecycle            bool
+	EnableAdminAPI             bool
+	RemoteReadSampleLimit      int
+	RemoteReadConcurrencyLimit int
 }
 
 func instrumentHandler(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
@@ -228,7 +229,8 @@ func New(logger log.Logger, o *Options) *Handler {
 		h.options.EnableAdminAPI,
 		logger,
 		h.ruleManager,
-		h.options.RemoteReadLimit,
+		h.options.RemoteReadSampleLimit,
+		h.options.RemoteReadConcurrencyLimit,
 	)
 
 	if o.RoutePrefix != "/" {
@@ -672,13 +674,7 @@ func (h *Handler) serviceDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) targets(w http.ResponseWriter, r *http.Request) {
-	// Bucket targets by job label
-	tps := map[string][]*scrape.Target{}
-	for _, t := range h.scrapeManager.TargetsActive() {
-		job := t.Labels().Get(model.JobLabel)
-		tps[job] = append(tps[job], t)
-	}
-
+	tps := h.scrapeManager.TargetsActive()
 	for _, targets := range tps {
 		sort.Slice(targets, func(i, j int) bool {
 			return targets[i].Labels().Get(labels.InstanceName) < targets[j].Labels().Get(labels.InstanceName)
