@@ -1,3 +1,16 @@
+prometheus (2.5.0+ds-1) UNRELEASED; urgency=medium
+
+  [ Daniel Swarbrick ]
+  * Increase max open FDs to allow for higher scrape target volume.
+    Signed-off-by: Daniel Swarbrick <daniel.swarbrick@profitbricks.com>
+
+  [ Martín Ferrari ]
+  * New upstream release.
+    Does not match exactly upstream's release, due to git history issues.
+    Instead is based on commit c2f32c99.
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 07 Nov 2018 12:45:34 +0000
+
 prometheus (2.4.3+ds-2) unstable; urgency=medium
 
   * Fix test hanging due to connections kept open. Closes: #911434.
