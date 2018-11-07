@@ -30,7 +30,7 @@ Description: Disable pprof support until dependency is packaged.
  	queryLabelsCmd := queryCmd.Command("labels", "Run labels query.")
  	queryLabelsServer := queryLabelsCmd.Arg("server", "Prometheus server to query.").Required().URL()
  	queryLabelsName := queryLabelsCmd.Arg("name", "Label name to provide label values for.").Required().String()
-@@ -115,7 +115,7 @@
+@@ -122,7 +122,7 @@
  
  	case querySeriesCmd.FullCommand():
  		os.Exit(QuerySeries(*querySeriesServer, *querySeriesMatch, *querySeriesBegin, *querySeriesEnd))
@@ -39,7 +39,7 @@ Description: Disable pprof support until dependency is packaged.
  	case debugPprofCmd.FullCommand():
  		os.Exit(debugPprof(*debugPprofServer))
  
-@@ -124,7 +124,7 @@
+@@ -131,7 +131,7 @@
  
  	case debugAllCmd.FullCommand():
  		os.Exit(debugAll(*debugAllServer))
@@ -47,8 +47,8 @@ Description: Disable pprof support until dependency is packaged.
 +*/
  	case queryLabelsCmd.FullCommand():
  		os.Exit(QueryLabels(*queryLabelsServer, *queryLabelsName))
- 	}
-@@ -563,7 +563,7 @@
+ 
+@@ -573,7 +573,7 @@
  	}
  	return time.Time{}, fmt.Errorf("cannot parse %q to a valid timestamp", s)
  }
@@ -57,7 +57,7 @@ Description: Disable pprof support until dependency is packaged.
  func debugPprof(url string) int {
  	w, err := newDebugWriter(debugWriterConfig{
  		serverURL:   url,
-@@ -620,3 +620,4 @@
+@@ -630,3 +630,4 @@
  	}
  	return w.Write()
  }

@@ -143,7 +143,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -205,12 +205,6 @@
+@@ -215,12 +215,6 @@
  			return nil, err
  		}
  
@@ -188,7 +188,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  
  	"github.com/mwitkow/go-conntrack"
  	"github.com/prometheus/common/promlog"
-@@ -229,15 +228,6 @@
+@@ -235,15 +234,6 @@
  
  	logger := promlog.New(cfg.logLevel)
  
@@ -233,7 +233,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -297,11 +296,6 @@
+@@ -359,11 +358,6 @@
  			return marathon.NewDiscovery(*c, log.With(m.logger, "discovery", "marathon"))
  		})
  	}
@@ -253,9 +253,9 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/file"
 -	"github.com/prometheus/prometheus/discovery/kubernetes"
  	"github.com/prometheus/prometheus/discovery/marathon"
+ 	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
- 	"github.com/prometheus/prometheus/discovery/triton"
-@@ -325,52 +324,6 @@
+@@ -326,52 +325,6 @@
  			},
  		},
  		{
@@ -308,7 +308,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -587,7 +540,7 @@
+@@ -613,7 +566,7 @@
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
@@ -317,7 +317,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -672,18 +625,6 @@
+@@ -698,18 +651,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -336,7 +336,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -790,8 +731,3 @@
+@@ -819,8 +760,3 @@
  			"Expected %q to be %v", test.str, test.valid)
  	}
  }

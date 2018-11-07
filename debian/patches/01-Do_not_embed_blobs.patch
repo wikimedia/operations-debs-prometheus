@@ -10,16 +10,18 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -161,7 +160,7 @@
- 	MaxConnections       int
- 	ExternalURL          *url.URL
- 	RoutePrefix          string
--	UseLocalAssets       bool
-+	LocalAssets          string
- 	UserAssetsPath       string
- 	ConsoleTemplatesPath string
- 	ConsoleLibrariesPath string
-@@ -263,11 +262,7 @@
+@@ -160,8 +159,8 @@
+ 	ReadTimeout                time.Duration
+ 	MaxConnections             int
+ 	ExternalURL                *url.URL
+-	RoutePrefix                string
+-	UseLocalAssets             bool
++        RoutePrefix                string
++	LocalAssets                string
+ 	UserAssetsPath             string
+ 	ConsoleTemplatesPath       string
+ 	ConsoleLibrariesPath       string
+@@ -265,11 +264,7 @@
  
  	router.Get("/consoles/*filepath", readyf(h.consoles))
  
@@ -32,7 +34,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", route.FileServe(o.UserAssetsPath))
-@@ -825,7 +820,7 @@
+@@ -821,7 +816,7 @@
  	var tmpl string
  
  	appendf := func(name string) error {
@@ -82,7 +84,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <script>
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -134,6 +134,9 @@
+@@ -135,6 +135,9 @@
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  
