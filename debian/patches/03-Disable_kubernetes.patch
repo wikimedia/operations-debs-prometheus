@@ -356,3 +356,14 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
+--- a/discovery/kubernetes/client_metrics.go
++++ b/discovery/kubernetes/client_metrics.go
+@@ -11,6 +11,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++// +build ignore
++
+ package kubernetes
+ 
+ import (
