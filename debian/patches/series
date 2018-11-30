@@ -7,3 +7,4 @@
 07-Disable_fsnotify_mips64el.patch
 08-Disable_pprof.patch
 09-Fix_hanging_test.patch
+10-Close-Querier.patch
