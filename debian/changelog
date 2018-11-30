@@ -1,3 +1,11 @@
+prometheus (2.5.0+ds-2) unstable; urgency=medium
+
+  [ Daniel Swarbrick ]
+  * Cherry pick one-line patch from upstream to close dangling querier,
+    avoiding deadlock in TSDB compaction.
+
+ -- Martín Ferrari <tincho@debian.org>  Fri, 30 Nov 2018 11:25:51 +0100
+
 prometheus (2.5.0+ds-1) unstable; urgency=medium
 
   [ Daniel Swarbrick ]
