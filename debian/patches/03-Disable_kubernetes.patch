@@ -1,7 +1,7 @@
 Description: Disable kubernetes SD, until dependencies are more reasonable.
 --- a/config/config.go
 +++ b/config/config.go
-@@ -165,12 +165,6 @@
+@@ -166,12 +166,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *sd_config.ServiceDiscoveryConfig) {
@@ -143,7 +143,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/promtool/main.go
 +++ b/cmd/promtool/main.go
-@@ -215,12 +215,6 @@
+@@ -220,12 +220,6 @@
  			return nil, err
  		}
  
@@ -180,33 +180,28 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -41,7 +41,6 @@
- 	"github.com/prometheus/common/version"
- 	prom_runtime "github.com/prometheus/prometheus/pkg/runtime"
- 	"gopkg.in/alecthomas/kingpin.v2"
--	k8s_runtime "k8s.io/apimachinery/pkg/util/runtime"
+@@ -34,7 +34,6 @@
  
- 	"github.com/mwitkow/go-conntrack"
- 	"github.com/prometheus/common/promlog"
-@@ -235,15 +234,6 @@
+ 	"github.com/go-kit/kit/log"
+ 	"github.com/go-kit/kit/log/level"
+-	"github.com/golang/glog"
+ 	"github.com/oklog/oklog/pkg/group"
+ 	"github.com/pkg/errors"
+ 	"github.com/prometheus/client_golang/prometheus"
+@@ -239,10 +238,6 @@
  
- 	logger := promlog.New(cfg.logLevel)
+ 	logger := promlog.New(&cfg.promlogConfig)
  
--	// XXX(fabxc): Kubernetes does background logging which we can only customize by modifying
--	// a global variable.
--	// Ultimately, here is the best place to set it.
--	k8s_runtime.ErrorHandlers = []func(error){
--		func(err error) {
--			level.Error(log.With(logger, "component", "k8s_client_runtime")).Log("err", err)
--		},
--	}
+-	// Above level 6, the k8s client would log bearer tokens in clear-text.
+-	glog.ClampLevel(6)
+-	glog.SetLogger(log.With(logger, "component", "k8s_client_runtime"))
 -
  	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
  	level.Info(logger).Log("build_context", version.BuildContext())
  	level.Info(logger).Log("host_details", prom_runtime.Uname())
 --- a/discovery/config/config.go
 +++ b/discovery/config/config.go
-@@ -20,7 +20,6 @@
+@@ -22,7 +22,6 @@
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -214,7 +209,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
-@@ -44,8 +43,6 @@
+@@ -46,8 +45,6 @@
  	NerveSDConfigs []*zookeeper.NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*marathon.SDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -223,6 +218,18 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*gce.SDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
+@@ -92,11 +89,6 @@
+ 			return fmt.Errorf("empty or null section in gce_sd_configs")
+ 		}
+ 	}
+-	for _, cfg := range c.KubernetesSDConfigs {
+-		if cfg == nil {
+-			return fmt.Errorf("empty or null section in kubernetes_sd_configs")
+-		}
+-	}
+ 	for _, cfg := range c.MarathonSDConfigs {
+ 		if cfg == nil {
+ 			return fmt.Errorf("empty or null section in marathon_sd_configs")
 --- a/discovery/manager.go
 +++ b/discovery/manager.go
 @@ -33,7 +33,6 @@
@@ -233,7 +240,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -359,11 +358,6 @@
+@@ -362,11 +361,6 @@
  			return marathon.NewDiscovery(*c, log.With(m.logger, "discovery", "marathon"))
  		})
  	}
@@ -336,7 +343,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -819,8 +760,3 @@
+@@ -871,8 +812,3 @@
  			"Expected %q to be %v", test.str, test.valid)
  	}
  }

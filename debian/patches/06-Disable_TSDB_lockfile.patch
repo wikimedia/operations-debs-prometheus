@@ -5,7 +5,7 @@ Description: Stop creating a tsdb lockfile by default.
 
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -165,8 +165,8 @@
+@@ -169,8 +169,8 @@
  	a.Flag("storage.tsdb.retention", "How long to retain samples in storage.").
  		Default("15d").SetValue(&cfg.tsdb.Retention)
  
@@ -28,8 +28,8 @@ Description: Stop creating a tsdb lockfile by default.
 +	UseLockfile bool
  }
  
- // Open returns a new storage backed by a TSDB database that is configured for Prometheus.
-@@ -144,7 +144,7 @@
+ var (
+@@ -184,7 +184,7 @@
  		WALFlushInterval:  10 * time.Second,
  		RetentionDuration: uint64(time.Duration(opts.Retention).Seconds() * 1000),
  		BlockRanges:       rngs,

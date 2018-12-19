@@ -1,64 +1,86 @@
 Description: Disable pprof support until dependency is packaged.
---- a/cmd/promtool/debug.go
-+++ b/cmd/promtool/debug.go
-@@ -11,6 +11,8 @@
- // See the License for the specific language governing permissions and
- // limitations under the License.
- 
-+// +build ignore
-+
+--- a/cmd/promtool/main.go
++++ b/cmd/promtool/main.go
+@@ -14,7 +14,6 @@
  package main
  
  import (
---- a/cmd/promtool/main.go
-+++ b/cmd/promtool/main.go
-@@ -81,7 +81,7 @@
+-	"bytes"
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
+@@ -28,8 +27,6 @@
+ 
+ 	"gopkg.in/alecthomas/kingpin.v2"
+ 
+-	"github.com/google/pprof/profile"
+-	"github.com/pkg/errors"
+ 	"github.com/prometheus/client_golang/api"
+ 	"github.com/prometheus/client_golang/api/prometheus/v1"
+ 	config_util "github.com/prometheus/common/config"
+@@ -79,15 +76,15 @@
  	querySeriesMatch := querySeriesCmd.Flag("match", "Series selector. Can be specified multiple times.").Required().Strings()
  	querySeriesBegin := querySeriesCmd.Flag("start", "Start time (RFC3339 or Unix timestamp).").String()
  	querySeriesEnd := querySeriesCmd.Flag("end", "End time (RFC3339 or Unix timestamp).").String()
 -
-+/*
  	debugCmd := app.Command("debug", "Fetch debug information.")
++/*
  	debugPprofCmd := debugCmd.Command("pprof", "Fetch profiling debug information.")
  	debugPprofServer := debugPprofCmd.Arg("server", "Prometheus server to get pprof files from.").Required().String()
-@@ -89,7 +89,7 @@
++*/
+ 	debugMetricsCmd := debugCmd.Command("metrics", "Fetch metrics debug information.")
  	debugMetricsServer := debugMetricsCmd.Arg("server", "Prometheus server to get metrics from.").Required().String()
  	debugAllCmd := debugCmd.Command("all", "Fetch all debug information.")
  	debugAllServer := debugAllCmd.Arg("server", "Prometheus server to get all debug information from.").Required().String()
 -
-+*/
  	queryLabelsCmd := queryCmd.Command("labels", "Run labels query.")
  	queryLabelsServer := queryLabelsCmd.Arg("server", "Prometheus server to query.").Required().URL()
  	queryLabelsName := queryLabelsCmd.Arg("name", "Label name to provide label values for.").Required().String()
-@@ -122,7 +122,7 @@
+@@ -127,9 +124,10 @@
  
  	case querySeriesCmd.FullCommand():
- 		os.Exit(QuerySeries(*querySeriesServer, *querySeriesMatch, *querySeriesBegin, *querySeriesEnd))
+ 		os.Exit(QuerySeries(*querySeriesServer, *querySeriesMatch, *querySeriesBegin, *querySeriesEnd, p))
 -
 +/*
  	case debugPprofCmd.FullCommand():
  		os.Exit(debugPprof(*debugPprofServer))
- 
-@@ -131,7 +131,7 @@
- 
- 	case debugAllCmd.FullCommand():
- 		os.Exit(debugAll(*debugAllServer))
--
 +*/
- 	case queryLabelsCmd.FullCommand():
- 		os.Exit(QueryLabels(*queryLabelsServer, *queryLabelsName))
  
-@@ -573,7 +573,7 @@
- 	}
- 	return time.Time{}, fmt.Errorf("cannot parse %q to a valid timestamp", s)
+ 	case debugMetricsCmd.FullCommand():
+ 		os.Exit(debugMetrics(*debugMetricsServer))
+@@ -513,6 +511,7 @@
  }
--
+ 
+ var (
++/*
+ 	pprofEndpoints = []endpointsGroup{
+ 		{
+ 			urlToFilename: map[string]string{
+@@ -542,6 +541,7 @@
+ 			},
+ 		},
+ 	}
++*/
+ 	metricsEndpoints = []endpointsGroup{
+ 		{
+ 			urlToFilename: map[string]string{
+@@ -549,9 +549,10 @@
+ 			},
+ 		},
+ 	}
+-	allEndpoints = append(pprofEndpoints, metricsEndpoints...)
++	allEndpoints = metricsEndpoints
+ )
+ 
 +/*
  func debugPprof(url string) int {
- 	w, err := newDebugWriter(debugWriterConfig{
- 		serverURL:   url,
-@@ -630,3 +630,4 @@
+ 	if err := debugWrite(debugWriterConfig{
+ 		serverURL:      url,
+@@ -563,6 +564,7 @@
  	}
- 	return w.Write()
+ 	return 0
  }
 +*/
+ 
+ func debugMetrics(url string) int {
+ 	if err := debugWrite(debugWriterConfig{

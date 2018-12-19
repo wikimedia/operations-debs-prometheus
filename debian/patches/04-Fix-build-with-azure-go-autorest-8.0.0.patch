@@ -9,7 +9,15 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
 
 --- a/discovery/azure/azure.go
 +++ b/discovery/azure/azure.go
-@@ -319,17 +319,17 @@
+@@ -331,25 +331,21 @@
+ 					return
+ 				}
+ 
+-				if networkInterface.Properties == nil {
+-					continue
+-				}
+-
+ 				// Unfortunately Azure does not return information on whether a VM is deallocated.
  				// This information is available via another API call however the Go SDK does not
  				// yet support this. On deallocated machines, this value happens to be nil so it
  				// is a cheap and easy way to determine if a machine is allocated or not.
@@ -33,7 +41,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  							labels[model.AddressLabel] = model.LabelValue(address)
  							ch <- target{labelSet: labels, err: nil}
  							return
-@@ -436,7 +436,7 @@
+@@ -456,7 +452,7 @@
  }
  
  func mapFromVM(vm compute.VirtualMachine) virtualMachine {
@@ -42,7 +50,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -451,12 +451,12 @@
+@@ -471,12 +467,12 @@
  		OsType:         osType,
  		ScaleSet:       "",
  		Tags:           tags,
@@ -57,7 +65,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -471,14 +471,15 @@
+@@ -491,14 +487,15 @@
  		OsType:         osType,
  		ScaleSet:       scaleSetName,
  		Tags:           tags,

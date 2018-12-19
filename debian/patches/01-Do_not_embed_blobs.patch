@@ -2,7 +2,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  files installed on disk.
 --- a/web/web.go
 +++ b/web/web.go
-@@ -64,7 +64,6 @@
+@@ -63,7 +63,6 @@
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
  	api_v2 "github.com/prometheus/prometheus/web/api/v2"
@@ -10,7 +10,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -160,8 +159,8 @@
+@@ -178,8 +177,8 @@
  	ReadTimeout                time.Duration
  	MaxConnections             int
  	ExternalURL                *url.URL
@@ -21,7 +21,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	UserAssetsPath             string
  	ConsoleTemplatesPath       string
  	ConsoleLibrariesPath       string
-@@ -265,11 +264,7 @@
+@@ -295,11 +294,7 @@
  
  	router.Get("/consoles/*filepath", readyf(h.consoles))
  
@@ -34,7 +34,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", route.FileServe(o.UserAssetsPath))
-@@ -821,7 +816,7 @@
+@@ -854,7 +849,7 @@
  	var tmpl string
  
  	appendf := func(name string) error {
@@ -70,7 +70,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
 +++ b/web/ui/templates/_base.html
 @@ -5,10 +5,10 @@
      <meta name="robots" content="noindex,nofollow">
-     <title>Prometheus Time Series Collection and Processing Server</title>
+     <title>{{ pageTitle }}</title>
      <link rel="shortcut icon" href="{{ pathPrefix }}/static/img/favicon.ico?v={{ buildVersion }}">
 -    <script src="{{ pathPrefix }}/static/vendor/js/jquery.min.js?v={{ buildVersion }}"></script>
 -    <script src="{{ pathPrefix }}/static/vendor/bootstrap-3.3.1/js/bootstrap.min.js?v={{ buildVersion }}"></script>
@@ -84,7 +84,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <script>
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -135,6 +135,9 @@
+@@ -136,6 +136,9 @@
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  
