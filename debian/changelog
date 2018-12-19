@@ -1,3 +1,11 @@
+prometheus (2.6.0+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * Refresh patches.
+  * Update version requirement for tsdb and common.
+
+ -- Martín Ferrari <tincho@debian.org>  Wed, 19 Dec 2018 15:51:39 +0000
+
 prometheus (2.5.0+ds-2) unstable; urgency=medium
 
   [ Daniel Swarbrick ]
