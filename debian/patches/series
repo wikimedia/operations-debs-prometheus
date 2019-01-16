@@ -1,4 +1,5 @@
 00-autorest.patch
+00-add-vendor-k8s.patch
 01-Do_not_embed_blobs.patch
 02-Default_settings.patch
 04-Fix-build-with-azure-go-autorest-8.0.0.patch
