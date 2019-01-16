@@ -1,3 +1,10 @@
+prometheus (2.7.1+ds-3+k8s) stretch-wikimedia; urgency=medium
+
+  * Rebuild with k8s support.
+  * Bring back k8s vendor deps in debian/patches/00-add-vendor-k8s.patch
+
+ -- Filippo Giunchedi <filippo@debian.org>  Mon, 11 Feb 2019 10:51:29 +0100
+
 prometheus (2.7.1+ds-3) unstable; urgency=medium
 
   * Missed one use of port :9090.
