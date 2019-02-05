@@ -9,7 +9,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
 
 --- a/discovery/azure/azure.go
 +++ b/discovery/azure/azure.go
-@@ -331,25 +331,21 @@
+@@ -368,24 +368,20 @@
  					return
  				}
  
@@ -24,7 +24,6 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
 -				if networkInterface.Properties.Primary == nil {
 +				if networkInterface.Primary == nil {
  					level.Debug(d.logger).Log("msg", "Skipping deallocated virtual machine", "machine", vm.Name)
- 					ch <- target{}
  					return
  				}
  
@@ -41,7 +40,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  							labels[model.AddressLabel] = model.LabelValue(address)
  							ch <- target{labelSet: labels, err: nil}
  							return
-@@ -456,7 +452,7 @@
+@@ -494,7 +490,7 @@
  }
  
  func mapFromVM(vm compute.VirtualMachine) virtualMachine {
@@ -50,7 +49,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -471,12 +467,12 @@
+@@ -509,12 +505,12 @@
  		OsType:         osType,
  		ScaleSet:       "",
  		Tags:           tags,
@@ -65,7 +64,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -491,14 +487,15 @@
+@@ -529,14 +525,15 @@
  		OsType:         osType,
  		ScaleSet:       scaleSetName,
  		Tags:           tags,

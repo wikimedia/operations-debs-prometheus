@@ -2,7 +2,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  files installed on disk.
 --- a/web/web.go
 +++ b/web/web.go
-@@ -63,7 +63,6 @@
+@@ -64,7 +64,6 @@
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
  	api_v2 "github.com/prometheus/prometheus/web/api/v2"
@@ -21,7 +21,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	UserAssetsPath             string
  	ConsoleTemplatesPath       string
  	ConsoleLibrariesPath       string
-@@ -295,11 +294,7 @@
+@@ -296,11 +295,7 @@
  
  	router.Get("/consoles/*filepath", readyf(h.consoles))
  
@@ -34,7 +34,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", route.FileServe(o.UserAssetsPath))
-@@ -854,7 +849,7 @@
+@@ -845,7 +840,7 @@
  	var tmpl string
  
  	appendf := func(name string) error {
@@ -84,7 +84,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <script>
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -136,6 +136,9 @@
+@@ -154,6 +154,9 @@
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  

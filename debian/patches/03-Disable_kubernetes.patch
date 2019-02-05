@@ -1,7 +1,7 @@
 Description: Disable kubernetes SD, until dependencies are more reasonable.
 --- a/config/config.go
 +++ b/config/config.go
-@@ -166,12 +166,6 @@
+@@ -159,12 +159,6 @@
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *sd_config.ServiceDiscoveryConfig) {
@@ -180,21 +180,21 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  import (
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -34,7 +34,6 @@
+@@ -43,7 +43,6 @@
+ 	"github.com/prometheus/common/version"
+ 	prom_runtime "github.com/prometheus/prometheus/pkg/runtime"
+ 	"gopkg.in/alecthomas/kingpin.v2"
+-	"k8s.io/klog"
  
- 	"github.com/go-kit/kit/log"
- 	"github.com/go-kit/kit/log/level"
--	"github.com/golang/glog"
- 	"github.com/oklog/oklog/pkg/group"
- 	"github.com/pkg/errors"
- 	"github.com/prometheus/client_golang/prometheus"
-@@ -239,10 +238,6 @@
- 
- 	logger := promlog.New(&cfg.promlogConfig)
+ 	"github.com/mwitkow/go-conntrack"
+ 	"github.com/prometheus/common/promlog"
+@@ -298,10 +297,6 @@
+ 		level.Warn(logger).Log("deprecation_notice", `"storage.tsdb.retention" flag is deprecated use "storage.tsdb.retention.time" instead.`)
+ 	}
  
 -	// Above level 6, the k8s client would log bearer tokens in clear-text.
--	glog.ClampLevel(6)
--	glog.SetLogger(log.With(logger, "component", "k8s_client_runtime"))
+-	klog.ClampLevel(6)
+-	klog.SetLogger(log.With(logger, "component", "k8s_client_runtime"))
 -
  	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
  	level.Info(logger).Log("build_context", version.BuildContext())
@@ -240,7 +240,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -362,11 +361,6 @@
+@@ -366,11 +365,6 @@
  			return marathon.NewDiscovery(*c, log.With(m.logger, "discovery", "marathon"))
  		})
  	}
@@ -254,7 +254,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			return zookeeper.NewServersetDiscovery(c, log.With(m.logger, "discovery", "zookeeper"))
 --- a/config/config_test.go
 +++ b/config/config_test.go
-@@ -28,7 +28,6 @@
+@@ -30,7 +30,6 @@
  	"github.com/prometheus/prometheus/discovery/dns"
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
@@ -262,7 +262,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
-@@ -326,52 +325,6 @@
+@@ -328,52 +327,6 @@
  			},
  		},
  		{
@@ -315,7 +315,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -613,7 +566,7 @@
+@@ -616,7 +569,7 @@
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
@@ -324,7 +324,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -698,18 +651,6 @@
+@@ -701,18 +654,6 @@
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -343,9 +343,9 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -871,8 +812,3 @@
- 			"Expected %q to be %v", test.str, test.valid)
- 	}
+@@ -851,8 +792,3 @@
+ 	exp.original = "global:\n"
+ 	testutil.Equals(t, exp, *c)
  }
 -
 -func kubernetesSDHostURL() config_util.URL {

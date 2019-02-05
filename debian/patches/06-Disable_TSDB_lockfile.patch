@@ -5,9 +5,9 @@ Description: Stop creating a tsdb lockfile by default.
 
 --- a/cmd/prometheus/main.go
 +++ b/cmd/prometheus/main.go
-@@ -169,8 +169,8 @@
- 	a.Flag("storage.tsdb.retention", "How long to retain samples in storage.").
- 		Default("15d").SetValue(&cfg.tsdb.Retention)
+@@ -197,8 +197,8 @@
+ 	a.Flag("storage.tsdb.retention.size", "[EXPERIMENTAL] Maximum number of bytes that can be stored for blocks. Units supported: KB, MB, GB, TB, PB. This flag is experimental and can be changed in future releases.").
+ 		Default("0").BytesVar(&cfg.tsdb.MaxBytes)
  
 -	a.Flag("storage.tsdb.no-lockfile", "Do not create lockfile in data directory.").
 -		Default("false").BoolVar(&cfg.tsdb.NoLockfile)
@@ -18,9 +18,9 @@ Description: Stop creating a tsdb lockfile by default.
  		Default("1m").PlaceHolder("<duration>").SetValue(&cfg.RemoteFlushDeadline)
 --- a/storage/tsdb/tsdb.go
 +++ b/storage/tsdb/tsdb.go
-@@ -120,8 +120,8 @@
- 	// Duration for how long to retain data.
- 	Retention model.Duration
+@@ -124,8 +124,8 @@
+ 	// Maximum number of bytes to be retained.
+ 	MaxBytes units.Base2Bytes
  
 -	// Disable creation and consideration of lockfile.
 -	NoLockfile bool
@@ -29,9 +29,9 @@ Description: Stop creating a tsdb lockfile by default.
  }
  
  var (
-@@ -184,7 +184,7 @@
- 		WALFlushInterval:  10 * time.Second,
- 		RetentionDuration: uint64(time.Duration(opts.Retention).Seconds() * 1000),
+@@ -189,7 +189,7 @@
+ 		RetentionDuration: uint64(time.Duration(opts.RetentionDuration).Seconds() * 1000),
+ 		MaxBytes:          int64(opts.MaxBytes),
  		BlockRanges:       rngs,
 -		NoLockfile:        opts.NoLockfile,
 +		NoLockfile:        !opts.UseLockfile,

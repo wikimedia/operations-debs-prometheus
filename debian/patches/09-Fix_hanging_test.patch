@@ -7,7 +7,7 @@ Last-Update: 2018-10-20
 
 --- a/cmd/prometheus/main_test.go
 +++ b/cmd/prometheus/main_test.go
-@@ -82,7 +82,7 @@
+@@ -87,7 +87,7 @@
  			select {
  			case stoppedErr = <-done:
  				break Loop
