@@ -1,3 +1,10 @@
+prometheus (2.7.1+ds-1) UNRELEASED; urgency=medium
+
+  * New upstream release. Includes fix for CVE-2019-3826 (Stored DOM cross-site
+    scripting (XSS) attack via crafted URL). Closes: #921615
+
+ -- Martín Ferrari <tincho@debian.org>  Tue, 05 Feb 2019 04:22:16 +0000
+
 prometheus (2.6.0+ds-1) unstable; urgency=medium
 
   * New upstream release.
