@@ -42,6 +42,20 @@ endif
 
 WHATIS1 := "prometheus \\- The Prometheus monitoring server"
 WHATIS2 := "promtool \\- Tooling for the Prometheus monitoring system"
+PROMPB := $(CURDIR)/build/src/github.com/prometheus/prometheus/prompb
+
+override_dh_auto_configure:
+	dh_auto_configure -- $(BUILDFLAGS)
+	protoc --gogofast_out=plugins=grpc:$(PROMPB) \
+            -I$(PROMPB) \
+            -I$(BUILDDIR)/src/github.com/gogo/protobuf \
+            -I$(BUILDDIR)/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+            $(PROMPB)/*.proto
+	protoc --grpc-gateway_out=logtostderr=true:$(PROMPB) \
+            -I$(PROMPB) \
+            -I$(BUILDDIR)/src/github.com/gogo/protobuf \
+            -I$(BUILDDIR)/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+            $(PROMPB)/rpc.proto
 
 override_dh_auto_build:
 	dh_auto_build -- $(BUILDFLAGS)

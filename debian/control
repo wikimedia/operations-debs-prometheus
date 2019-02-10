@@ -6,6 +6,7 @@ Testsuite: autopkgtest-pkg-go
 Priority: optional
 Build-Depends: debhelper (>= 11),
                dh-golang (>= 1.17~),
+               gogoprotobuf,
                golang-github-aws-aws-sdk-go-dev (>= 1.4),
                golang-github-azure-azure-sdk-for-go-dev (>= 10),
                golang-github-azure-go-autorest-dev (>= 8),
@@ -39,6 +40,7 @@ Build-Depends: debhelper (>= 11),
                golang-google-grpc-dev,
                golang-gopkg-alecthomas-kingpin.v2-dev,
                golang-gopkg-yaml.v2-dev,
+               golang-grpc-gateway,
                po-debconf,
 Standards-Version: 4.3.0
 Vcs-Browser: https://salsa.debian.org/go-team/packages/prometheus
