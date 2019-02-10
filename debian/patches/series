@@ -3,7 +3,7 @@
 02-Default_settings.patch
 03-Disable_kubernetes.patch
 04-Fix-build-with-azure-go-autorest-8.0.0.patch
-05-Fix-MainTest.patch
+05-Fix-test-prom-invocations.patch
 06-Disable_TSDB_lockfile.patch
 07-Disable_fsnotify_mips64el.patch
 08-Disable_pprof.patch
