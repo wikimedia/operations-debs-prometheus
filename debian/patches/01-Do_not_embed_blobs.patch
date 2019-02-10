@@ -1,8 +1,10 @@
 Description: Avoid embedding blobs into the prometheus binary, instead use
  files installed on disk.
---- a/web/web.go
-+++ b/web/web.go
-@@ -64,7 +64,6 @@
+Index: prometheus/web/web.go
+===================================================================
+--- prometheus.orig/web/web.go
++++ prometheus/web/web.go
+@@ -64,7 +64,6 @@ import (
  	"github.com/prometheus/prometheus/util/httputil"
  	api_v1 "github.com/prometheus/prometheus/web/api/v1"
  	api_v2 "github.com/prometheus/prometheus/web/api/v2"
@@ -10,7 +12,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  )
  
  var localhostRepresentations = []string{"127.0.0.1", "localhost"}
-@@ -178,8 +177,8 @@
+@@ -178,8 +177,8 @@ type Options struct {
  	ReadTimeout                time.Duration
  	MaxConnections             int
  	ExternalURL                *url.URL
@@ -21,7 +23,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	UserAssetsPath             string
  	ConsoleTemplatesPath       string
  	ConsoleLibrariesPath       string
-@@ -296,11 +295,7 @@
+@@ -296,11 +295,7 @@ func New(logger log.Logger, o *Options)
  
  	router.Get("/consoles/*filepath", readyf(h.consoles))
  
@@ -34,7 +36,7 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  	if o.UserAssetsPath != "" {
  		router.Get("/user/*filepath", route.FileServe(o.UserAssetsPath))
-@@ -845,7 +840,7 @@
+@@ -845,7 +840,7 @@ func (h *Handler) getTemplate(name strin
  	var tmpl string
  
  	appendf := func(name string) error {
@@ -43,8 +45,10 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  		if err != nil {
  			return err
  		}
---- a/console_libraries/prom.lib
-+++ b/console_libraries/prom.lib
+Index: prometheus/console_libraries/prom.lib
+===================================================================
+--- prometheus.orig/console_libraries/prom.lib
++++ prometheus/console_libraries/prom.lib
 @@ -1,14 +1,13 @@
  {{/* vim: set ft=html: */}}
  {{/* Load Prometheus console library JS/CSS. Should go in <head> */}}
@@ -66,8 +70,10 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
  <script>
  var PATH_PREFIX = "{{ pathPrefix }}";
---- a/web/ui/templates/_base.html
-+++ b/web/ui/templates/_base.html
+Index: prometheus/web/ui/templates/_base.html
+===================================================================
+--- prometheus.orig/web/ui/templates/_base.html
++++ prometheus/web/ui/templates/_base.html
 @@ -5,10 +5,10 @@
      <meta name="robots" content="noindex,nofollow">
      <title>{{ pageTitle }}</title>
@@ -82,9 +88,11 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/prometheus.css?v={{ buildVersion }}">
  
      <script>
---- a/cmd/prometheus/main.go
-+++ b/cmd/prometheus/main.go
-@@ -154,6 +154,9 @@
+Index: prometheus/cmd/prometheus/main.go
+===================================================================
+--- prometheus.orig/cmd/prometheus/main.go
++++ prometheus/cmd/prometheus/main.go
+@@ -154,6 +154,9 @@ func main() {
  		"Prefix for the internal routes of web endpoints. Defaults to path of --web.external-url.").
  		PlaceHolder("<path>").StringVar(&cfg.web.RoutePrefix)
  
@@ -94,8 +102,10 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  	a.Flag("web.user-assets", "Path to static asset directory, available at /user.").
  		PlaceHolder("<path>").StringVar(&cfg.web.UserAssetsPath)
  
---- a/web/ui/templates/graph.html
-+++ b/web/ui/templates/graph.html
+Index: prometheus/web/ui/templates/graph.html
+===================================================================
+--- prometheus.orig/web/ui/templates/graph.html
++++ prometheus/web/ui/templates/graph.html
 @@ -1,21 +1,20 @@
  {{define "head"}}
      <link type="text/css" rel="stylesheet" href="{{ pathPrefix }}/static/css/graph.css?v={{ buildVersion }}">
@@ -128,9 +138,11 @@ Description: Avoid embedding blobs into the prometheus binary, instead use
  
      <script src="{{ pathPrefix }}/static/js/graph/index.js?v={{ buildVersion }}"></script>
  
---- a/web/web_test.go
-+++ b/web/web_test.go
-@@ -113,6 +113,7 @@
+Index: prometheus/web/web_test.go
+===================================================================
+--- prometheus.orig/web/web_test.go
++++ prometheus/web/web_test.go
+@@ -113,6 +113,7 @@ func TestReadyAndHealthy(t *testing.T) {
  			Path:   "/",
  		},
  		Version: &PrometheusVersion{},

@@ -1,8 +1,10 @@
 Description: Cherry-picked patch from upstream to close RestoreForState querier.
  See https://github.com/prometheus/prometheus/pull/4922
---- a/rules/manager.go
-+++ b/rules/manager.go
-@@ -662,6 +662,7 @@
+Index: prometheus/rules/manager.go
+===================================================================
+--- prometheus.orig/rules/manager.go
++++ prometheus/rules/manager.go
+@@ -662,6 +662,7 @@ func (g *Group) RestoreForState(ts time.
  
  		alertRule.SetRestored(true)
  	}

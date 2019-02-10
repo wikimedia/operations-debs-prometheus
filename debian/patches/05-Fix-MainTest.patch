@@ -2,15 +2,7 @@ Description: Fix paths for debian build system, and avoid recompiling
  prometheus.
 --- a/cmd/prometheus/main_test.go
 +++ b/cmd/prometheus/main_test.go
-@@ -16,7 +16,6 @@
- import (
- 	"context"
- 	"flag"
--	"fmt"
- 	"net/http"
- 	"os"
- 	"os/exec"
-@@ -32,8 +31,8 @@
+@@ -32,8 +32,8 @@
  	"github.com/prometheus/prometheus/util/testutil"
  )
  
@@ -21,7 +13,7 @@ Description: Fix paths for debian build system, and avoid recompiling
  var promData = filepath.Join(os.TempDir(), "data")
  
  func TestMain(m *testing.M) {
-@@ -44,23 +43,16 @@
+@@ -44,23 +44,16 @@
  	// On linux with a global proxy the tests will fail as the go client(http,grpc) tries to connect through the proxy.
  	os.Setenv("no_proxy", "localhost,127.0.0.1,0.0.0.0,:")
  

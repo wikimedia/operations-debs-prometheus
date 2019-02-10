@@ -2,8 +2,10 @@ Description: fsnotify is broken on mips64el
  (https://github.com/fsnotify/fsnotify/issues/241). Until that bug is fixed,
  rely only on timeouts for file discovery on that platform, and disable the
  tests.
---- a/discovery/file/file_test.go
-+++ b/discovery/file/file_test.go
+Index: prometheus/discovery/file/file_test.go
+===================================================================
+--- prometheus.orig/discovery/file/file_test.go
++++ prometheus/discovery/file/file_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.

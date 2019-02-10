@@ -1,7 +1,9 @@
 Description: Disable kubernetes SD, until dependencies are more reasonable.
---- a/config/config.go
-+++ b/config/config.go
-@@ -159,12 +159,6 @@
+Index: prometheus/config/config.go
+===================================================================
+--- prometheus.orig/config/config.go
++++ prometheus/config/config.go
+@@ -159,12 +159,6 @@ func resolveFilepaths(baseDir string, cf
  		scfg.TLSConfig.KeyFile = join(scfg.TLSConfig.KeyFile)
  	}
  	sdPaths := func(cfg *sd_config.ServiceDiscoveryConfig) {
@@ -14,9 +16,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		for _, mcfg := range cfg.MarathonSDConfigs {
  			mcfg.AuthTokenFile = join(mcfg.AuthTokenFile)
  			mcfg.HTTPClientConfig.BearerTokenFile = join(mcfg.HTTPClientConfig.BearerTokenFile)
---- a/config/testdata/conf.good.yml
-+++ b/config/testdata/conf.good.yml
-@@ -148,25 +148,6 @@
+Index: prometheus/config/testdata/conf.good.yml
+===================================================================
+--- prometheus.orig/config/testdata/conf.good.yml
++++ prometheus/config/testdata/conf.good.yml
+@@ -148,25 +148,6 @@ scrape_configs:
  
    bearer_token: mysecret
  
@@ -42,8 +46,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  - job_name: service-marathon
    marathon_sd_configs:
    - servers:
---- a/discovery/kubernetes/endpoints.go
-+++ b/discovery/kubernetes/endpoints.go
+Index: prometheus/discovery/kubernetes/endpoints.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/endpoints.go
++++ prometheus/discovery/kubernetes/endpoints.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -53,8 +59,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/endpoints_test.go
-+++ b/discovery/kubernetes/endpoints_test.go
+Index: prometheus/discovery/kubernetes/endpoints_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/endpoints_test.go
++++ prometheus/discovery/kubernetes/endpoints_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -64,8 +72,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/kubernetes.go
-+++ b/discovery/kubernetes/kubernetes.go
+Index: prometheus/discovery/kubernetes/kubernetes.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/kubernetes.go
++++ prometheus/discovery/kubernetes/kubernetes.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -75,8 +85,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/node.go
-+++ b/discovery/kubernetes/node.go
+Index: prometheus/discovery/kubernetes/node.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/node.go
++++ prometheus/discovery/kubernetes/node.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -86,8 +98,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/node_test.go
-+++ b/discovery/kubernetes/node_test.go
+Index: prometheus/discovery/kubernetes/node_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/node_test.go
++++ prometheus/discovery/kubernetes/node_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -97,8 +111,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/pod.go
-+++ b/discovery/kubernetes/pod.go
+Index: prometheus/discovery/kubernetes/pod.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/pod.go
++++ prometheus/discovery/kubernetes/pod.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -108,8 +124,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/pod_test.go
-+++ b/discovery/kubernetes/pod_test.go
+Index: prometheus/discovery/kubernetes/pod_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/pod_test.go
++++ prometheus/discovery/kubernetes/pod_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -119,8 +137,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/service.go
-+++ b/discovery/kubernetes/service.go
+Index: prometheus/discovery/kubernetes/service.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/service.go
++++ prometheus/discovery/kubernetes/service.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -130,8 +150,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/service_test.go
-+++ b/discovery/kubernetes/service_test.go
+Index: prometheus/discovery/kubernetes/service_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/service_test.go
++++ prometheus/discovery/kubernetes/service_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -141,9 +163,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/cmd/promtool/main.go
-+++ b/cmd/promtool/main.go
-@@ -220,12 +220,6 @@
+Index: prometheus/cmd/promtool/main.go
+===================================================================
+--- prometheus.orig/cmd/promtool/main.go
++++ prometheus/cmd/promtool/main.go
+@@ -220,12 +220,6 @@ func checkConfig(filename string) ([]str
  			return nil, err
  		}
  
@@ -156,8 +180,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		for _, filesd := range scfg.ServiceDiscoveryConfig.FileSDConfigs {
  			for _, file := range filesd.Files {
  				files, err := filepath.Glob(file)
---- a/discovery/kubernetes/ingress.go
-+++ b/discovery/kubernetes/ingress.go
+Index: prometheus/discovery/kubernetes/ingress.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/ingress.go
++++ prometheus/discovery/kubernetes/ingress.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -167,8 +193,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/ingress_test.go
-+++ b/discovery/kubernetes/ingress_test.go
+Index: prometheus/discovery/kubernetes/ingress_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/ingress_test.go
++++ prometheus/discovery/kubernetes/ingress_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -178,9 +206,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/cmd/prometheus/main.go
-+++ b/cmd/prometheus/main.go
-@@ -43,7 +43,6 @@
+Index: prometheus/cmd/prometheus/main.go
+===================================================================
+--- prometheus.orig/cmd/prometheus/main.go
++++ prometheus/cmd/prometheus/main.go
+@@ -43,7 +43,6 @@ import (
  	"github.com/prometheus/common/version"
  	prom_runtime "github.com/prometheus/prometheus/pkg/runtime"
  	"gopkg.in/alecthomas/kingpin.v2"
@@ -188,7 +218,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  
  	"github.com/mwitkow/go-conntrack"
  	"github.com/prometheus/common/promlog"
-@@ -298,10 +297,6 @@
+@@ -298,10 +297,6 @@ func main() {
  		level.Warn(logger).Log("deprecation_notice", `"storage.tsdb.retention" flag is deprecated use "storage.tsdb.retention.time" instead.`)
  	}
  
@@ -199,9 +229,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	level.Info(logger).Log("msg", "Starting Prometheus", "version", version.Info())
  	level.Info(logger).Log("build_context", version.BuildContext())
  	level.Info(logger).Log("host_details", prom_runtime.Uname())
---- a/discovery/config/config.go
-+++ b/discovery/config/config.go
-@@ -22,7 +22,6 @@
+Index: prometheus/discovery/config/config.go
+===================================================================
+--- prometheus.orig/discovery/config/config.go
++++ prometheus/discovery/config/config.go
+@@ -22,7 +22,6 @@ import (
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -209,7 +241,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
-@@ -46,8 +45,6 @@
+@@ -46,8 +45,6 @@ type ServiceDiscoveryConfig struct {
  	NerveSDConfigs []*zookeeper.NerveSDConfig `yaml:"nerve_sd_configs,omitempty"`
  	// MarathonSDConfigs is a list of Marathon service discovery configurations.
  	MarathonSDConfigs []*marathon.SDConfig `yaml:"marathon_sd_configs,omitempty"`
@@ -218,7 +250,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	// List of GCE service discovery configurations.
  	GCESDConfigs []*gce.SDConfig `yaml:"gce_sd_configs,omitempty"`
  	// List of EC2 service discovery configurations.
-@@ -92,11 +89,6 @@
+@@ -92,11 +89,6 @@ func (c *ServiceDiscoveryConfig) Validat
  			return fmt.Errorf("empty or null section in gce_sd_configs")
  		}
  	}
@@ -230,9 +262,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	for _, cfg := range c.MarathonSDConfigs {
  		if cfg == nil {
  			return fmt.Errorf("empty or null section in marathon_sd_configs")
---- a/discovery/manager.go
-+++ b/discovery/manager.go
-@@ -33,7 +33,6 @@
+Index: prometheus/discovery/manager.go
+===================================================================
+--- prometheus.orig/discovery/manager.go
++++ prometheus/discovery/manager.go
+@@ -33,7 +33,6 @@ import (
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
  	"github.com/prometheus/prometheus/discovery/gce"
@@ -240,7 +274,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/triton"
-@@ -366,11 +365,6 @@
+@@ -366,11 +365,6 @@ func (m *Manager) registerProviders(cfg
  			return marathon.NewDiscovery(*c, log.With(m.logger, "discovery", "marathon"))
  		})
  	}
@@ -252,9 +286,11 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	for _, c := range cfg.ServersetSDConfigs {
  		add(c, func() (Discoverer, error) {
  			return zookeeper.NewServersetDiscovery(c, log.With(m.logger, "discovery", "zookeeper"))
---- a/config/config_test.go
-+++ b/config/config_test.go
-@@ -30,7 +30,6 @@
+Index: prometheus/config/config_test.go
+===================================================================
+--- prometheus.orig/config/config_test.go
++++ prometheus/config/config_test.go
+@@ -30,7 +30,6 @@ import (
  	"github.com/prometheus/prometheus/discovery/dns"
  	"github.com/prometheus/prometheus/discovery/ec2"
  	"github.com/prometheus/prometheus/discovery/file"
@@ -262,7 +298,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	"github.com/prometheus/prometheus/discovery/marathon"
  	"github.com/prometheus/prometheus/discovery/openstack"
  	"github.com/prometheus/prometheus/discovery/targetgroup"
-@@ -328,52 +327,6 @@
+@@ -328,52 +327,6 @@ var expectedConf = &Config{
  			},
  		},
  		{
@@ -315,7 +351,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  			JobName: "service-marathon",
  
  			ScrapeInterval: model.Duration(15 * time.Second),
-@@ -616,7 +569,7 @@
+@@ -615,7 +568,7 @@ func TestElideSecrets(t *testing.T) {
  	yamlConfig := string(config)
  
  	matches := secretRe.FindAllStringIndex(yamlConfig, -1)
@@ -324,7 +360,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  	testutil.Assert(t, !strings.Contains(yamlConfig, "mysecret"),
  		"yaml marshal reveals authentication credentials.")
  }
-@@ -701,18 +654,6 @@
+@@ -700,18 +653,6 @@ var expectedErrors = []struct {
  		filename: "bearertoken_basicauth.bad.yml",
  		errMsg:   "at most one of basic_auth, bearer_token & bearer_token_file must be configured",
  	}, {
@@ -343,7 +379,7 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  		filename: "marathon_no_servers.bad.yml",
  		errMsg:   "marathon_sd: must contain at least one Marathon server",
  	}, {
-@@ -851,8 +792,3 @@
+@@ -846,8 +787,3 @@ func TestEmptyGlobalBlock(t *testing.T)
  	exp.original = "global:\n"
  	testutil.Equals(t, exp, *c)
  }
@@ -352,8 +388,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
 -	tURL, _ := url.Parse("https://localhost:1234")
 -	return config_util.URL{URL: tURL}
 -}
---- a/discovery/kubernetes/kubernetes_test.go
-+++ b/discovery/kubernetes/kubernetes_test.go
+Index: prometheus/discovery/kubernetes/kubernetes_test.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/kubernetes_test.go
++++ prometheus/discovery/kubernetes/kubernetes_test.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
@@ -363,8 +401,10 @@ Description: Disable kubernetes SD, until dependencies are more reasonable.
  package kubernetes
  
  import (
---- a/discovery/kubernetes/client_metrics.go
-+++ b/discovery/kubernetes/client_metrics.go
+Index: prometheus/discovery/kubernetes/client_metrics.go
+===================================================================
+--- prometheus.orig/discovery/kubernetes/client_metrics.go
++++ prometheus/discovery/kubernetes/client_metrics.go
 @@ -11,6 +11,8 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.

@@ -9,7 +9,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
 
 --- a/discovery/azure/azure.go
 +++ b/discovery/azure/azure.go
-@@ -368,24 +368,20 @@
+@@ -340,24 +340,20 @@
  					return
  				}
  
@@ -40,7 +40,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  							labels[model.AddressLabel] = model.LabelValue(address)
  							ch <- target{labelSet: labels, err: nil}
  							return
-@@ -494,7 +490,7 @@
+@@ -466,7 +462,7 @@
  }
  
  func mapFromVM(vm compute.VirtualMachine) virtualMachine {
@@ -49,7 +49,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -509,12 +505,12 @@
+@@ -481,12 +477,12 @@
  		OsType:         osType,
  		ScaleSet:       "",
  		Tags:           tags,
@@ -64,7 +64,7 @@ Signed-off-by: Shengjing Zhu <i@zhsj.me>
  	tags := map[string]*string{}
  
  	if vm.Tags != nil {
-@@ -529,14 +525,15 @@
+@@ -501,14 +497,15 @@
  		OsType:         osType,
  		ScaleSet:       scaleSetName,
  		Tags:           tags,

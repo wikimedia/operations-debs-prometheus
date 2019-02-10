@@ -5,9 +5,11 @@ Forwarded: https://github.com/prometheus/prometheus/issues/4587
 Author: Martín Ferrari <tincho@debian.org>
 Last-Update: 2018-10-20
 
---- a/cmd/prometheus/main_test.go
-+++ b/cmd/prometheus/main_test.go
-@@ -87,7 +87,7 @@
+Index: prometheus/cmd/prometheus/main_test.go
+===================================================================
+--- prometheus.orig/cmd/prometheus/main_test.go
++++ prometheus/cmd/prometheus/main_test.go
+@@ -87,7 +87,7 @@ Loop:
  			select {
  			case stoppedErr = <-done:
  				break Loop

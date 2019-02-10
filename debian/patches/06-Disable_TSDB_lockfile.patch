@@ -3,9 +3,11 @@ Description: Stop creating a tsdb lockfile by default.
  default is not to create a lockfile, while still allowing people to request
  the feature.
 
---- a/cmd/prometheus/main.go
-+++ b/cmd/prometheus/main.go
-@@ -197,8 +197,8 @@
+Index: prometheus/cmd/prometheus/main.go
+===================================================================
+--- prometheus.orig/cmd/prometheus/main.go
++++ prometheus/cmd/prometheus/main.go
+@@ -197,8 +197,8 @@ func main() {
  	a.Flag("storage.tsdb.retention.size", "[EXPERIMENTAL] Maximum number of bytes that can be stored for blocks. Units supported: KB, MB, GB, TB, PB. This flag is experimental and can be changed in future releases.").
  		Default("0").BytesVar(&cfg.tsdb.MaxBytes)
  
@@ -16,9 +18,11 @@ Description: Stop creating a tsdb lockfile by default.
  
  	a.Flag("storage.remote.flush-deadline", "How long to wait flushing sample on shutdown or config reload.").
  		Default("1m").PlaceHolder("<duration>").SetValue(&cfg.RemoteFlushDeadline)
---- a/storage/tsdb/tsdb.go
-+++ b/storage/tsdb/tsdb.go
-@@ -124,8 +124,8 @@
+Index: prometheus/storage/tsdb/tsdb.go
+===================================================================
+--- prometheus.orig/storage/tsdb/tsdb.go
++++ prometheus/storage/tsdb/tsdb.go
+@@ -124,8 +124,8 @@ type Options struct {
  	// Maximum number of bytes to be retained.
  	MaxBytes units.Base2Bytes
  
@@ -29,7 +33,7 @@ Description: Stop creating a tsdb lockfile by default.
  }
  
  var (
-@@ -189,7 +189,7 @@
+@@ -189,7 +189,7 @@ func Open(path string, l log.Logger, r p
  		RetentionDuration: uint64(time.Duration(opts.RetentionDuration).Seconds() * 1000),
  		MaxBytes:          int64(opts.MaxBytes),
  		BlockRanges:       rngs,
