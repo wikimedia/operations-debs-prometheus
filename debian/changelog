@@ -1,3 +1,9 @@
+prometheus (2.7.1+ds-2) unstable; urgency=medium
+
+  * Use a lower port for tests, as most build daemons had 64999 in use.
+
+ -- Martín Ferrari <tincho@debian.org>  Sun, 10 Feb 2019 16:05:46 +0000
+
 prometheus (2.7.1+ds-1) unstable; urgency=medium
 
   * New upstream release. Includes fix for CVE-2019-3826 (Stored DOM cross-site
