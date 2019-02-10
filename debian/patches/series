@@ -1,3 +1,4 @@
+00-autorest.patch
 01-Do_not_embed_blobs.patch
 02-Default_settings.patch
 03-Disable_kubernetes.patch

@@ -1,0 +1,222 @@
+Description: Revert commit c7d83b2 as the feature it introduces pulls a new
+  version of a dependency. To be removed soon.
+
+Index: prometheus/config/config_test.go
+===================================================================
+--- prometheus.orig/config/config_test.go
++++ prometheus/config/config_test.go
+@@ -444,14 +444,13 @@ var expectedConf = &Config{
+ 			ServiceDiscoveryConfig: sd_config.ServiceDiscoveryConfig{
+ 				AzureSDConfigs: []*azure.SDConfig{
+ 					{
+-						Environment:          "AzurePublicCloud",
+-						SubscriptionID:       "11AAAA11-A11A-111A-A111-1111A1111A11",
+-						TenantID:             "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
+-						ClientID:             "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
+-						ClientSecret:         "mysecret",
+-						AuthenticationMethod: "OAuth",
+-						RefreshInterval:      model.Duration(5 * time.Minute),
+-						Port:                 9100,
++						Environment:     "AzurePublicCloud",
++						SubscriptionID:  "11AAAA11-A11A-111A-A111-1111A1111A11",
++						TenantID:        "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
++						ClientID:        "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
++						ClientSecret:    "mysecret",
++						RefreshInterval: model.Duration(5 * time.Minute),
++						Port:            9100,
+ 					},
+ 				},
+ 			},
+@@ -771,10 +770,6 @@ var expectedErrors = []struct {
+ 		errMsg:   "azure SD configuration requires a tenant_id",
+ 	},
+ 	{
+-		filename: "azure_authentication_method.bad.yml",
+-		errMsg:   "unknown authentication_type \"invalid\". Supported types are \"OAuth\" or \"ManagedIdentity\"",
+-	},
+-	{
+ 		filename: "empty_scrape_config.bad.yml",
+ 		errMsg:   "empty or null scrape config section",
+ 	},
+Index: prometheus/config/testdata/azure_authentication_method.bad.yml
+===================================================================
+--- prometheus.orig/config/testdata/azure_authentication_method.bad.yml
++++ /dev/null
+@@ -1,4 +0,0 @@
+-scrape_configs:
+-- azure_sd_configs:
+-  - authentication_method: invalid
+-    subscription_id: 11AAAA11-A11A-111A-A111-1111A1111A11
+Index: prometheus/config/testdata/conf.good.yml
+===================================================================
+--- prometheus.orig/config/testdata/conf.good.yml
++++ prometheus/config/testdata/conf.good.yml
+@@ -196,7 +196,6 @@ scrape_configs:
+ - job_name: service-azure
+   azure_sd_configs:
+     - environment: AzurePublicCloud
+-      authentication_method: OAuth
+       subscription_id: 11AAAA11-A11A-111A-A111-1111A1111A11
+       tenant_id: BBBB222B-B2B2-2B22-B222-2BB2222BB2B2
+       client_id: 333333CC-3C33-3333-CCC3-33C3CCCCC33C
+Index: prometheus/discovery/azure/azure.go
+===================================================================
+--- prometheus.orig/discovery/azure/azure.go
++++ prometheus/discovery/azure/azure.go
+@@ -27,11 +27,13 @@ import (
+ 	"github.com/Azure/go-autorest/autorest"
+ 	"github.com/Azure/go-autorest/autorest/adal"
+ 	"github.com/Azure/go-autorest/autorest/azure"
++
+ 	"github.com/go-kit/kit/log"
+ 	"github.com/go-kit/kit/log/level"
+ 	"github.com/prometheus/client_golang/prometheus"
+ 	config_util "github.com/prometheus/common/config"
+ 	"github.com/prometheus/common/model"
++
+ 	"github.com/prometheus/prometheus/discovery/targetgroup"
+ 	"github.com/prometheus/prometheus/util/strutil"
+ )
+@@ -48,9 +50,6 @@ const (
+ 	azureLabelMachinePrivateIP     = azureLabel + "machine_private_ip"
+ 	azureLabelMachineTag           = azureLabel + "machine_tag_"
+ 	azureLabelMachineScaleSet      = azureLabel + "machine_scale_set"
+-
+-	authMethodOAuth           = "OAuth"
+-	authMethodManagedIdentity = "ManagedIdentity"
+ )
+ 
+ var (
+@@ -67,23 +66,21 @@ var (
+ 
+ 	// DefaultSDConfig is the default Azure SD configuration.
+ 	DefaultSDConfig = SDConfig{
+-		Port:                 80,
+-		RefreshInterval:      model.Duration(5 * time.Minute),
+-		Environment:          azure.PublicCloud.Name,
+-		AuthenticationMethod: authMethodOAuth,
++		Port:            80,
++		RefreshInterval: model.Duration(5 * time.Minute),
++		Environment:     azure.PublicCloud.Name,
+ 	}
+ )
+ 
+ // SDConfig is the configuration for Azure based service discovery.
+ type SDConfig struct {
+-	Environment          string             `yaml:"environment,omitempty"`
+-	Port                 int                `yaml:"port"`
+-	SubscriptionID       string             `yaml:"subscription_id"`
+-	TenantID             string             `yaml:"tenant_id,omitempty"`
+-	ClientID             string             `yaml:"client_id,omitempty"`
+-	ClientSecret         config_util.Secret `yaml:"client_secret,omitempty"`
+-	RefreshInterval      model.Duration     `yaml:"refresh_interval,omitempty"`
+-	AuthenticationMethod string             `yaml:"authentication_method,omitempty"`
++	Environment     string             `yaml:"environment,omitempty"`
++	Port            int                `yaml:"port"`
++	SubscriptionID  string             `yaml:"subscription_id"`
++	TenantID        string             `yaml:"tenant_id,omitempty"`
++	ClientID        string             `yaml:"client_id,omitempty"`
++	ClientSecret    config_util.Secret `yaml:"client_secret,omitempty"`
++	RefreshInterval model.Duration     `yaml:"refresh_interval,omitempty"`
+ }
+ 
+ func validateAuthParam(param, name string) error {
+@@ -105,23 +102,15 @@ func (c *SDConfig) UnmarshalYAML(unmarsh
+ 	if err = validateAuthParam(c.SubscriptionID, "subscription_id"); err != nil {
+ 		return err
+ 	}
+-
+-	if c.AuthenticationMethod == authMethodOAuth {
+-		if err = validateAuthParam(c.TenantID, "tenant_id"); err != nil {
+-			return err
+-		}
+-		if err = validateAuthParam(c.ClientID, "client_id"); err != nil {
+-			return err
+-		}
+-		if err = validateAuthParam(string(c.ClientSecret), "client_secret"); err != nil {
+-			return err
+-		}
++	if err = validateAuthParam(c.TenantID, "tenant_id"); err != nil {
++		return err
+ 	}
+-
+-	if c.AuthenticationMethod != authMethodOAuth && c.AuthenticationMethod != authMethodManagedIdentity {
+-		return fmt.Errorf("unknown authentication_type %q. Supported types are %q or %q", c.AuthenticationMethod, authMethodOAuth, authMethodManagedIdentity)
++	if err = validateAuthParam(c.ClientID, "client_id"); err != nil {
++		return err
++	}
++	if err = validateAuthParam(string(c.ClientSecret), "client_secret"); err != nil {
++		return err
+ 	}
+-
+ 	return nil
+ }
+ 
+@@ -201,30 +190,13 @@ func createAzureClient(cfg SDConfig) (az
+ 	resourceManagerEndpoint := env.ResourceManagerEndpoint
+ 
+ 	var c azureClient
+-
+-	var spt *adal.ServicePrincipalToken
+-
+-	switch cfg.AuthenticationMethod {
+-	case authMethodManagedIdentity:
+-		msiEndpoint, err := adal.GetMSIVMEndpoint()
+-		if err != nil {
+-			return azureClient{}, err
+-		}
+-
+-		spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resourceManagerEndpoint)
+-		if err != nil {
+-			return azureClient{}, err
+-		}
+-	case authMethodOAuth:
+-		oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, cfg.TenantID)
+-		if err != nil {
+-			return azureClient{}, err
+-		}
+-
+-		spt, err = adal.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), resourceManagerEndpoint)
+-		if err != nil {
+-			return azureClient{}, err
+-		}
++	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, cfg.TenantID)
++	if err != nil {
++		return azureClient{}, err
++	}
++	spt, err := adal.NewServicePrincipalToken(*oauthConfig, cfg.ClientID, string(cfg.ClientSecret), resourceManagerEndpoint)
++	if err != nil {
++		return azureClient{}, err
+ 	}
+ 
+ 	bearerAuthorizer := autorest.NewBearerAuthorizer(spt)
+Index: prometheus/docs/configuration/configuration.md
+===================================================================
+--- prometheus.orig/docs/configuration/configuration.md
++++ prometheus/docs/configuration/configuration.md
+@@ -276,18 +276,14 @@ See below for the configuration options
+ # The information to access the Azure API.
+ # The Azure environment.
+ [ environment: <string> | default = AzurePublicCloud ]
+-
+-# The authentication method, either OAuth or ManagedIdentity.
+-# See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview
+-[ authentication_method: <string> | default = OAuth]
+-# The subscription ID. Always required.
++# The subscription ID.
+ subscription_id: <string>
+-# Optional tenant ID. Only required with authentication_method OAuth.
+-[ tenant_id: <string> ]
+-# Optional client ID. Only required with authentication_method OAuth.
+-[ client_id: <string> ]
+-# Optional client secret. Only required with authentication_method OAuth.
+-[ client_secret: <secret> ]
++# The tenant ID.
++tenant_id: <string>
++# The client ID.
++client_id: <string>
++# The client secret.
++client_secret: <secret>
+ 
+ # Refresh interval to re-read the instance list.
+ [ refresh_interval: <duration> | default = 300s ]
