@@ -1,8 +1,8 @@
-prometheus (2.7.1+ds-3) UNRELEASED; urgency=medium
+prometheus (2.7.1+ds-3) unstable; urgency=medium
 
   * Missed one use of port :9090.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 10 Feb 2019 18:09:55 +0000
+ -- Martín Ferrari <tincho@debian.org>  Sun, 10 Feb 2019 18:10:02 +0000
 
 prometheus (2.7.1+ds-2) unstable; urgency=medium
 
