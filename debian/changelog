@@ -2,8 +2,15 @@ prometheus (2.7.1+ds-1) UNRELEASED; urgency=medium
 
   * New upstream release. Includes fix for CVE-2019-3826 (Stored DOM cross-site
     scripting (XSS) attack via crafted URL). Closes: #921615
+  * Refresh patches.
+  * debian/control: Update tsdb version dependency.
+  * Update Standards-Version with no changes.
+  * Revert commit c7d83b2 as the feature it introduces pulls a new version
+    of a dependency. To be removed soon.
+  * debian/rules: Regenerate protobuf files at buildtime.
+  * Use a different port for tests that run prometheus.
 
- -- Martín Ferrari <tincho@debian.org>  Tue, 05 Feb 2019 04:22:16 +0000
+ -- Martín Ferrari <tincho@debian.org>  Sun, 10 Feb 2019 04:36:26 +0000
 
 prometheus (2.6.0+ds-1) unstable; urgency=medium
 
