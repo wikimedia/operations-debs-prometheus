@@ -50,6 +50,15 @@ Index: prometheus/cmd/prometheus/main_test.go
  	err := prom.Start()
  	if err != nil {
  		t.Errorf("execution error: %v", err)
+@@ -89,7 +82,7 @@ func TestStartupInterrupt(t *testing.T)
+ Loop:
+ 	for x := 0; x < 10; x++ {
+ 		// error=nil means prometheus has started so can send the interrupt signal and wait for the grace shutdown.
+-		if _, err := http.Get("http://localhost:9090/graph"); err == nil {
++		if _, err := http.Get("http://localhost:9099/graph"); err == nil {
+ 			startedOk = true
+ 			prom.Process.Signal(os.Interrupt)
+ 			select {
 @@ -259,7 +252,7 @@ func TestWALSegmentSizeBounds(t *testing
  	}
  
