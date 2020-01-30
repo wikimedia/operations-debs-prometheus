@@ -1,3 +1,9 @@
+prometheus (2.7.1+ds-3+k8s+buster) buster-wikimedia; urgency=medium
+
+  * Rebuild for buster-wikimedia.
+
+ -- Arturo Borrero Gonzalez <aborrero@wikimedia.org>  Thu, 30 Jan 2020 12:43:33 +0100
+
 prometheus (2.7.1+ds-3+k8s) stretch-wikimedia; urgency=medium
 
   * Rebuild with k8s support.
